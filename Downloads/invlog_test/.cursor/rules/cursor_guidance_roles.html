@@ -1,0 +1,103 @@
+flutter pub get
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursor AI Guidance - Social Check-in App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #0073e6;
+        }
+        ul {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Cursor AI Guidance for Social Check-in App Development</h1>
+    
+    <h2>🔹 Project Overview</h2>
+    <p>This document serves as a structured guide for Cursor AI to develop a <strong>social check-in app</strong> where users can follow each other, check-in to restaurants, attach optional photos, and interact through likes & comments. The app must be flexible for future changes.</p>
+    
+    <h2>🔹 Backend Setup & Structure</h2>
+    <h3>✅ 1️⃣ Use Firebase for Simplicity</h3>
+    <ul>
+        <li>Authentication: <strong>Firebase Authentication</strong> (Google & Email login).</li>
+        <li>Database: <strong>Firestore</strong> for storing check-ins, users, and interactions.</li>
+        <li>Storage: <strong>Firebase Storage</strong> for handling profile pictures & check-in images.</li>
+        <li>Notifications: <strong>Firebase Cloud Messaging (FCM)</strong> for real-time updates.</li>
+    </ul>
+    
+    <h3>✅ 2️⃣ App Structure for Flexibility</h3>
+    <p>Ensure the app is structured in a way that allows easy feature expansion.</p>
+    <ul>
+        <li>Follow <strong>MVVM (Model-View-ViewModel)</strong> pattern.</li>
+        <li>Use <strong>Provider</strong> or <strong>Riverpod</strong> for state management.</li>
+        <li>Separate logic from UI for better maintainability.</li>
+    </ul>
+    
+    <h2>🔹 Frontend App Structure</h2>
+    <h3>✅ 3️⃣ Folder Structure</h3>
+    <pre>
+    /lib
+      ├── main.dart
+      ├── core/
+      │    ├── services/
+      │    ├── utils/
+      ├── models/
+      ├── providers/
+      ├── screens/
+      │    ├── auth/
+      │    ├── home/
+      │    ├── profile/
+      │    ├── checkin/
+      ├── widgets/
+    </pre>
+    
+    <h2>🔹 Key Features to Implement</h2>
+    
+    <h3>✅ 4️⃣ User Authentication</h3>
+    <ul>
+        <li>Allow Google & Email login.</li>
+        <li>Ensure secure session management.</li>
+    </ul>
+    
+    <h3>✅ 5️⃣ Check-Ins & Timeline</h3>
+    <ul>
+        <li>Users can check in with restaurant location (GPS-based).</li>
+        <li>Optional photo upload with Firestore integration.</li>
+        <li>Display timeline of friends’ check-ins.</li>
+    </ul>
+    
+    <h3>✅ 6️⃣ Likes & Comments</h3>
+    <ul>
+        <li>Users can like & comment on check-ins.</li>
+        <li>Firestore should handle real-time updates.</li>
+    </ul>
+    
+    <h3>✅ 7️⃣ Profile Management</h3>
+    <ul>
+        <li>Each user has a profile page.</li>
+        <li>Users can update bio & profile picture.</li>
+    </ul>
+    
+    <h3>✅ 8️⃣ Push Notifications</h3>
+    <ul>
+        <li>Notify users when they receive likes or comments.</li>
+    </ul>
+    
+    <h2>🚀 Next Steps</h2>
+    <ul>
+        <li>Guide Cursor AI step by step using these structured rules.</li>
+        <li>Start with Firebase setup & authentication.</li>
+        <li>Build the check-in feature and timeline before adding likes/comments.</li>
+    </ul>
+</body>
+</html>

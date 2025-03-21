@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Story - Social Check-in App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #0073e6;
+        }
+        ul {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📌 User Story for Swarm-like Check-in App Prototype</h1>
+    
+    <h2>📝 App Overview</h2>
+    <p>A social check-in app where users can follow friends, check-in to restaurants, and share their experiences with optional photos. Friends can like & comment on posts, and there’s a timeline showing recent check-ins.</p>
+    
+    <h2>👤 User Roles</h2>
+    <ul>
+        <li><strong>Registered User</strong> – Can check-in, follow friends, like & comment.</li>
+        <li><strong>Visitor (Unregistered)</strong> – Can browse public check-ins but cannot interact.</li>
+    </ul>
+    
+    <h2>🛠 Core Features & User Stories</h2>
+    
+    <h3>✅ 1️⃣ User Registration & Authentication</h3>
+    <p><strong>As a user,</strong> I want to sign up and log in using my email or Google account so that I can access my profile and interact with friends.</p>
+    <ul>
+        <li>Users can sign up using email & password or Google authentication.</li>
+        <li>Users can log in and log out securely.</li>
+        <li>Users have a profile page with a profile picture & bio.</li>
+    </ul>
+    
+    <h3>✅ 2️⃣ Follow & Unfollow Friends</h3>
+    <p><strong>As a user,</strong> I want to follow other users so that I can see their check-ins on my timeline.</p>
+    <ul>
+        <li>Users can search and follow/unfollow friends.</li>
+        <li>A "Followers" and "Following" count is displayed on profiles.</li>
+        <li>Users can see friends' check-ins in their timeline.</li>
+    </ul>
+    
+    <h3>✅ 3️⃣ Check-In to a Restaurant (With Optional Photo)</h3>
+    <p><strong>As a user,</strong> I want to check in at a restaurant so my friends can see where I have been.</p>
+    <ul>
+        <li>Users can select a restaurant from a list (fetched via location).</li>
+        <li>Users can attach an optional photo to their check-in.</li>
+        <li>Check-ins store GPS location, restaurant name, and timestamp.</li>
+        <li>Users can add a caption to their check-in.</li>
+    </ul>
+    
+    <h3>✅ 4️⃣ Timeline (Feed of Friends’ Check-Ins)</h3>
+    <p><strong>As a user,</strong> I want to see my friends' recent check-ins in a timeline so I can stay updated.</p>
+    <ul>
+        <li>Timeline displays recent check-ins from friends.</li>
+        <li>Each check-in shows restaurant name, user photo, timestamp.</li>
+        <li>Users can tap on a check-in to see details.</li>
+    </ul>
+    
+    <h3>✅ 5️⃣ Like & Comment on Check-Ins</h3>
+    <p><strong>As a user,</strong> I want to like and comment on my friends' check-ins so I can engage with their experiences.</p>
+    <ul>
+        <li>Users can like check-ins.</li>
+        <li>Users can comment on check-ins.</li>
+        <li>Notifications are sent when a friend likes/comments on a post.</li>
+    </ul>
+    
+    <h3>✅ 6️⃣ User Profile Screen</h3>
+    <p><strong>As a user,</strong> I want to see my profile with all my past check-ins.</p>
+    <ul>
+        <li>Users have a profile page with:</li>
+        <ul>
+            <li>Profile picture</li>
+            <li>Bio</li>
+            <li>List of past check-ins</li>
+        </ul>
+        <li>Users can edit profile details (name, bio, picture).</li>
+    </ul>
+    
+    <h2>🚀 Next Steps</h2>
+    <ul>
+        <li>Guide Cursor AI with these user stories.</li>
+        <li>Start with Firebase Authentication & Database (Firestore).</li>
+        <li>Build Check-in Functionality First.</li>
+        <li>Add Timeline, Likes, and Comments.</li>
+    </ul>
+</body>
+</html>

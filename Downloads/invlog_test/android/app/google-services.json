@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "83361214380",
+    "project_id": "invlog-test",
+    "storage_bucket": "invlog-test.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:83361214380:android:b5e9fe05d798332a5e9409",
+        "android_client_info": {
+          "package_name": "com.invlog.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9kIs-V0cgBBEQMtYIfcnQXOiK78vDW9I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
