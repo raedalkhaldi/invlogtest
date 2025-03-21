@@ -66,7 +66,7 @@ class AppTheme {
       ),
 
       // Text Theme
-      textTheme: TextTheme(
+      textTheme: const TextTheme(
         headlineLarge: TextStyle(
           color: _lightTextColor,
           fontSize: 28,
@@ -111,13 +111,13 @@ class AppTheme {
       ),
 
       // Icon Theme
-      iconTheme: IconThemeData(
+      iconTheme: const IconThemeData(
         color: _lightTextColor,
         size: 24,
       ),
 
       // Bottom Navigation Bar Theme
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: _lightSurfaceColor,
         selectedItemColor: _lightPrimaryColor,
         unselectedItemColor: _lightSecondaryTextColor,
@@ -139,13 +139,13 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: _lightPrimaryColor, width: 1),
+          borderSide: const BorderSide(color: _lightPrimaryColor, width: 1),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
 
       // Tab Bar Theme
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: const TabBarTheme(
         labelColor: _lightPrimaryColor,
         unselectedLabelColor: _lightSecondaryTextColor,
         indicatorSize: TabBarIndicatorSize.tab,
@@ -204,7 +204,7 @@ class AppTheme {
       ),
 
       // Text Theme
-      textTheme: TextTheme(
+      textTheme: const TextTheme(
         headlineLarge: TextStyle(
           color: _darkTextColor,
           fontSize: 28,
@@ -249,13 +249,13 @@ class AppTheme {
       ),
 
       // Icon Theme
-      iconTheme: IconThemeData(
+      iconTheme: const IconThemeData(
         color: _darkTextColor,
         size: 24,
       ),
 
       // Bottom Navigation Bar Theme
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: _darkSurfaceColor,
         selectedItemColor: _darkTextColor,
         unselectedItemColor: _darkSecondaryTextColor,
@@ -277,13 +277,13 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: _darkPrimaryColor, width: 1),
+          borderSide: const BorderSide(color: _darkPrimaryColor, width: 1),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
 
       // Tab Bar Theme
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: const TabBarTheme(
         labelColor: _darkTextColor,
         unselectedLabelColor: _darkSecondaryTextColor,
         indicatorSize: TabBarIndicatorSize.tab,

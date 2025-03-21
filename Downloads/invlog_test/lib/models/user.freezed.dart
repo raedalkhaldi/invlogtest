@@ -1,4 +1,3 @@
-// dart format width=80
 // coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
@@ -10,60 +9,37 @@ part of 'user.dart';
 // FreezedGenerator
 // **************************************************************************
 
-// dart format off
 T _$identity<T>(T value) => value;
+
+final _privateConstructorUsedError = UnsupportedError(
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+
+User _$UserFromJson(Map<String, dynamic> json) {
+  return _User.fromJson(json);
+}
 
 /// @nodoc
 mixin _$User {
-  String get id;
-  String get email;
-  String get name;
-  String? get photoUrl;
-  bool get isEmailVerified;
-  @JsonKey(fromJson: _timestampToDateTime)
-  DateTime get createdAt;
+  String get id => throw _privateConstructorUsedError;
+  String get email => throw _privateConstructorUsedError;
+  String get name => throw _privateConstructorUsedError;
+  String? get photoUrl => throw _privateConstructorUsedError;
+  bool get isEmailVerified => throw _privateConstructorUsedError;
+  DateTime get createdAt => throw _privateConstructorUsedError;
+
+  /// Serializes this User to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  @pragma('vm:prefer-inline')
-  $UserCopyWith<User> get copyWith =>
-      _$UserCopyWithImpl<User>(this as User, _$identity);
-
-  /// Serializes this User to a JSON map.
-  Map<String, dynamic> toJson();
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is User &&
-            (identical(other.id, id) || other.id == id) &&
-            (identical(other.email, email) || other.email == email) &&
-            (identical(other.name, name) || other.name == name) &&
-            (identical(other.photoUrl, photoUrl) ||
-                other.photoUrl == photoUrl) &&
-            (identical(other.isEmailVerified, isEmailVerified) ||
-                other.isEmailVerified == isEmailVerified) &&
-            (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(
-      runtimeType, id, email, name, photoUrl, isEmailVerified, createdAt);
-
-  @override
-  String toString() {
-    return 'User(id: $id, email: $email, name: $name, photoUrl: $photoUrl, isEmailVerified: $isEmailVerified, createdAt: $createdAt)';
-  }
+  $UserCopyWith<User> get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract mixin class $UserCopyWith<$Res> {
-  factory $UserCopyWith(User value, $Res Function(User) _then) =
-      _$UserCopyWithImpl;
+abstract class $UserCopyWith<$Res> {
+  factory $UserCopyWith(User value, $Res Function(User) then) =
+      _$UserCopyWithImpl<$Res, User>;
   @useResult
   $Res call(
       {String id,
@@ -71,15 +47,18 @@ abstract mixin class $UserCopyWith<$Res> {
       String name,
       String? photoUrl,
       bool isEmailVerified,
-      @JsonKey(fromJson: _timestampToDateTime) DateTime createdAt});
+      DateTime createdAt});
 }
 
 /// @nodoc
-class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
-  _$UserCopyWithImpl(this._self, this._then);
+class _$UserCopyWithImpl<$Res, $Val extends User>
+    implements $UserCopyWith<$Res> {
+  _$UserCopyWithImpl(this._value, this._then);
 
-  final User _self;
-  final $Res Function(User) _then;
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -93,29 +72,93 @@ class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
     Object? isEmailVerified = null,
     Object? createdAt = null,
   }) {
-    return _then(_self.copyWith(
+    return _then(_value.copyWith(
       id: null == id
-          ? _self.id
+          ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
       email: null == email
-          ? _self.email
+          ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
               as String,
       name: null == name
-          ? _self.name
+          ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
       photoUrl: freezed == photoUrl
-          ? _self.photoUrl
+          ? _value.photoUrl
           : photoUrl // ignore: cast_nullable_to_non_nullable
               as String?,
       isEmailVerified: null == isEmailVerified
-          ? _self.isEmailVerified
+          ? _value.isEmailVerified
           : isEmailVerified // ignore: cast_nullable_to_non_nullable
               as bool,
       createdAt: null == createdAt
-          ? _self.createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$UserImplCopyWith<$Res> implements $UserCopyWith<$Res> {
+  factory _$$UserImplCopyWith(
+          _$UserImpl value, $Res Function(_$UserImpl) then) =
+      __$$UserImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String id,
+      String email,
+      String name,
+      String? photoUrl,
+      bool isEmailVerified,
+      DateTime createdAt});
+}
+
+/// @nodoc
+class __$$UserImplCopyWithImpl<$Res>
+    extends _$UserCopyWithImpl<$Res, _$UserImpl>
+    implements _$$UserImplCopyWith<$Res> {
+  __$$UserImplCopyWithImpl(_$UserImpl _value, $Res Function(_$UserImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of User
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? email = null,
+    Object? name = null,
+    Object? photoUrl = freezed,
+    Object? isEmailVerified = null,
+    Object? createdAt = null,
+  }) {
+    return _then(_$UserImpl(
+      id: null == id
+          ? _value.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      email: null == email
+          ? _value.email
+          : email // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      photoUrl: freezed == photoUrl
+          ? _value.photoUrl
+          : photoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isEmailVerified: null == isEmailVerified
+          ? _value.isEmailVerified
+          : isEmailVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
+      createdAt: null == createdAt
+          ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime,
     ));
@@ -124,15 +167,17 @@ class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
 
 /// @nodoc
 @JsonSerializable()
-class _User implements User {
-  const _User(
+class _$UserImpl implements _User {
+  const _$UserImpl(
       {required this.id,
       required this.email,
       required this.name,
       this.photoUrl,
       this.isEmailVerified = false,
-      @JsonKey(fromJson: _timestampToDateTime) required this.createdAt});
-  factory _User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
+      required this.createdAt});
+
+  factory _$UserImpl.fromJson(Map<String, dynamic> json) =>
+      _$$UserImplFromJson(json);
 
   @override
   final String id;
@@ -146,29 +191,18 @@ class _User implements User {
   @JsonKey()
   final bool isEmailVerified;
   @override
-  @JsonKey(fromJson: _timestampToDateTime)
   final DateTime createdAt;
 
-  /// Create a copy of User
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @pragma('vm:prefer-inline')
-  _$UserCopyWith<_User> get copyWith =>
-      __$UserCopyWithImpl<_User>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$UserToJson(
-      this,
-    );
+  String toString() {
+    return 'User(id: $id, email: $email, name: $name, photoUrl: $photoUrl, isEmailVerified: $isEmailVerified, createdAt: $createdAt)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _User &&
+            other is _$UserImpl &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.email, email) || other.email == email) &&
             (identical(other.name, name) || other.name == name) &&
@@ -185,73 +219,50 @@ class _User implements User {
   int get hashCode => Object.hash(
       runtimeType, id, email, name, photoUrl, isEmailVerified, createdAt);
 
+  /// Create a copy of User
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  String toString() {
-    return 'User(id: $id, email: $email, name: $name, photoUrl: $photoUrl, isEmailVerified: $isEmailVerified, createdAt: $createdAt)';
+  @pragma('vm:prefer-inline')
+  _$$UserImplCopyWith<_$UserImpl> get copyWith =>
+      __$$UserImplCopyWithImpl<_$UserImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$UserImplToJson(
+      this,
+    );
   }
 }
 
-/// @nodoc
-abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
-  factory _$UserCopyWith(_User value, $Res Function(_User) _then) =
-      __$UserCopyWithImpl;
+abstract class _User implements User {
+  const factory _User(
+      {required final String id,
+      required final String email,
+      required final String name,
+      final String? photoUrl,
+      final bool isEmailVerified,
+      required final DateTime createdAt}) = _$UserImpl;
+
+  factory _User.fromJson(Map<String, dynamic> json) = _$UserImpl.fromJson;
+
   @override
-  @useResult
-  $Res call(
-      {String id,
-      String email,
-      String name,
-      String? photoUrl,
-      bool isEmailVerified,
-      @JsonKey(fromJson: _timestampToDateTime) DateTime createdAt});
-}
-
-/// @nodoc
-class __$UserCopyWithImpl<$Res> implements _$UserCopyWith<$Res> {
-  __$UserCopyWithImpl(this._self, this._then);
-
-  final _User _self;
-  final $Res Function(_User) _then;
+  String get id;
+  @override
+  String get email;
+  @override
+  String get name;
+  @override
+  String? get photoUrl;
+  @override
+  bool get isEmailVerified;
+  @override
+  DateTime get createdAt;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
   @override
-  @pragma('vm:prefer-inline')
-  $Res call({
-    Object? id = null,
-    Object? email = null,
-    Object? name = null,
-    Object? photoUrl = freezed,
-    Object? isEmailVerified = null,
-    Object? createdAt = null,
-  }) {
-    return _then(_User(
-      id: null == id
-          ? _self.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      email: null == email
-          ? _self.email
-          : email // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _self.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      photoUrl: freezed == photoUrl
-          ? _self.photoUrl
-          : photoUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
-      isEmailVerified: null == isEmailVerified
-          ? _self.isEmailVerified
-          : isEmailVerified // ignore: cast_nullable_to_non_nullable
-              as bool,
-      createdAt: null == createdAt
-          ? _self.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ));
-  }
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$UserImplCopyWith<_$UserImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }
-
-// dart format on

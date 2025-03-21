@@ -385,17 +385,43 @@ class _HomeScreenState extends State<HomeScreen> {
           return const Center(child: Text('No posts to explore'));
         }
 
-        return GridView.builder(
+        return ListView.builder(
           padding: const EdgeInsets.all(8),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
           itemCount: posts.length,
           itemBuilder: (context, index) {
             final post = posts[index].data() as Map<String, dynamic>;
-            return _buildExploreCard(post, posts[index].id);
+            final currentUser = context.read<AuthViewModel>().currentUser;
+            final likes = List<String>.from(post['likes'] ?? []);
+            final comments = (post['comments'] as List<dynamic>? ?? [])
+                .map((comment) => Comment.fromMap(comment as Map<String, dynamic>))
+                .toList();
+
+            final checkIn = CheckIn(
+              id: posts[index].id,
+              userId: post['userId'] ?? '',
+              username: post['username'] ?? '',
+              displayName: post['displayName'] ?? post['username'] ?? 'Anonymous',
+              content: post['content'] ?? '',
+              imageUrl: post['imageUrl'],
+              timestamp: post['timestamp'] is Timestamp ? post['timestamp'].toDate() : DateTime.now(),
+              likedBy: likes,
+              isLiked: currentUser != null && likes.contains(currentUser.id),
+              comments: comments,
+              placeName: post['placeName'] ?? '',
+              caption: post['caption'] ?? '',
+            );
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: widgets.CheckInCard(
+                checkIn: checkIn,
+                onLike: () {
+                  if (currentUser != null) {
+                    _toggleLike(posts[index].id, likes);
+                  }
+                },
+              ),
+            );
           },
         );
       },
@@ -462,77 +488,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _toggleLike(postId, likes);
           }
         },
-      ),
-    );
-  }
-
-  Widget _buildExploreCard(Map<String, dynamic> post, String postId) {
-    final currentUser = context.read<AuthViewModel>().currentUser;
-    final likes = List<String>.from(post['likes'] ?? []);
-    final comments = (post['comments'] as List<dynamic>? ?? [])
-        .map((comment) => Comment.fromMap(comment as Map<String, dynamic>))
-        .toList();
-    
-    // Convert the post data to a CheckIn model
-    final checkIn = CheckIn(
-      id: postId,
-      userId: post['userId'] ?? '',
-      username: post['username'] ?? '',  // Make sure username is not null
-      displayName: post['displayName'] ?? post['username'] ?? 'Anonymous',  // Fallback chain: displayName -> username -> 'Anonymous'
-      content: post['content'] ?? '',
-      imageUrl: post['imageUrl'],
-      timestamp: post['timestamp'] is Timestamp ? post['timestamp'].toDate() : DateTime.now(),
-      likedBy: likes,
-      isLiked: currentUser != null && likes.contains(currentUser.id),
-      comments: comments,
-      placeName: post['placeName'] ?? '',
-      caption: post['caption'] ?? '',
-    );
-
-    return GestureDetector(
-      onTap: () {
-        // TODO: Show post details
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (checkIn.imageUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  checkIn.imageUrl!,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            Positioned(
-              bottom: 4,
-              right: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.favorite, color: Colors.white, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${checkIn.likedBy.length}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
