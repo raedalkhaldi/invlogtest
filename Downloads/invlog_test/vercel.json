@@ -10,7 +10,11 @@
   "routes": [
     { "handle": "filesystem" },
     {
-      "src": "/(.*)\\.(js|json|css|ico|png|svg|map)$",
+      "src": "/assets/(.*)",
+      "dest": "/build/web/assets/$1"
+    },
+    {
+      "src": "/(.*)\\.(js|json|css|ico|png|jpg|jpeg|gif|svg|ttf|woff|woff2|otf|map)$",
       "dest": "/build/web/$1.$2"
     },
     {
