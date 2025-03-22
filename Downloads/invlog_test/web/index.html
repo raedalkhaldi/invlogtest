@@ -78,15 +78,32 @@
 <body>
   <script>
     window.addEventListener('load', function(ev) {
+      // Download main.dart.js
+      _flutter = {
+        loader: {
+          loadEntrypoint: function(options) {
+            return new Promise(function(resolve, reject) {
+              var scriptTag = document.createElement('script');
+              scriptTag.src = 'main.dart.js';
+              scriptTag.type = 'application/javascript';
+              scriptTag.onload = function() {
+                resolve();
+              };
+              scriptTag.onerror = function(error) {
+                reject(error);
+              };
+              document.body.appendChild(scriptTag);
+            });
+          }
+        }
+      };
+
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
           serviceWorkerVersion: serviceWorkerVersion,
-        },
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
-            appRunner.runApp();
-          });
         }
+      }).catch(function(error) {
+        console.error('Failed to load app:', error);
       });
     });
   </script>

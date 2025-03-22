@@ -3,11 +3,16 @@
   "public": true,
   "builds": [
     {
-      "src": "build/web/**/*",
+      "src": "build/web/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
+    { "handle": "filesystem" },
+    {
+      "src": "/(.*)\\.(js|json|css|ico|png|svg|map)$",
+      "dest": "/build/web/$1.$2"
+    },
     {
       "src": "/(.*)",
       "dest": "/build/web/index.html"
