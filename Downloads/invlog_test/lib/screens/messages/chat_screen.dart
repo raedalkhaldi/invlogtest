@@ -35,7 +35,7 @@ class _ChatScreenState extends State<ChatScreen> {
     
     await _messagingService.sendMessage(
       widget.conversationId,
-      currentUser.id,
+      currentUser.uid,
       widget.otherUserId,
       _messageController.text.trim(),
     );
@@ -75,7 +75,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final isMe = message.senderId == 
-                        Provider.of<AuthProvider>(context).currentUser!.id;
+                        Provider.of<AuthProvider>(context).currentUser!.uid;
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      allow read: if isSignedIn();  // Anyone signed in can read user profiles
+      allow write: if isOwner(userId);  // Only user can modify their own profile
+      
+      // Allow following/unfollowing operations
+      allow update: if isSignedIn() && 
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['followers', 'following']));
+    }
+
+    // Check-ins collection rules
+    match /checkins/{checkinId} {
+      allow read: if isSignedIn();  // Any signed in user can read check-ins
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        // Allow the owner to update their check-in
+        resource.data.userId == request.auth.uid ||
+        // Allow any user to update likes and commentCount
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['likes', 'likedBy', 'commentCount'])
+      );
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Comments collection rules
+    match /comments/{commentId} {
+      allow read: if isSignedIn();  // Any signed in user can read comments
+      allow create: if isSignedIn();  // Any signed in user can create comments
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;  // Only comment owner can update
+      allow delete: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||  // Comment owner can delete
+        get(/databases/$(database)/documents/checkins/$(resource.data.checkInId)).data.userId == request.auth.uid  // Check-in owner can delete
+      );
+    }
+  }
+}

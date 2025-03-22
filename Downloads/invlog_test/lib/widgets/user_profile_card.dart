@@ -1,91 +1,93 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/profile_service.dart';
-import '../screens/profile/profile_screen.dart';
 
 class UserProfileCard extends StatelessWidget {
   final String userId;
   final String username;
   final String? displayName;
   final bool isCurrentUser;
+  final ProfileService profileService;
 
-  const UserProfileCard({
+  UserProfileCard({
     super.key,
     required this.userId,
     required this.username,
     this.displayName,
     required this.isCurrentUser,
-  });
-
-  void _navigateToProfile(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProfileScreen(userId: userId),
-      ),
-    );
-  }
+  }) : profileService = ProfileService();
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final profileService = ProfileService();
-
     return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Make avatar tappable
-            GestureDetector(
-              onTap: () => _navigateToProfile(context),
-              child: CircleAvatar(
-                backgroundColor: Theme.of(context).primaryColor,
-                child: Text(
-                  username[0].toUpperCase(),
-                  style: const TextStyle(color: Colors.white),
-                ),
+            CircleAvatar(
+              backgroundColor: Theme.of(context).primaryColor,
+              child: Text(
+                username.isNotEmpty ? username[0].toUpperCase() : '?',
+                style: const TextStyle(color: Colors.white),
               ),
             ),
-            const SizedBox(width: 16),
-            // Make username tappable
+            const SizedBox(width: 12),
             Expanded(
-              child: GestureDetector(
-                onTap: () => _navigateToProfile(context),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName ?? username,
-                      style: Theme.of(context).textTheme.titleLarge,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName ?? username,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
-                    Text(
-                      '@$username',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey,
-                      ),
+                  ),
+                  Text(
+                    '@$username',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            if (!isCurrentUser && currentUserId != null)
+            if (!isCurrentUser)
               FutureBuilder<bool>(
-                future: profileService.isFollowing(currentUserId, userId),
+                future: profileService.isFollowing(userId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const CircularProgressIndicator();
+                    return const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    );
                   }
+
                   final isFollowing = snapshot.data ?? false;
-                  return ElevatedButton(
-                    onPressed: () {
-                      if (isFollowing) {
-                        profileService.unfollowUser(currentUserId, userId);
-                      } else {
-                        profileService.followUser(currentUserId, userId);
+
+                  return TextButton.icon(
+                    onPressed: () async {
+                      try {
+                        if (isFollowing) {
+                          await profileService.unfollowUser(userId);
+                        } else {
+                          await profileService.followUser(userId);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: ${e.toString()}')),
+                          );
+                        }
                       }
                     },
-                    child: Text(isFollowing ? 'Following' : 'Follow'),
+                    icon: Icon(
+                      isFollowing ? Icons.person_remove : Icons.person_add,
+                      size: 20,
+                    ),
+                    label: Text(isFollowing ? 'Unfollow' : 'Follow'),
                   );
                 },
               ),

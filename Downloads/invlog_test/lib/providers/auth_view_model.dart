@@ -24,6 +24,8 @@ class AuthViewModel extends ChangeNotifier {
           id: firebaseUser.uid,
           email: firebaseUser.email ?? '',
           name: firebaseUser.displayName ?? 'User',
+          photoUrl: firebaseUser.photoURL,
+          isEmailVerified: firebaseUser.emailVerified,
           createdAt: DateTime.now(),
         );
       } else {
@@ -55,7 +57,6 @@ class AuthViewModel extends ChangeNotifier {
           profileImageUrl: userCredential.user!.photoURL,
           followers: [],
           following: [],
-          createdAt: DateTime.now(),
         );
         
         await _profileService.createOrUpdateProfile(userProfile);
@@ -93,7 +94,6 @@ class AuthViewModel extends ChangeNotifier {
           profileImageUrl: userCredential.user!.photoURL,
           followers: [],
           following: [],
-          createdAt: DateTime.now(),
         );
         
         await _profileService.createOrUpdateProfile(userProfile);

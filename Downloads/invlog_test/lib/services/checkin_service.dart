@@ -8,6 +8,8 @@ class CheckInService {
   // Create a new check-in
   Future<CheckInModel> createCheckIn({
     required String userId,
+    required String username,
+    String? displayName,
     required String restaurantName,
     required GeoPoint location,
     String? caption,
@@ -16,10 +18,12 @@ class CheckInService {
       final checkIn = CheckInModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: userId,
+        username: username,
+        displayName: displayName,
         restaurantName: restaurantName,
         caption: caption,
         location: location,
-        createdAt: DateTime.now(),
+        timestamp: DateTime.now(),
       );
 
       await _firestore
@@ -39,7 +43,7 @@ class CheckInService {
     return _firestore
         .collection('checkins')
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
+        .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs
@@ -98,46 +102,115 @@ class CheckInService {
 
   // Get comments for a check-in
   Stream<List<CommentModel>> getCheckInComments(String checkInId) {
+    print('CheckInService.getCheckInComments - Starting for checkInId: $checkInId'); // Debug log
+
+    // First, try to get a single comment to test permissions
+    _firestore
+        .collection('comments')
+        .where('checkInId', isEqualTo: checkInId)
+        .get()
+        .then((snapshot) {
+          print('Direct Firestore query result:');
+          print('Number of comments found: ${snapshot.docs.length}');
+          for (var doc in snapshot.docs) {
+            print('Comment data: ${doc.data()}');
+          }
+        })
+        .catchError((error) {
+          print('Error in direct Firestore query: $error');
+        });
+    
     return _firestore
         .collection('comments')
         .where('checkInId', isEqualTo: checkInId)
-        .orderBy('createdAt', descending: true)
+        .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => CommentModel.fromFirestore(doc))
-          .toList();
-    });
+          try {
+            print('Stream snapshot received:');
+            print('Number of documents: ${snapshot.docs.length}');
+            for (var doc in snapshot.docs) {
+              print('Document ID: ${doc.id}');
+              print('Document data: ${doc.data()}');
+            }
+
+            final comments = snapshot.docs
+                .map((doc) {
+                  try {
+                    final data = doc.data();
+                    data['id'] = doc.id;
+                    return CommentModel.fromMap(data);
+                  } catch (e) {
+                    print('Error parsing comment document ${doc.id}: $e');
+                    print('Document data: ${doc.data()}');
+                    return null;
+                  }
+                })
+                .where((comment) => comment != null)
+                .cast<CommentModel>()
+                .toList();
+
+            print('Successfully parsed ${comments.length} comments');
+            return comments;
+          } catch (e) {
+            print('Error in getCheckInComments: $e');
+            print('Stack trace: ${StackTrace.current}');
+            return [];
+          }
+        });
   }
 
   // Add a comment to a check-in
   Future<CommentModel> addComment({
     required String checkInId,
     required String userId,
+    required String username,
+    String? displayName,
     required String text,
   }) async {
     try {
+      print('CheckInService.addComment - Starting with userId: $userId'); // Debug log
+
+      // Create a new document reference first to get the ID
+      final docRef = _firestore.collection('comments').doc();
+      
       final comment = CommentModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: docRef.id,
         checkInId: checkInId,
         userId: userId,
+        username: username,
+        displayName: displayName,
         text: text,
         createdAt: DateTime.now(),
       );
 
-      await _firestore
-          .collection('comments')
-          .doc(comment.id)
-          .set(comment.toMap());
+      print('CheckInService.addComment - Created comment object: ${comment.toMap()}'); // Debug log
 
-      // Update comment count in check-in document
-      await _firestore.collection('checkins').doc(checkInId).update({
-        'commentCount': FieldValue.increment(1),
+      // Save the comment with the generated ID
+      await docRef.set(comment.toMap());
+      print('CheckInService.addComment - Saved comment to Firestore'); // Debug log
+
+      // Update comment count in check-in document using a transaction
+      await _firestore.runTransaction((transaction) async {
+        final checkInDoc = await transaction.get(_firestore.collection('checkins').doc(checkInId));
+        if (!checkInDoc.exists) {
+          throw Exception('Check-in not found');
+        }
+        
+        final currentCount = (checkInDoc.data()?['commentCount'] as num?)?.toInt() ?? 0;
+        transaction.update(_firestore.collection('checkins').doc(checkInId), {
+          'commentCount': currentCount + 1,
+        });
       });
+      print('CheckInService.addComment - Updated comment count'); // Debug log
 
       return comment;
     } catch (e) {
-      print('Error adding comment: $e');
+      print('Error in CheckInService.addComment: $e'); // Debug log
+      if (e is FirebaseException) {
+        print('Firebase error code: ${e.code}'); // Debug log
+        print('Firebase error message: ${e.message}'); // Debug log
+      }
       rethrow;
     }
   }

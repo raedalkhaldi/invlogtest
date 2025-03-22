@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../services/profile_service.dart';
+import '../../services/checkin_service.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -16,6 +17,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final _placeNameController = TextEditingController();
   final _captionController = TextEditingController();
   final _profileService = ProfileService();
+  final _checkInService = CheckInService();
   bool _isLoading = false;
   String? _errorMessage;
   Position? _currentPosition;
@@ -76,22 +78,17 @@ class _CheckInScreenState extends State<CheckInScreen> {
       final userProfile = await _profileService.getUserProfile(user.uid);
       if (userProfile == null) throw Exception('User profile not found');
 
-      // Create check-in document in Firestore
-      await FirebaseFirestore.instance.collection('checkins').add({
-        'userId': user.uid,
-        'username': userProfile.username,
-        'displayName': userProfile.displayName,
-        'content': _captionController.text,
-        'placeName': _placeNameController.text,
-        'caption': _captionController.text,
-        'location': _currentPosition != null 
+      // Create check-in using the service
+      await _checkInService.createCheckIn(
+        userId: user.uid,
+        username: userProfile.username,
+        displayName: userProfile.displayName,
+        restaurantName: _placeNameController.text,
+        location: _currentPosition != null 
           ? GeoPoint(_currentPosition!.latitude, _currentPosition!.longitude)
           : const GeoPoint(0, 0),
-        'timestamp': FieldValue.serverTimestamp(),
-        'likes': [],
-        'comments': [],
-        'imageUrl': null,
-      });
+        caption: _captionController.text,
+      );
 
       if (mounted) {
         // Clear the form
@@ -157,13 +154,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
                     TextFormField(
                       controller: _placeNameController,
                       decoration: const InputDecoration(
-                        labelText: 'Place Name',
+                        labelText: 'Restaurant Name',
                         border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.place),
+                        prefixIcon: Icon(Icons.restaurant),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter a place name';
+                          return 'Please enter a restaurant name';
                         }
                         return null;
                       },

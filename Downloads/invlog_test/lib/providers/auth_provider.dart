@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:invlog_test/services/auth_service.dart';
 import 'package:invlog_test/services/profile_service.dart';
 import 'package:invlog_test/models/user_profile.dart';
@@ -8,12 +8,12 @@ class AuthProvider with ChangeNotifier {
   final AuthService _authService;
   final ProfileService _profileService;
   
-  User? _currentUser;
+  firebase_auth.User? _currentUser;
   bool get isAuthenticated => _currentUser != null;
-  User? get currentUser => _currentUser;
+  firebase_auth.User? get currentUser => _currentUser;
 
   AuthProvider(this._authService, this._profileService) {
-    _authService.authStateChanges().listen((User? user) {
+    _authService.authStateChanges().listen((firebase_auth.User? user) {
       _currentUser = user;
       notifyListeners();
     });
@@ -31,28 +31,20 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> signUp(String email, String password, String username) async {
     try {
-      // 1. Create Firebase Auth user
       final user = await _authService.createUserWithEmailAndPassword(email, password);
-      
+
       if (user != null) {
-        // 2. Create user profile in Firestore
-        await _profileService.createOrUpdateProfile(
-          UserProfile(
-            id: user.uid,
-            username: username,
-            displayName: '',
-            bio: '',
-            followers: [],
-            following: [],
-            createdAt: DateTime.now(),
-          )
+        final userProfile = UserProfile(
+          id: user.uid,
+          username: username,
+          displayName: username,
         );
+
+        await _profileService.createUserProfile(userProfile);
+        notifyListeners();
       }
-      
-      // 3. Update state
-      _currentUser = user;
-      notifyListeners();
     } catch (e) {
+      print('Error during sign up: $e');
       rethrow;
     }
   }

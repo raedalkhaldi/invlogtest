@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/conversation.dart';
+import '../../models/user_profile.dart';
 import '../../services/messaging_service.dart';
+import '../../services/profile_service.dart';
 import '../../providers/auth_provider.dart';
 import 'chat_screen.dart';
 
 class ConversationsScreen extends StatelessWidget {
-  const ConversationsScreen({super.key});
+  late final ProfileService _profileService;
+  
+  ConversationsScreen({super.key}) {
+    _profileService = ProfileService();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +24,7 @@ class ConversationsScreen extends StatelessWidget {
         title: const Text('Messages'),
       ),
       body: StreamBuilder<List<Conversation>>(
-        stream: messagingService.getUserConversations(authProvider.currentUser!.id),
+        stream: messagingService.getUserConversations(authProvider.currentUser!.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -38,34 +44,45 @@ class ConversationsScreen extends StatelessWidget {
             itemCount: conversations.length,
             itemBuilder: (context, index) {
               final conversation = conversations[index];
-              final otherUserId = conversation.participants
-                  .firstWhere((id) => id != authProvider.currentUser!.id);
+              final otherUserId = conversation.participantIds
+                  .firstWhere((id) => id != authProvider.currentUser!.uid);
 
               return ListTile(
                 leading: const CircleAvatar(
                   child: Icon(Icons.person),
                 ),
-                title: Text(otherUserId), // TODO: Replace with actual username
+                title: FutureBuilder<UserProfile?>(
+                  future: _profileService.getUserProfile(otherUserId),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Text('Loading...');
+                    }
+                    return Text(snapshot.data?.displayName ?? 'Unknown User');
+                  },
+                ),
                 subtitle: Text(
-                  conversation.lastMessage.isEmpty 
-                      ? 'No messages yet' 
-                      : conversation.lastMessage,
+                  conversation.content,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                trailing: Text(
-                  _formatTimestamp(conversation.lastMessageTimestamp),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                trailing: conversation.unreadCount > 0
+                    ? CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Theme.of(context).primaryColor,
+                        child: Text(
+                          '${conversation.unreadCount}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      )
+                    : null,
                 onTap: () {
-                  Navigator.push(
+                  Navigator.pushNamed(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatScreen(
-                        conversationId: conversation.id,
-                        otherUserId: otherUserId,
-                      ),
-                    ),
+                    '/chat',
+                    arguments: {
+                      'conversationId': conversation.id,
+                      'otherUserId': otherUserId,
+                    },
                   );
                 },
               );

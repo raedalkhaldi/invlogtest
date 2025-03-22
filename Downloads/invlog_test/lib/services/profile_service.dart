@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
-import '../models/checkin.dart';
+import '../models/checkin_model.dart';
 import '../models/comment.dart' as comment_model;
 
 class ProfileService {
@@ -39,23 +39,23 @@ class ProfileService {
 
   // Get user profile
   Future<UserProfile?> getUserProfile(String userId) async {
-    final doc = await _firestore.collection('users').doc(userId).get();
-    if (doc.exists) {
-      return UserProfile.fromMap({
-        'id': doc.id,
-        ...doc.data()!,
-      });
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (!doc.exists) return null;
+      return UserProfile.fromMap(doc.data()!, doc.id);
+    } catch (e) {
+      print('Error getting user profile: $e');
+      return null;
     }
-    return null;
   }
 
   // Get user profile stream
-  Stream<UserProfile> getUserProfileStream(String userId) {
+  Stream<UserProfile?> getUserProfileStream(String userId) {
     return _firestore
         .collection('users')
         .doc(userId)
         .snapshots()
-        .map((doc) => UserProfile.fromMap(doc.data()!));
+        .map((doc) => doc.exists ? UserProfile.fromMap(doc.data()!, doc.id) : null);
   }
 
   // Get current user profile
@@ -100,150 +100,113 @@ class ProfileService {
   }
 
   // Get user's check-ins stream
-  Stream<List<CheckIn>> getUserCheckInsStream(String userId) {
+  Stream<List<CheckInModel>> getUserCheckInsStream(String userId) {
     return _firestore
         .collection('checkins')
         .where('userId', isEqualTo: userId)
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) {
-              final data = doc.data();
-              final likedBy = List<String>.from(data['likes'] ?? []);
-              final comments = (data['comments'] as List<dynamic>? ?? [])
-                  .map((comment) => comment_model.Comment.fromMap(comment as Map<String, dynamic>))
-                  .toList();
-
-              final timestamp = data['timestamp'];
-              final DateTime parsedTimestamp;
-              if (timestamp is Timestamp) {
-                parsedTimestamp = timestamp.toDate();
-              } else if (timestamp is String) {
-                parsedTimestamp = DateTime.parse(timestamp);
-              } else {
-                parsedTimestamp = DateTime.now();
-              }
-
-              return CheckIn(
-                id: doc.id,
-                userId: data['userId'] ?? '',
-                username: data['username'] ?? '',
-                displayName: data['displayName'],
-                content: data['content'] ?? '',
-                imageUrl: data['imageUrl'],
-                timestamp: parsedTimestamp,
-                likedBy: likedBy,
-                isLiked: likedBy.contains(_auth.currentUser?.uid),
-                comments: comments,
-                placeName: data['placeName'],
-                caption: data['caption'],
-              );
-            })
+            .map((doc) => CheckInModel.fromFirestore(doc))
             .toList());
   }
 
   // Get user's liked posts stream
-  Stream<List<CheckIn>> getLikedPostsStream(String userId) {
+  Stream<List<CheckInModel>> getLikedPostsStream(String userId) {
+    print('Getting liked posts for user: $userId'); // Debug log
     return _firestore
         .collection('checkins')
         .where('likes', arrayContains: userId)
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
-              final data = doc.data();
-              final likedBy = List<String>.from(data['likes'] ?? []);
-              final comments = (data['comments'] as List<dynamic>? ?? [])
-                  .map((comment) => comment_model.Comment.fromMap(comment as Map<String, dynamic>))
-                  .toList();
-
-              final timestamp = data['timestamp'];
-              final DateTime parsedTimestamp;
-              if (timestamp is Timestamp) {
-                parsedTimestamp = timestamp.toDate();
-              } else if (timestamp is String) {
-                parsedTimestamp = DateTime.parse(timestamp);
-              } else {
-                parsedTimestamp = DateTime.now();
-              }
-
-              return CheckIn(
-                id: doc.id,
-                userId: data['userId'] ?? '',
-                username: data['username'] ?? '',
-                displayName: data['displayName'],
-                content: data['content'] ?? '',
-                imageUrl: data['imageUrl'],
-                timestamp: parsedTimestamp,
-                likedBy: likedBy,
-                isLiked: likedBy.contains(_auth.currentUser?.uid),
-                comments: comments,
-                placeName: data['placeName'],
-                caption: data['caption'],
-              );
-            })
-            .toList());
+        .map((snapshot) {
+          print('Received ${snapshot.docs.length} liked posts'); // Debug log
+          return snapshot.docs
+              .map((doc) {
+                print('Processing liked post document: ${doc.data()}'); // Debug log
+                return CheckInModel.fromFirestore(doc);
+              })
+              .toList();
+        });
   }
 
-  // Follow user
-  Future<void> followUser(String currentUserId, String targetUserId) async {
+  // Follow a user
+  Future<void> followUser(String targetUserId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception('Not logged in');
+    if (currentUser.uid == targetUserId) throw Exception('Cannot follow yourself');
+
     final batch = _firestore.batch();
-    
-    // Add targetUserId to current user's following list
-    final currentUserRef = _firestore.collection('users').doc(currentUserId);
+    final currentUserRef = _firestore.collection('users').doc(currentUser.uid);
+    final targetUserRef = _firestore.collection('users').doc(targetUserId);
+
+    // Add to current user's following list
     batch.update(currentUserRef, {
       'following': FieldValue.arrayUnion([targetUserId])
     });
-    
-    // Add currentUserId to target user's followers list
-    final targetUserRef = _firestore.collection('users').doc(targetUserId);
+
+    // Add to target user's followers list
     batch.update(targetUserRef, {
-      'followers': FieldValue.arrayUnion([currentUserId])
+      'followers': FieldValue.arrayUnion([currentUser.uid])
     });
-    
+
     await batch.commit();
   }
 
-  // Unfollow user
-  Future<void> unfollowUser(String currentUserId, String targetUserId) async {
+  // Unfollow a user
+  Future<void> unfollowUser(String targetUserId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception('Not logged in');
+
     final batch = _firestore.batch();
-    
-    // Remove targetUserId from current user's following list
-    final currentUserRef = _firestore.collection('users').doc(currentUserId);
+    final currentUserRef = _firestore.collection('users').doc(currentUser.uid);
+    final targetUserRef = _firestore.collection('users').doc(targetUserId);
+
+    // Remove from current user's following list
     batch.update(currentUserRef, {
       'following': FieldValue.arrayRemove([targetUserId])
     });
-    
-    // Remove currentUserId from target user's followers list
-    final targetUserRef = _firestore.collection('users').doc(targetUserId);
+
+    // Remove from target user's followers list
     batch.update(targetUserRef, {
-      'followers': FieldValue.arrayRemove([currentUserId])
+      'followers': FieldValue.arrayRemove([currentUser.uid])
     });
-    
+
     await batch.commit();
   }
 
-  // Check if user is following another user
-  Future<bool> isFollowing(String followerId, String followedId) async {
-    final doc = await _firestore.collection('users').doc(followerId).get();
-    final following = List<String>.from(doc.data()?['following'] ?? []);
-    return following.contains(followedId);
+  // Check if current user is following a user
+  Future<bool> isFollowing(String targetUserId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return false;
+
+    final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+    if (!userDoc.exists) return false;
+
+    final following = List<String>.from(userDoc.data()?['following'] ?? []);
+    return following.contains(targetUserId);
   }
 
   // Get followers stream
-  Stream<QuerySnapshot> getFollowersStream(String userId) {
+  Stream<List<UserProfile>> getFollowersStream(String userId) {
     return _firestore
         .collection('users')
         .where('following', arrayContains: userId)
-        .snapshots();
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => UserProfile.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList());
   }
 
   // Get following stream
-  Stream<QuerySnapshot> getFollowingStream(String userId) {
+  Stream<List<UserProfile>> getFollowingStream(String userId) {
     return _firestore
         .collection('users')
         .where('followers', arrayContains: userId)
-        .snapshots();
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => UserProfile.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList());
   }
 
   // Like/Unlike methods
@@ -277,10 +240,16 @@ class ProfileService {
         .get();
 
     return querySnapshot.docs
-        .map((doc) => UserProfile.fromMap({
-              'id': doc.id,
-              ...doc.data(),
-            }))
+        .map((doc) => UserProfile.fromMap(doc.data(), doc.id))
         .toList();
+  }
+
+  Future<void> createUserProfile(UserProfile profile) async {
+    try {
+      await _firestore.collection('users').doc(profile.id).set(profile.toMap());
+    } catch (e) {
+      print('Error creating user profile: $e');
+      rethrow;
+    }
   }
 } 

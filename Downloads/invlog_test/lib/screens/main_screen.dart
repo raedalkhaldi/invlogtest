@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'home/home_screen.dart';
 import 'profile/profile_screen.dart';
 import 'messages/conversations_screen.dart';
+import 'checkin/checkin_screen.dart';
+import 'explore/explore_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,7 +17,9 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const ConversationsScreen(),
+    const ExploreScreen(),
+    const CheckInScreen(),
+    ConversationsScreen(),
     const ProfileScreen(),
   ];
 
@@ -36,6 +40,14 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Timeline',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.explore),
+            label: 'Explore',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_location),
+            label: 'Check In',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.message),
             label: 'Messages',
           ),
@@ -46,6 +58,7 @@ class _MainScreenState extends State<MainScreen> {
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }

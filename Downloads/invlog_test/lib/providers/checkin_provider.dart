@@ -1,13 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../models/checkin_model.dart';
 import '../models/comment_model.dart';
 import '../services/checkin_service.dart';
+import '../services/profile_service.dart';
 
 class CheckInProvider extends ChangeNotifier {
   final CheckInService _checkInService = CheckInService();
+  final ProfileService _profileService = ProfileService();
   List<CheckInModel> _checkIns = [];
   final Map<String, List<CommentModel>> _comments = {};
+  final Map<String, StreamSubscription<List<CommentModel>>> _commentSubscriptions = {};
   bool _isLoading = false;
   String? _error;
   String? _selectedRestaurant;
@@ -19,6 +23,16 @@ class CheckInProvider extends ChangeNotifier {
   String? get error => _error;
   String? get selectedRestaurant => _selectedRestaurant;
   String? get caption => _caption;
+
+  @override
+  void dispose() {
+    // Cancel all comment subscriptions
+    for (var subscription in _commentSubscriptions.values) {
+      subscription.cancel();
+    }
+    _commentSubscriptions.clear();
+    super.dispose();
+  }
 
   void setSelectedRestaurant(String? restaurant) {
     _selectedRestaurant = restaurant;
@@ -42,8 +56,15 @@ class CheckInProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      final userProfile = await _profileService.getUserProfile(userId);
+      if (userProfile == null) {
+        throw Exception('User profile not found');
+      }
+
       await _checkInService.createCheckIn(
         userId: userId,
+        username: userProfile.username,
+        displayName: userProfile.displayName,
         restaurantName: _selectedRestaurant!,
         location: location,
         caption: _caption,
@@ -98,17 +119,29 @@ class CheckInProvider extends ChangeNotifier {
 
   Future<void> loadComments(String checkInId) async {
     try {
-      _checkInService.getCheckInComments(checkInId).listen(
+      // Cancel existing subscription if any
+      await _commentSubscriptions[checkInId]?.cancel();
+
+      print('Loading comments for check-in: $checkInId'); // Debug log
+
+      // Create new subscription
+      final subscription = _checkInService.getCheckInComments(checkInId).listen(
         (comments) {
+          print('Received ${comments.length} comments for check-in $checkInId'); // Debug log
           _comments[checkInId] = comments;
           notifyListeners();
         },
         onError: (error) {
+          print('Error loading comments: $error'); // Debug log
           _error = error.toString();
           notifyListeners();
         },
       );
+
+      _commentSubscriptions[checkInId] = subscription;
     } catch (e) {
+      print('Error in loadComments: $e'); // Debug log
+      print('Stack trace: ${StackTrace.current}'); // Debug log
       _error = e.toString();
       notifyListeners();
     }
@@ -116,14 +149,32 @@ class CheckInProvider extends ChangeNotifier {
 
   Future<void> addComment(String checkInId, String userId, String text) async {
     try {
+      final userProfile = await _profileService.getUserProfile(userId);
+      if (userProfile == null) {
+        throw Exception('User profile not found');
+      }
+
+      // Verify that the user is authenticated
+      if (userId.isEmpty) {
+        throw Exception('User must be authenticated to comment');
+      }
+
+      print('Adding comment with userId: $userId'); // Debug log
+
       await _checkInService.addComment(
         checkInId: checkInId,
         userId: userId,
+        username: userProfile.username,
+        displayName: userProfile.displayName,
         text: text,
       );
+
+      // The stream will automatically update the UI
     } catch (e) {
+      print('Error in CheckInProvider.addComment: $e'); // Debug log
       _error = e.toString();
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -137,6 +188,8 @@ class CheckInProvider extends ChangeNotifier {
   }
 
   List<CommentModel> getCommentsForCheckIn(String checkInId) {
-    return _comments[checkInId] ?? [];
+    final comments = _comments[checkInId] ?? [];
+    print('Getting ${comments.length} comments for check-in $checkInId'); // Debug log
+    return comments;
   }
 } 

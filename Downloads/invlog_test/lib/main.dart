@@ -1,50 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'core/theme/app_theme.dart';
-import 'screens/auth/login_screen.dart';
-import 'firebase_options.dart';
 import 'package:provider/provider.dart';
-import 'package:invlog_test/providers/auth_view_model.dart';
-import 'package:invlog_test/services/profile_service.dart';
-import 'screens/home/home_screen.dart';
-
-// Add ThemeProvider
-class ThemeProvider with ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.light;
-
-  ThemeMode get themeMode => _themeMode;
-
-  bool get isDarkMode => _themeMode == ThemeMode.dark;
-
-  void toggleTheme() {
-    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    notifyListeners();
-  }
-
-  void setThemeMode(ThemeMode mode) {
-    _themeMode = mode;
-    notifyListeners();
-  }
-}
+import 'firebase_options.dart';
+import 'screens/main_screen.dart';
+import 'screens/profile/edit_profile_screen.dart';
+import 'providers/auth_view_model.dart';
+import 'providers/checkin_provider.dart';
+import 'services/profile_service.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthViewModel()),
-        Provider(create: (_) => ProfileService()),
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -52,30 +22,23 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
-        return MaterialApp(
-          title: 'InvLog',
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeProvider.themeMode,
-          home: Consumer<AuthViewModel>(
-            builder: (context, authViewModel, _) {
-              if (authViewModel.isLoading) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              return authViewModel.currentUser != null
-                  ? const HomeScreen()
-                  : const LoginScreen();
-            },
-          ),
-          debugShowCheckedModeBanner: false,
-        );
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthViewModel()),
+        ChangeNotifierProvider(create: (_) => CheckInProvider()),
+        Provider(create: (_) => ProfileService()),
+      ],
+      child: MaterialApp(
+        title: 'InvLog',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        home: const MainScreen(),
+        routes: {
+          '/edit-profile': (context) => const EditProfileScreen(),
+        },
+        debugShowCheckedModeBanner: false,
+      ),
     );
   }
 } 
