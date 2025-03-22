@@ -1,6 +1,6 @@
 {
-    "name": "invlog",
-    "short_name": "invlog",
+    "name": "InvLog",
+    "short_name": "InvLog",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

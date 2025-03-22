@@ -14,7 +14,7 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="$FLUTTER_BASE_HREF">
+  <base href="/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -37,7 +37,7 @@
 
   <script>
     // The value below is injected by flutter build, do not touch.
-    var serviceWorkerVersion = null;
+    const serviceWorkerVersion = null;
   </script>
   <!-- This script adds the flutter initialization JS code -->
   <script src="flutter.js" defer></script>
@@ -58,7 +58,13 @@
   <script>
     // Your web app's Firebase configuration
     const firebaseConfig = {
-      // Your existing config should still be here
+      apiKey: "AIzaSyDFWxZYMNVxFXZZOXRwBYQxqhQYKGPmXrY",
+      authDomain: "invlog-test.firebaseapp.com",
+      projectId: "invlog-test",
+      storageBucket: "invlog-test.appspot.com",
+      messagingSenderId: "1054172018",
+      appId: "1:1054172018:web:c0c0c0c0c0c0c0c0c0c0c0",
+      measurementId: "G-XXXXXXXXXX"
     };
 
     // Initialize Firebase
@@ -69,40 +75,9 @@
   <script>
     window.addEventListener('load', function(ev) {
       // Download main.dart.js
-      _flutter = {
-        loader: {
-          loadEntrypoint: function(options) {
-            return new Promise(function(resolve, reject) {
-              var scriptTag = document.createElement('script');
-              scriptTag.src = 'main.dart.js';
-              scriptTag.type = 'application/javascript';
-              scriptTag.onload = function() {
-                if (options && options.onEntrypointLoaded) {
-                  options.onEntrypointLoaded({
-                    initializeEngine: function() {
-                      return Promise.resolve({
-                        runApp: function() {
-                          // The app is now running
-                        }
-                      });
-                    }
-                  });
-                }
-              };
-              document.body.appendChild(scriptTag);
-            });
-          }
-        }
-      };
-
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
           serviceWorkerVersion: serviceWorkerVersion,
-        },
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
-            appRunner.runApp();
-          });
         }
       });
     });
