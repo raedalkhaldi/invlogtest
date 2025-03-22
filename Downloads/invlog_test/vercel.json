@@ -1,8 +1,7 @@
 {
   "version": 2,
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/" }
+    { "src": "/(.*)", "dest": "/build/web/$1" }
   ],
   "builds": [
     { "src": "build/web/**/*", "use": "@vercel/static" }
