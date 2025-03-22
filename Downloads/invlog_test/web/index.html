@@ -14,7 +14,7 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="/">
+  <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -37,7 +37,7 @@
 
   <script>
     // The value below is injected by flutter build, do not touch.
-    const serviceWorkerVersion = null;
+    var serviceWorkerVersion = null;
   </script>
   <!-- This script adds the flutter initialization JS code -->
   <script src="flutter.js" defer></script>
@@ -58,13 +58,13 @@
   <script>
     // Your web app's Firebase configuration
     const firebaseConfig = {
-      apiKey: "AIzaSyDFWxZYMNVxFXZZOXRwBYQxqhQYKGPmXrY",
-      authDomain: "invlog-test.firebaseapp.com",
+      apiKey: "AIzaSyB9G4JEPPutfRlEXOXgyORXMMEP4WH_SqY",
+      appId: "1:83361214380:web:a440aeb5a5da79945e9409",
+      messagingSenderId: "83361214380",
       projectId: "invlog-test",
+      authDomain: "invlog-test.firebaseapp.com",
       storageBucket: "invlog-test.appspot.com",
-      messagingSenderId: "1054172018",
-      appId: "1:1054172018:web:c0c0c0c0c0c0c0c0c0c0c0",
-      measurementId: "G-XXXXXXXXXX"
+      measurementId: "G-4VHQMEMG9B"
     };
 
     // Initialize Firebase
@@ -75,10 +75,33 @@
   <script>
     window.addEventListener('load', function(ev) {
       // Download main.dart.js
+      _flutter = {
+        loader: {
+          loadEntrypoint: function(options) {
+            return new Promise(function(resolve, reject) {
+              var scriptTag = document.createElement('script');
+              scriptTag.src = 'main.dart.js';
+              scriptTag.type = 'application/javascript';
+              scriptTag.onload = function() {
+                resolve();
+              };
+              scriptTag.onerror = function(error) {
+                reject(error);
+              };
+              document.body.appendChild(scriptTag);
+            });
+          }
+        }
+      };
+
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
           serviceWorkerVersion: serviceWorkerVersion,
         }
+      }).then(function(engineInitializer) {
+        return engineInitializer.initializeEngine();
+      }).then(function(appRunner) {
+        return appRunner.runApp();
       });
     });
   </script>
