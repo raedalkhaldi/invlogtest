@@ -1,13 +1,16 @@
 {
   "version": 2,
   "public": true,
-  "framework": "flutter",
-  "outputDirectory": "build/web",
+  "builds": [
+    {
+      "src": "build/web/**/*",
+      "use": "@vercel/static"
+    }
+  ],
   "routes": [
-    { "handle": "filesystem" },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/build/web/index.html"
     }
   ]
 } 
