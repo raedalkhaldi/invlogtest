@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../../models/user_profile.dart';
 import '../../models/checkin.dart';
 import '../../services/profile_service.dart';
 import '../../models/checkin_model.dart';
 import '../../widgets/checkin_card.dart';
+import '../../screens/auth/login_screen.dart';
+import '../../providers/auth_view_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
@@ -74,6 +77,24 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     }
   }
 
+  void _handleLogout(BuildContext context) async {
+    try {
+      await context.read<AuthViewModel>().signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error logging out: $e')),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -87,6 +108,16 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     final bool isCurrentUser = profileId == currentUser?.uid;
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          if (isCurrentUser)
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () => _handleLogout(context),
+            ),
+        ],
+      ),
       body: StreamBuilder<UserProfile?>(
         stream: _profileService.getUserProfileStream(profileId),
         builder: (context, snapshot) {
@@ -110,6 +141,33 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   expandedHeight: 200.0,
                   floating: false,
                   pinned: true,
+                  actions: [
+                    if (isCurrentUser)
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'logout') {
+                            FirebaseAuth.instance.signOut();
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => const LoginScreen(),
+                              ),
+                            );
+                          }
+                        },
+                        itemBuilder: (BuildContext context) => [
+                          const PopupMenuItem<String>(
+                            value: 'logout',
+                            child: Row(
+                              children: [
+                                Icon(Icons.logout),
+                                SizedBox(width: 8),
+                                Text('Logout'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                   flexibleSpace: FlexibleSpaceBar(
                     background: Container(
                       decoration: BoxDecoration(

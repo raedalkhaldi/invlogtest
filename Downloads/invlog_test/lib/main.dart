@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'screens/main_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'providers/auth_view_model.dart';
 import 'providers/checkin_provider.dart';
@@ -33,7 +34,11 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
-        home: const MainScreen(),
+        home: Consumer<AuthViewModel>(
+          builder: (context, authVM, _) {
+            return authVM.currentUser != null ? const MainScreen() : const LoginScreen();
+          },
+        ),
         routes: {
           '/edit-profile': (context) => const EditProfileScreen(),
         },

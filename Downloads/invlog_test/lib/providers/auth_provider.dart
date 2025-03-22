@@ -36,11 +36,17 @@ class AuthProvider with ChangeNotifier {
       if (user != null) {
         final userProfile = UserProfile(
           id: user.uid,
-          username: username,
+          username: username.toLowerCase(),
           displayName: username,
+          bio: 'Hello! I am using InvLog',
+          followers: [],
+          following: [],
+          checkIns: [],
+          createdAt: DateTime.now(),
         );
 
         await _profileService.createUserProfile(userProfile);
+        _currentUser = user;
         notifyListeners();
       }
     } catch (e) {

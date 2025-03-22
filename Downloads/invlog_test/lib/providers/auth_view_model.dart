@@ -57,6 +57,8 @@ class AuthViewModel extends ChangeNotifier {
           profileImageUrl: userCredential.user!.photoURL,
           followers: [],
           following: [],
+          checkIns: [],
+          createdAt: DateTime.now(),
         );
         
         await _profileService.createOrUpdateProfile(userProfile);
@@ -78,30 +80,49 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      print('Starting user registration...'); // Debug log
+
       // Create user with Firebase
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      print('Firebase Auth user created: ${userCredential.user?.uid}'); // Debug log
+
       if (userCredential.user != null) {
         // Create user profile in Firestore
         final userProfile = UserProfile(
           id: userCredential.user!.uid,
           username: email.split('@')[0], // Use email prefix as username
-          displayName: userCredential.user!.displayName ?? 'User',
+          displayName: email.split('@')[0], // Use email prefix as initial display name
           bio: 'Hello! I am using InvLog',
           profileImageUrl: userCredential.user!.photoURL,
           followers: [],
           following: [],
+          checkIns: [],
+          createdAt: DateTime.now(),
         );
         
-        await _profileService.createOrUpdateProfile(userProfile);
+        print('Creating user profile in Firestore...'); // Debug log
+        await _profileService.createUserProfile(userProfile);
+        print('User profile created successfully'); // Debug log
+
+        // Update current user
+        _currentUser = User(
+          id: userCredential.user!.uid,
+          email: email,
+          name: email.split('@')[0],
+          photoUrl: userCredential.user!.photoURL,
+          isEmailVerified: userCredential.user!.emailVerified,
+          createdAt: DateTime.now(),
+        );
       }
 
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      print('Error during sign up: $e'); // Debug log
       _error = e.toString();
       _isLoading = false;
       notifyListeners();

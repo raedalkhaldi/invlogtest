@@ -34,7 +34,20 @@ class ProfileService {
       }
     }
 
-    await userRef.set(profile.toMap(), SetOptions(merge: true));
+    // Prepare profile data
+    final profileData = {
+      'id': profile.id,
+      'username': profile.username.toLowerCase(),
+      'displayName': profile.displayName ?? profile.username,
+      'bio': profile.bio ?? 'Hello! I am using InvLog',
+      'profileImageUrl': profile.profileImageUrl,
+      'checkIns': profile.checkIns ?? [],
+      'following': profile.following ?? [],
+      'followers': profile.followers ?? [],
+      'createdAt': profile.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+    };
+
+    await userRef.set(profileData, SetOptions(merge: true));
   }
 
   // Get user profile
