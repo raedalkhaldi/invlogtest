@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_profile.dart';
-import '../../models/checkin.dart';
 import '../../services/profile_service.dart';
 import '../../models/checkin_model.dart';
 import '../../widgets/checkin_card.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../providers/auth_view_model.dart';
+import '../../screens/profile/followers_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
@@ -208,6 +207,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                     color: Colors.grey[600],
                                   ),
                                 ),
+                                if (userProfile.bio?.isNotEmpty ?? false)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Text(userProfile.bio!),
+                                  ),
                               ],
                             ),
                             if (isCurrentUser)
@@ -240,21 +244,67 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                   ),
                           ],
                         ),
-                        if (userProfile.bio != null && userProfile.bio!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              userProfile.bio!,
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildStatColumn(userProfile.checkIns?.length.toString() ?? '0', 'Check-ins'),
-                            _buildStatColumn(userProfile.following?.length.toString() ?? '0', 'Following'),
-                            _buildStatColumn(userProfile.followers?.length.toString() ?? '0', 'Followers'),
+                            StreamBuilder<int>(
+                              stream: _profileService.getCheckInCountStream(userProfile.id),
+                              builder: (context, snapshot) {
+                                final count = snapshot.data ?? 0;
+                                print('Check-in count: $count'); // Debug log
+                                return _buildStatColumn(
+                                  count.toString(),
+                                  'Check-ins',
+                                );
+                              },
+                            ),
+                            StreamBuilder<UserProfile>(
+                              stream: _profileService.getFollowingCountStream(userProfile.id),
+                              builder: (context, snapshot) {
+                                final following = snapshot.data?.following?.length ?? 0;
+                                return _buildStatColumn(
+                                  following.toString(),
+                                  'Following',
+                                  onTap: () {
+                                    if (userProfile.id.isNotEmpty) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => FollowersScreen(
+                                            userId: userProfile.id,
+                                            isFollowers: false,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                            StreamBuilder<UserProfile>(
+                              stream: _profileService.getFollowersCountStream(userProfile.id),
+                              builder: (context, snapshot) {
+                                final followers = snapshot.data?.followers?.length ?? 0;
+                                return _buildStatColumn(
+                                  followers.toString(),
+                                  'Followers',
+                                  onTap: () {
+                                    if (userProfile.id.isNotEmpty) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => FollowersScreen(
+                                            userId: userProfile.id,
+                                            isFollowers: true,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ],
@@ -289,28 +339,97 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           );
         },
       ),
+      floatingActionButton: ElevatedButton(
+        onPressed: () async {
+          try {
+            await _profileService.cleanupLikedByField();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Cleanup completed successfully')),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error during cleanup: $e')),
+              );
+            }
+          }
+        },
+        child: const Text('Cleanup likedBy fields'),
+      ),
     );
   }
 
-  Widget _buildStatColumn(String count, String label) {
-    return Column(
+  Widget _buildStats() {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final String profileId = widget.userId ?? currentUser!.uid;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Text(
-          count,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+        StreamBuilder<int>(
+          stream: context.read<ProfileService>().getCheckInCountStream(profileId),
+          builder: (context, snapshot) {
+            final count = snapshot.data ?? 0;
+            return _buildStatColumn(
+              count.toString(),
+              'Check-ins',
+            );
+          },
         ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 14,
-          ),
+        StreamBuilder<UserProfile>(
+          stream: context.read<ProfileService>().getFollowingCountStream(profileId),
+          builder: (context, snapshot) {
+            final count = snapshot.data?.following?.length ?? 0;
+            return _buildStatColumn(
+              count.toString(),
+              'Following',
+              onTap: () => _showFollowList(true),
+            );
+          },
+        ),
+        StreamBuilder<UserProfile>(
+          stream: context.read<ProfileService>().getFollowersCountStream(profileId),
+          builder: (context, snapshot) {
+            final count = snapshot.data?.followers?.length ?? 0;
+            return _buildStatColumn(
+              count.toString(),
+              'Followers',
+              onTap: () => _showFollowList(false),
+            );
+          },
         ),
       ],
     );
+  }
+
+  Widget _buildStatColumn(String count, String label, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFollowList(bool isFollowers) {
+    // Implementation of _showFollowList method
   }
 }
 
@@ -391,31 +510,80 @@ class _LikesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('Building LikesTab for user: $userId'); // Debug log
     return StreamBuilder<List<CheckInModel>>(
       stream: _profileService.getLikedPostsStream(userId),
       builder: (context, snapshot) {
+        // Add detailed debug logging
+        print('LikesTab Stream Status: ${snapshot.connectionState}');
+        if (snapshot.hasData) {
+          print('Found ${snapshot.data?.length} liked posts');
+          if (snapshot.data?.isNotEmpty ?? false) {
+            final firstPost = snapshot.data!.first;
+            print('First liked post ID: ${firstPost.id}');
+            print('First liked post likes array: ${firstPost.likes}');
+          }
+        }
+        if (snapshot.hasError) {
+          print('LikesTab Error: ${snapshot.error}');
+          if (snapshot.error is FirebaseException) {
+            final error = snapshot.error as FirebaseException;
+            print('Firebase error code: ${error.code}');
+            print('Firebase error message: ${error.message}');
+          }
+        }
+        
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: ${snapshot.error}'),
+              ],
+            ),
+          );
         }
 
         final likedCheckIns = snapshot.data ?? [];
-
         if (likedCheckIns.isEmpty) {
-          return const Center(child: Text('No liked check-ins'));
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.favorite_border, size: 48, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'No liked check-ins yet',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          );
         }
 
         return ListView.builder(
           padding: const EdgeInsets.all(8),
           itemCount: likedCheckIns.length,
           itemBuilder: (context, index) {
+            final checkIn = likedCheckIns[index];
+            print('Rendering liked checkIn: ${checkIn.id}'); // Debug log
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: CheckInCard(
-                checkIn: likedCheckIns[index],
+                checkIn: checkIn,
+                onUserTap: (userId) {
+                  Navigator.pushNamed(
+                    context,
+                    '/profile',
+                    arguments: userId,
+                  );
+                },
               ),
             );
           },
@@ -458,6 +626,9 @@ class _FavoritesTab extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: CheckInCard(
                 checkIn: favoriteCheckIns[index],
+                onUserTap: (userId) {
+                  // No need to navigate since we're already in the profile
+                },
               ),
             );
           },

@@ -6,11 +6,12 @@ class CheckInModel {
   final String username;
   final String? displayName;
   final String restaurantName;
+  final String? photoUrl;
   final String? caption;
   final GeoPoint location;
-  final DateTime timestamp;
-  final int likes;
-  final List<String> likedBy;
+  final DateTime createdAt;
+  final List<String> likes;
+  final int likeCount;
   final int commentCount;
 
   CheckInModel({
@@ -19,11 +20,12 @@ class CheckInModel {
     required this.username,
     this.displayName,
     required this.restaurantName,
+    this.photoUrl,
     this.caption,
     required this.location,
-    required this.timestamp,
-    this.likes = 0,
-    this.likedBy = const [],
+    required this.createdAt,
+    this.likes = const [],
+    this.likeCount = 0,
     this.commentCount = 0,
   });
 
@@ -34,49 +36,31 @@ class CheckInModel {
       'username': username,
       'displayName': displayName,
       'restaurantName': restaurantName,
+      'photoUrl': photoUrl,
       'caption': caption,
       'location': location,
-      'timestamp': Timestamp.fromDate(timestamp),
+      'createdAt': Timestamp.fromDate(createdAt),
       'likes': likes,
-      'likedBy': likedBy,
+      'likeCount': likeCount,
       'commentCount': commentCount,
     };
   }
 
   factory CheckInModel.fromMap(Map<String, dynamic> map) {
-    print('Raw map data received: $map'); // Debug log to see incoming data
-
-    List<String> parseLikedBy(dynamic value) {
+    // Helper function to safely convert to List<String>
+    List<String> safeList(dynamic value) {
       if (value == null) return [];
+      if (value is List) return List<String>.from(value.map((e) => e.toString()));
       if (value is int) return [];
-      if (value is String) return [value];
-      if (value is List) return value.map((e) => e.toString()).toList();
       return [];
     }
 
-    int parseNumber(dynamic value) {
+    // Helper function to safely convert to int
+    int safeInt(dynamic value) {
       if (value == null) return 0;
       if (value is int) return value;
-      if (value is double) return value.toInt();
       if (value is String) return int.tryParse(value) ?? 0;
-      return 0;  // Remove Iterable check as it's causing issues
-    }
-
-    final timestamp = map['timestamp'];
-    final DateTime parsedTimestamp;
-    if (timestamp is Timestamp) {
-      parsedTimestamp = timestamp.toDate();
-    } else if (timestamp is String) {
-      parsedTimestamp = DateTime.parse(timestamp);
-    } else {
-      parsedTimestamp = DateTime.now();
-    }
-
-    // Ensure restaurantName is properly extracted
-    String parseRestaurantName(dynamic value) {
-      if (value == null) return '';
-      if (value is String) return value;
-      return value.toString();
+      return 0;
     }
 
     return CheckInModel(
@@ -84,23 +68,55 @@ class CheckInModel {
       userId: map['userId']?.toString() ?? '',
       username: map['username']?.toString() ?? '',
       displayName: map['displayName']?.toString(),
-      restaurantName: parseRestaurantName(map['restaurantName']),
+      restaurantName: map['restaurantName']?.toString() ?? '',
+      photoUrl: map['photoUrl']?.toString(),
       caption: map['caption']?.toString(),
-      location: map['location'] as GeoPoint? ?? const GeoPoint(0, 0),
-      timestamp: parsedTimestamp,
-      likes: parseNumber(map['likes']),
-      likedBy: parseLikedBy(map['likedBy']),
-      commentCount: parseNumber(map['commentCount']),
+      location: map['location'] is GeoPoint 
+          ? map['location'] as GeoPoint 
+          : GeoPoint(0, 0),
+      createdAt: map['createdAt'] != null 
+          ? (map['createdAt'] is Timestamp 
+              ? (map['createdAt'] as Timestamp).toDate()
+              : DateTime.now())
+          : DateTime.now(),
+      likes: safeList(map['likes']),
+      likeCount: safeInt(map['likeCount']),
+      commentCount: safeInt(map['commentCount']),
     );
   }
 
   factory CheckInModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? {};
-    data['id'] = doc.id;
-    print('Creating CheckInModel from Firestore data: $data'); // Debug log
-    print('Restaurant name from Firestore: ${data['restaurantName']}'); // Debug log for restaurant name
-    print('Place name from Firestore: ${data['placeName']}'); // Debug log for place name
-    return CheckInModel.fromMap(data);
+    final data = doc.data() as Map<String, dynamic>;
+    
+    // Safely convert timestamp
+    DateTime createdAt;
+    try {
+      final timestamp = data['createdAt'];
+      if (timestamp is Timestamp) {
+        createdAt = timestamp.toDate();
+      } else {
+        print('Warning: createdAt is not a Timestamp: $timestamp');
+        createdAt = DateTime.now();
+      }
+    } catch (e) {
+      print('Error converting timestamp: $e');
+      createdAt = DateTime.now();
+    }
+
+    return CheckInModel(
+      id: doc.id,
+      userId: data['userId'] ?? '',
+      username: data['username'] ?? '',
+      displayName: data['displayName'],
+      restaurantName: data['restaurantName'] ?? '',
+      photoUrl: data['photoUrl'],
+      caption: data['caption'],
+      location: data['location'] as GeoPoint,
+      createdAt: createdAt,
+      likes: List<String>.from(data['likes'] ?? []),
+      likeCount: data['likeCount'] ?? 0,
+      commentCount: data['commentCount'] ?? 0,
+    );
   }
 
   CheckInModel copyWith({
@@ -109,11 +125,12 @@ class CheckInModel {
     String? username,
     String? displayName,
     String? restaurantName,
+    String? photoUrl,
     String? caption,
     GeoPoint? location,
-    DateTime? timestamp,
-    int? likes,
-    List<String>? likedBy,
+    DateTime? createdAt,
+    List<String>? likes,
+    int? likeCount,
     int? commentCount,
   }) {
     return CheckInModel(
@@ -122,11 +139,12 @@ class CheckInModel {
       username: username ?? this.username,
       displayName: displayName ?? this.displayName,
       restaurantName: restaurantName ?? this.restaurantName,
+      photoUrl: photoUrl ?? this.photoUrl,
       caption: caption ?? this.caption,
       location: location ?? this.location,
-      timestamp: timestamp ?? this.timestamp,
+      createdAt: createdAt ?? this.createdAt,
       likes: likes ?? this.likes,
-      likedBy: likedBy ?? this.likedBy,
+      likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
     );
   }

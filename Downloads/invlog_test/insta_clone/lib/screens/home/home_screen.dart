@@ -167,7 +167,7 @@ class _CheckInCardState extends State<_CheckInCard> {
                   children: [
                     IconButton(
                       icon: Icon(
-                        widget.checkIn.likedBy.contains(context.read<AuthProvider>().user?.uid)
+                        widget.checkIn.likes.contains(context.read<AuthProvider>().user?.uid)
                             ? Icons.favorite
                             : Icons.favorite_border,
                         color: Colors.red,
@@ -181,7 +181,7 @@ class _CheckInCardState extends State<_CheckInCard> {
                         }
                       },
                     ),
-                    Text('${widget.checkIn.likes} likes'),
+                    Text('${widget.checkIn.likeCount} likes'),
                     const SizedBox(width: 16),
                     IconButton(
                       icon: const Icon(Icons.comment_outlined),

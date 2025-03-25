@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../models/checkin_model.dart';
 import '../models/comment_model.dart';
 
 class CheckInService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Create a new check-in
   Future<CheckInModel> createCheckIn({
@@ -13,23 +16,65 @@ class CheckInService {
     required String restaurantName,
     required GeoPoint location,
     String? caption,
+    File? photoFile,
   }) async {
     try {
+      print('Creating check-in for user: $userId'); // Debug log
+
+      String? photoUrl;
+      if (photoFile != null) {
+        final ref = _storage.ref().child('checkin_photos/${DateTime.now().millisecondsSinceEpoch}');
+        await ref.putFile(photoFile);
+        photoUrl = await ref.getDownloadURL();
+        print('Photo uploaded successfully: $photoUrl');
+      }
+
+      final now = DateTime.now();
+      final timestamp = Timestamp.fromDate(now);
+      
       final checkIn = CheckInModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: now.millisecondsSinceEpoch.toString(),
         userId: userId,
         username: username,
         displayName: displayName,
         restaurantName: restaurantName,
+        photoUrl: photoUrl,
         caption: caption,
         location: location,
-        timestamp: DateTime.now(),
+        createdAt: now,
+        likes: const [],
+        likeCount: 0,
+        commentCount: 0,
       );
+
+      print('Creating check-in with data:'); // Debug log
+      print('- userId: $userId');
+      print('- restaurantName: $restaurantName');
+      print('- createdAt: $timestamp');
+      print('- id: ${checkIn.id}');
+
+      final checkInData = checkIn.toMap();
+      // Ensure createdAt is a Timestamp
+      checkInData['createdAt'] = timestamp;
 
       await _firestore
           .collection('checkins')
           .doc(checkIn.id)
-          .set(checkIn.toMap());
+          .set(checkInData);
+
+      // Verify the document was created
+      final createdDoc = await _firestore
+          .collection('checkins')
+          .doc(checkIn.id)
+          .get();
+          
+      if (createdDoc.exists) {
+        print('Check-in created successfully:');
+        print('- id: ${createdDoc.id}');
+        print('- data: ${createdDoc.data()}');
+      } else {
+        print('Warning: Document not found after creation');
+      }
 
       return checkIn;
     } catch (e) {
@@ -40,16 +85,68 @@ class CheckInService {
 
   // Get check-ins for a user
   Stream<List<CheckInModel>> getUserCheckIns(String userId) {
-    return _firestore
-        .collection('checkins')
-        .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => CheckInModel.fromFirestore(doc))
-          .toList();
-    });
+    print('Getting check-ins for user: $userId'); // Debug log
+    
+    try {
+      // First, verify if any documents exist with a direct query
+      _firestore
+          .collection('checkins')
+          .where('userId', isEqualTo: userId)
+          .get()
+          .then((snapshot) {
+            print('Direct query result:');
+            print('Found ${snapshot.docs.length} documents');
+            if (snapshot.docs.isNotEmpty) {
+              final firstDoc = snapshot.docs.first.data();
+              print('Sample document:');
+              print('- userId: ${firstDoc['userId']}');
+              print('- createdAt: ${firstDoc['createdAt']}');
+              print('- id: ${snapshot.docs.first.id}');
+            }
+          });
+
+      // Set up the stream with the correct index order
+      return _firestore
+          .collection('checkins')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)  // Changed to descending to show newest first
+          .snapshots()
+          .map((snapshot) {
+            print('Stream query snapshot received:');
+            print('Number of documents: ${snapshot.docs.length}');
+            
+            if (snapshot.docs.isEmpty) {
+              print('No documents found. Verifying query parameters:');
+              print('- Collection: checkins');
+              print('- userId: $userId');
+              print('- Ordered by: createdAt (descending)');
+            } else {
+              print('Found documents:');
+              for (var doc in snapshot.docs) {
+                final data = doc.data();
+                print('Document ${doc.id}:');
+                print('- userId: ${data['userId']}');
+                print('- createdAt: ${data['createdAt']}');
+                print('- restaurantName: ${data['restaurantName']}');
+              }
+            }
+
+            return snapshot.docs
+                .map((doc) => CheckInModel.fromFirestore(doc))
+                .toList();
+          })
+          .handleError((error) {
+            print('Error in getUserCheckIns: $error');
+            if (error is FirebaseException) {
+              print('Firebase error code: ${error.code}');
+              print('Firebase error message: ${error.message}');
+            }
+            return [];
+          });
+    } catch (e) {
+      print('Error setting up check-ins stream: $e');
+      rethrow;
+    }
   }
 
   // Get nearby restaurants (mock data for now)
@@ -77,25 +174,44 @@ class CheckInService {
   // Like a check-in
   Future<void> likeCheckIn(String checkInId, String userId) async {
     try {
-      final doc = await _firestore.collection('checkins').doc(checkInId).get();
-      if (!doc.exists) return;
+      print('Attempting to like/unlike checkIn: $checkInId by user: $userId'); // Debug log
+      
+      final postRef = _firestore.collection('checkins').doc(checkInId);
+      
+      await _firestore.runTransaction((transaction) async {
+        final doc = await transaction.get(postRef);
+        if (!doc.exists) {
+          print('CheckIn document not found'); // Debug log
+          return;
+        }
 
-      final checkIn = CheckInModel.fromFirestore(doc);
-      if (checkIn.likedBy.contains(userId)) {
-        // Unlike
-        await _firestore.collection('checkins').doc(checkInId).update({
-          'likes': FieldValue.increment(-1),
-          'likedBy': FieldValue.arrayRemove([userId]),
-        });
-      } else {
-        // Like
-        await _firestore.collection('checkins').doc(checkInId).update({
-          'likes': FieldValue.increment(1),
-          'likedBy': FieldValue.arrayUnion([userId]),
-        });
-      }
+        final currentLikes = List<String>.from(doc.data()?['likes'] ?? []);
+        print('Current likes array: $currentLikes'); // Debug log
+        
+        if (currentLikes.contains(userId)) {
+          // Unlike
+          print('Removing like (userId: $userId) from checkIn: $checkInId'); // Debug log
+          transaction.update(postRef, {
+            'likes': FieldValue.arrayRemove([userId]),
+            'likeCount': FieldValue.increment(-1),
+          });
+        } else {
+          // Like
+          print('Adding like (userId: $userId) to checkIn: $checkInId'); // Debug log
+          transaction.update(postRef, {
+            'likes': FieldValue.arrayUnion([userId]),
+            'likeCount': FieldValue.increment(1),
+          });
+        }
+      });
+
+      // Verify the update
+      final updatedDoc = await postRef.get();
+      final updatedLikes = List<String>.from(updatedDoc.data()?['likes'] ?? []);
+      print('Updated likes array: $updatedLikes'); // Debug log
+      
     } catch (e) {
-      print('Error liking check-in: $e');
+      print('Error in likeCheckIn: $e'); // Debug log
       rethrow;
     }
   }
@@ -227,6 +343,17 @@ class CheckInService {
     } catch (e) {
       print('Error deleting comment: $e');
       rethrow;
+    }
+  }
+
+  Future<void> deleteCheckIn(String checkInId) async {
+    print('Deleting check-in: $checkInId'); // Debug log
+    try {
+      await _firestore.collection('checkins').doc(checkInId).delete();
+      print('Check-in deleted successfully'); // Debug log
+    } catch (e) {
+      print('Error deleting check-in: $e'); // Debug log
+      throw Exception('Failed to delete check-in: $e');
     }
   }
 } 

@@ -9,13 +9,13 @@ class CheckIn {
   final String content;
   final String? imageUrl;
   final DateTime timestamp;
-  final List<String> likedBy;
+  final List<String> likes;
   final bool isLiked;
   final List<Comment> comments;
   final String? placeName;
   final String? caption;
 
-  int get likes => likedBy.length;
+  int get likeCount => likes.length;
 
   CheckIn({
     required this.id,
@@ -25,7 +25,7 @@ class CheckIn {
     required this.content,
     this.imageUrl,
     required this.timestamp,
-    required this.likedBy,
+    required this.likes,
     required this.isLiked,
     required this.comments,
     this.placeName,
@@ -66,7 +66,7 @@ class CheckIn {
       content: map['content']?.toString() ?? '',
       imageUrl: map['imageUrl']?.toString(),
       timestamp: parseTimestamp(map['timestamp']),
-      likedBy: likes,
+      likes: likes,
       isLiked: map['isLiked'] as bool? ?? false,
       comments: comments,
       placeName: map['placeName']?.toString(),
@@ -83,7 +83,7 @@ class CheckIn {
       'content': content,
       'imageUrl': imageUrl,
       'timestamp': timestamp.toIso8601String(),
-      'likes': likedBy,
+      'likes': likes,
       'isLiked': isLiked,
       'comments': comments.map((comment) => comment.toMap()).toList(),
       'placeName': placeName,

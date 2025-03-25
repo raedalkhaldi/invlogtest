@@ -18,15 +18,32 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const ExploreScreen(),
-    const CheckInScreen(),
+    const SizedBox(), // Placeholder for check-in
     ConversationsScreen(),
     const ProfileScreen(),
   ];
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  void _onItemTapped(int index) async {
+    if (index == 2) {
+      // Show check-in screen as modal
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const CheckInScreen(),
+          fullscreenDialog: true,
+        ),
+      );
+      
+      // If check-in was successful, switch to home screen to see the new post
+      if (result != null) {
+        setState(() {
+          _selectedIndex = 0; // Switch to home screen
+        });
+      }
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
   @override

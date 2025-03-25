@@ -1,14 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
+import 'dart:io';
 import '../models/checkin_model.dart';
 import '../models/comment_model.dart';
 import '../services/checkin_service.dart';
 import '../services/profile_service.dart';
+import '../services/user_service.dart';
 
 class CheckInProvider extends ChangeNotifier {
   final CheckInService _checkInService = CheckInService();
   final ProfileService _profileService = ProfileService();
+  final UserService _userService = UserService();
   List<CheckInModel> _checkIns = [];
   final Map<String, List<CommentModel>> _comments = {};
   final Map<String, StreamSubscription<List<CommentModel>>> _commentSubscriptions = {};
@@ -16,6 +19,7 @@ class CheckInProvider extends ChangeNotifier {
   String? _error;
   String? _selectedRestaurant;
   String? _caption;
+  File? _selectedPhoto;
 
   List<CheckInModel> get checkIns => _checkIns;
   Map<String, List<CommentModel>> get comments => _comments;
@@ -23,6 +27,7 @@ class CheckInProvider extends ChangeNotifier {
   String? get error => _error;
   String? get selectedRestaurant => _selectedRestaurant;
   String? get caption => _caption;
+  File? get selectedPhoto => _selectedPhoto;
 
   @override
   void dispose() {
@@ -44,6 +49,11 @@ class CheckInProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSelectedPhoto(File? photo) {
+    _selectedPhoto = photo;
+    notifyListeners();
+  }
+
   Future<void> createCheckIn(String userId, GeoPoint location) async {
     if (_selectedRestaurant == null) {
       _error = 'Please select a restaurant';
@@ -56,7 +66,8 @@ class CheckInProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      final userProfile = await _profileService.getUserProfile(userId);
+      // Get user profile to get username
+      final userProfile = await _userService.getUserProfile(userId);
       if (userProfile == null) {
         throw Exception('User profile not found');
       }
@@ -68,10 +79,12 @@ class CheckInProvider extends ChangeNotifier {
         restaurantName: _selectedRestaurant!,
         location: location,
         caption: _caption,
+        photoFile: _selectedPhoto,
       );
 
       // Reset form
       _selectedRestaurant = null;
+      _selectedPhoto = null;
       _caption = null;
 
       _isLoading = false;
@@ -191,5 +204,15 @@ class CheckInProvider extends ChangeNotifier {
     final comments = _comments[checkInId] ?? [];
     print('Getting ${comments.length} comments for check-in $checkInId'); // Debug log
     return comments;
+  }
+
+  Future<void> deleteCheckIn(String checkInId) async {
+    try {
+      await _checkInService.deleteCheckIn(checkInId);
+      notifyListeners(); // Notify listeners to update the UI
+    } catch (e) {
+      print('Error in CheckInProvider.deleteCheckIn: $e');
+      rethrow;
+    }
   }
 } 

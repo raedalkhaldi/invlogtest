@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/checkin_model.dart';
-import '../models/comment_model.dart';
 import '../providers/checkin_provider.dart';
 import '../providers/auth_view_model.dart';
 
@@ -62,12 +59,12 @@ class _CheckInCardState extends State<CheckInCard> {
     super.dispose();
   }
 
-  String _formatTimestamp(DateTime timestamp) {
+  String _formatTimestamp(DateTime dateTime) {
     final now = DateTime.now();
-    final difference = now.difference(timestamp);
+    final difference = now.difference(dateTime);
 
     if (difference.inDays > 7) {
-      return DateFormat('MMM d').format(timestamp);
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     } else if (difference.inDays > 0) {
       return '${difference.inDays}d';
     } else if (difference.inHours > 0) {
@@ -119,206 +116,234 @@ class _CheckInCardState extends State<CheckInCard> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = context.read<AuthViewModel>().currentUser;
+    final isOwnPost = currentUser?.id == widget.checkIn.userId;
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  child: Text(
-                    widget.checkIn.username.isNotEmpty ? widget.checkIn.username[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => widget.onUserTap?.call(widget.checkIn.userId),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.checkIn.displayName ?? widget.checkIn.username,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Text(
-                  _formatTimestamp(widget.checkIn.timestamp),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: RichText(
-                text: TextSpan(
-                  style: DefaultTextStyle.of(context).style,
-                  children: [
-                    TextSpan(
-                      text: '@${widget.checkIn.username}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () => widget.onUserTap?.call(widget.checkIn.userId),
-                    ),
-                    const TextSpan(text: ' checked in at '),
-                    TextSpan(
-                      text: widget.checkIn.restaurantName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
+      margin: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              child: Text(
+                widget.checkIn.username.isNotEmpty ?
+                widget.checkIn.username[0].toUpperCase() : '?',
               ),
             ),
-            const SizedBox(height: 12),
-            if (widget.checkIn.caption != null && widget.checkIn.caption!.isNotEmpty)
-              Text(widget.checkIn.caption!),
-            const SizedBox(height: 12),
-            Row(
+            title: Row(
               children: [
-                IconButton(
-                  icon: Icon(
-                    widget.checkIn.likedBy.contains(context.read<AuthViewModel>().currentUser?.id)
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    color: widget.checkIn.likedBy.contains(context.read<AuthViewModel>().currentUser?.id)
-                        ? Colors.red
-                        : null,
+                Text(
+                  widget.checkIn.displayName ?? widget.checkIn.username,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
                   ),
-                  onPressed: widget.onLike,
                 ),
-                Text('${widget.checkIn.likes}'),
-                const SizedBox(width: 16),
-                IconButton(
-                  icon: const Icon(Icons.comment_outlined),
-                  onPressed: _toggleComments,
+                const Text(' checked in at '),
+                Text(
+                  widget.checkIn.restaurantName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Text('${widget.checkIn.commentCount}'),
               ],
             ),
-            if (_showComments) ...[
-              const Divider(),
-              Consumer<CheckInProvider>(
-                builder: (context, provider, child) {
-                  final comments = provider.getCommentsForCheckIn(widget.checkIn.id);
-                  print('CheckInCard.build - Found ${comments.length} comments for check-in: ${widget.checkIn.id}'); // Debug log
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (comments.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text('No comments yet'),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: comments.length,
-                          itemBuilder: (context, index) {
-                            final comment = comments[index];
-                            print('Rendering comment: $comment'); // Debug log
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: Theme.of(context).primaryColor,
-                                    child: Text(
-                                      comment.username.isNotEmpty ? comment.username[0].toUpperCase() : '?',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        RichText(
-                                          text: TextSpan(
-                                            style: DefaultTextStyle.of(context).style,
-                                            children: [
-                                              TextSpan(
-                                                text: comment.displayName ?? comment.username,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              TextSpan(
-                                                text: ' ${comment.text}',
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                          DateFormat('MMM d, h:mm a').format(comment.createdAt),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+            subtitle: Text('@${widget.checkIn.username}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _formatTimestamp(widget.checkIn.createdAt),
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                if (isOwnPost) ...[
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) async {
+                      if (value == 'delete') {
+                        final shouldDelete = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Delete Check-in'),
+                            content: const Text('Are you sure you want to delete this check-in?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: const Text('Cancel'),
                               ),
-                            );
-                          },
-                        ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _commentController,
-                              decoration: const InputDecoration(
-                                hintText: 'Add a comment...',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(true),
+                                child: const Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ),
-                              maxLines: 1,
-                              onSubmitted: (_) => _addComment(),
-                            ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          if (_isPostingComment)
-                            const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          else
-                            IconButton(
-                              icon: const Icon(Icons.send),
-                              onPressed: _addComment,
-                            ),
-                        ],
+                        );
+
+                        if (shouldDelete == true) {
+                          try {
+                            await context.read<CheckInProvider>().deleteCheckIn(widget.checkIn.id);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Check-in deleted successfully')),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error deleting check-in: $e')),
+                              );
+                            }
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (BuildContext context) => [
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
                       ),
                     ],
-                  );
-                },
-              ),
-            ],
-          ],
-        ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (widget.checkIn.photoUrl != null)
+            Image.network(
+              widget.checkIn.photoUrl!,
+              height: 200,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.checkIn.caption != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(widget.checkIn.caption!),
+                  ),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: widget.onLike,
+                      child: Icon(
+                        widget.checkIn.likes.contains(
+                          context.read<AuthViewModel>().currentUser?.id
+                        )
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: widget.checkIn.likes.contains(
+                          context.read<AuthViewModel>().currentUser?.id
+                        )
+                            ? Colors.red
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text('${widget.checkIn.likeCount}'),
+                    const SizedBox(width: 16),
+                    GestureDetector(
+                      onTap: _toggleComments,
+                      child: const Icon(Icons.comment_outlined),
+                    ),
+                    const SizedBox(width: 4),
+                    Text('${widget.checkIn.commentCount}'),
+                  ],
+                ),
+                if (_showComments) ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  Consumer<CheckInProvider>(
+                    builder: (context, provider, child) {
+                      final comments = provider.getCommentsForCheckIn(widget.checkIn.id);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ...comments.map((comment) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  child: Text(
+                                    comment.username[0].toUpperCase(),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      RichText(
+                                        text: TextSpan(
+                                          style: DefaultTextStyle.of(context).style,
+                                          children: [
+                                            TextSpan(
+                                              text: comment.username,
+                                              style: const TextStyle(fontWeight: FontWeight.bold),
+                                            ),
+                                            TextSpan(text: ' ${comment.text}'),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        _formatTimestamp(comment.createdAt),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _commentController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Add a comment...',
+                                    border: OutlineInputBorder(),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  onSubmitted: (_) => _addComment(),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.send),
+                                onPressed: _addComment,
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

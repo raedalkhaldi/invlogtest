@@ -5,7 +5,6 @@ import '../../models/user_profile.dart';
 import '../../services/messaging_service.dart';
 import '../../services/profile_service.dart';
 import '../../providers/auth_provider.dart';
-import 'chat_screen.dart';
 
 class ConversationsScreen extends StatelessWidget {
   late final ProfileService _profileService;

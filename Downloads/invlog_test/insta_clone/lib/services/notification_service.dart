@@ -53,8 +53,8 @@ class NotificationService {
   Future<void> sendLikeNotification({
     required String checkInId,
     required String checkInUserId,
-    required String likedByUserId,
-    required String likedByUsername,
+    required String likerUserId,
+    required String likerUsername,
     required String restaurantName,
   }) async {
     try {
@@ -68,8 +68,8 @@ class NotificationService {
           'type': 'like',
           'checkInId': checkInId,
           'userId': checkInUserId,
-          'likedByUserId': likedByUserId,
-          'likedByUsername': likedByUsername,
+          'likerUserId': likerUserId,
+          'likerUsername': likerUsername,
           'restaurantName': restaurantName,
           'fcmToken': fcmToken,
           'createdAt': FieldValue.serverTimestamp(),
@@ -141,6 +141,28 @@ class NotificationService {
     // Handle notification tap when app is in background
     // Navigate to the appropriate screen based on the notification type
     // This will be implemented in the UI layer
+  }
+
+  Future<void> createLikeNotification({
+    required String checkInId,
+    required String checkInOwnerId,
+    required String likerUserId,
+    required String likerUsername,
+  }) async {
+    try {
+      final notification = {
+        'type': 'like',
+        'checkInId': checkInId,
+        'checkInOwnerId': checkInOwnerId,
+        'likerUserId': likerUserId,
+        'likerUsername': likerUsername,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+      };
+      // ... existing code ...
+    } catch (e) {
+      print('Error creating like notification: $e');
+    }
   }
 }
 

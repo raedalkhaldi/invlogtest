@@ -23,12 +23,28 @@ class _ExploreScreenState extends State<ExploreScreen> {
     _initExploreStream();
   }
 
-  void _initExploreStream() {
-    _exploreStream = _firestore
-        .collection('checkins')
-        .orderBy('timestamp', descending: true)
-        .limit(50)
-        .snapshots();
+  void _initExploreStream() async {
+    final currentUser = context.read<AuthViewModel>().currentUser;
+    if (currentUser == null) return;
+
+    // Get the list of users the current user is following
+    final userDoc = await _firestore.collection('users').doc(currentUser.id).get();
+    final following = List<String>.from(userDoc.data()?['following'] ?? []);
+    
+    // Add the current user's ID to the exclusion list
+    following.add(currentUser.id);
+
+    // Update the stream to exclude posts from followed users
+    setState(() {
+      _exploreStream = _firestore
+          .collection('checkins')
+          .where('userId', whereNotIn: following.take(10).toList()) // Firebase limits to 10 values
+          .orderBy('userId')
+          .orderBy('createdAt', descending: false)  // Changed to ascending to match index
+          .orderBy('__name__', descending: true)    // Added to match index
+          .limit(50)
+          .snapshots();
+    });
   }
 
   Future<void> _toggleLike(String checkInId, List<String> currentLikes) async {
@@ -39,14 +55,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
       if (currentLikes.contains(user.id)) {
         // Unlike
         await _firestore.collection('checkins').doc(checkInId).update({
-          'likedBy': FieldValue.arrayRemove([user.id]),
-          'likes': FieldValue.increment(-1),
+          'likes': FieldValue.arrayRemove([user.id]),
+          'likeCount': FieldValue.increment(-1),
         });
       } else {
         // Like
         await _firestore.collection('checkins').doc(checkInId).update({
-          'likedBy': FieldValue.arrayUnion([user.id]),
-          'likes': FieldValue.increment(1),
+          'likes': FieldValue.arrayUnion([user.id]),
+          'likeCount': FieldValue.increment(1),
         });
       }
     } catch (e) {
@@ -114,14 +130,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return GestureDetector(
       onDoubleTap: () {
         if (currentUser != null) {
-          _toggleLike(checkIn.id, checkIn.likedBy);
+          _toggleLike(checkIn.id, checkIn.likes);
         }
       },
       child: widgets.CheckInCard(
         checkIn: checkIn,
         onLike: () {
           if (currentUser != null) {
-            _toggleLike(checkIn.id, checkIn.likedBy);
+            _toggleLike(checkIn.id, checkIn.likes);
           }
         },
         onUserTap: _navigateToUserProfile,

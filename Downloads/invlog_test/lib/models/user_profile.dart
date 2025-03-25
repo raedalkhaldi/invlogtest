@@ -1,74 +1,95 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserProfile {
   final String id;
   final String username;
   final String? displayName;
-  final String? bio;
+  final String? photoUrl;
   final String? profileImageUrl;
+  final String? bio;
+  final DateTime createdAt;
+  final List<String> following;
+  final List<String> followers;
   final List<String>? checkIns;
-  final List<String>? following;
-  final List<String>? followers;
-  final DateTime? createdAt;
 
   UserProfile({
     required this.id,
     required this.username,
     this.displayName,
-    this.bio,
+    this.photoUrl,
     this.profileImageUrl,
+    this.bio,
+    required this.createdAt,
+    this.following = const [],
+    this.followers = const [],
     this.checkIns,
-    this.following,
-    this.followers,
-    this.createdAt,
   });
-
-  factory UserProfile.fromMap(Map<String, dynamic> map, String id) {
-    return UserProfile(
-      id: id,
-      username: map['username'] ?? '',
-      displayName: map['displayName'],
-      bio: map['bio'],
-      profileImageUrl: map['profileImageUrl'],
-      checkIns: List<String>.from(map['checkIns'] ?? []),
-      following: List<String>.from(map['following'] ?? []),
-      followers: List<String>.from(map['followers'] ?? []),
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
-    );
-  }
 
   Map<String, dynamic> toMap() {
     return {
       'username': username,
       'displayName': displayName,
-      'bio': bio,
+      'photoUrl': photoUrl,
       'profileImageUrl': profileImageUrl,
-      'checkIns': checkIns,
+      'bio': bio,
+      'createdAt': Timestamp.fromDate(createdAt),
       'following': following,
       'followers': followers,
-      'createdAt': createdAt?.toIso8601String(),
+      'checkIns': checkIns,
     };
+  }
+
+  factory UserProfile.fromMap(Map<String, dynamic> map, String id) {
+    DateTime parseCreatedAt(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is Timestamp) return value.toDate();
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
+    return UserProfile(
+      id: id,
+      username: map['username'] ?? '',
+      displayName: map['displayName'],
+      photoUrl: map['photoUrl'],
+      profileImageUrl: map['profileImageUrl'],
+      bio: map['bio'],
+      createdAt: parseCreatedAt(map['createdAt']),
+      following: List<String>.from(map['following'] ?? []),
+      followers: List<String>.from(map['followers'] ?? []),
+      checkIns: map['checkIns'] != null ? List<String>.from(map['checkIns']) : null,
+    );
   }
 
   UserProfile copyWith({
     String? id,
     String? username,
     String? displayName,
-    String? bio,
+    String? photoUrl,
     String? profileImageUrl,
-    List<String>? checkIns,
+    String? bio,
+    DateTime? createdAt,
     List<String>? following,
     List<String>? followers,
-    DateTime? createdAt,
+    List<String>? checkIns,
   }) {
     return UserProfile(
       id: id ?? this.id,
       username: username ?? this.username,
       displayName: displayName ?? this.displayName,
-      bio: bio ?? this.bio,
+      photoUrl: photoUrl ?? this.photoUrl,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
-      checkIns: checkIns ?? this.checkIns,
+      bio: bio ?? this.bio,
+      createdAt: createdAt ?? this.createdAt,
       following: following ?? this.following,
       followers: followers ?? this.followers,
-      createdAt: createdAt ?? this.createdAt,
+      checkIns: checkIns ?? this.checkIns,
     );
   }
 } 

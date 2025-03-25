@@ -26,22 +26,17 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
-        ChangeNotifierProvider(create: (_) => CheckInProvider()),
         Provider(create: (_) => ProfileService()),
+        ChangeNotifierProvider(create: (_) => CheckInProvider()),
       ],
       child: MaterialApp(
         title: 'InvLog',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: Consumer<AuthViewModel>(
-          builder: (context, authVM, _) {
-            return authVM.currentUser != null ? const MainScreen() : const LoginScreen();
-          },
+        theme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.light,
+          colorSchemeSeed: Colors.blue,
         ),
-        routes: {
-          '/edit-profile': (context) => const EditProfileScreen(),
-        },
+        home: const MainScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );

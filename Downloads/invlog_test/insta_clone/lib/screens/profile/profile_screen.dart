@@ -243,10 +243,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               IconButton(
                                 icon: Icon(
-                                  checkIn.likedBy.contains(widget.userId)
+                                  checkIn.likes.contains(widget.userId)
                                       ? Icons.favorite
                                       : Icons.favorite_border,
-                                  color: checkIn.likedBy.contains(widget.userId)
+                                  color: checkIn.likes.contains(widget.userId)
                                       ? Colors.red
                                       : null,
                                 ),
@@ -257,7 +257,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   );
                                 },
                               ),
-                              Text('${checkIn.likes}'),
+                              Text('${checkIn.likeCount}'),
                             ],
                           ),
                         );

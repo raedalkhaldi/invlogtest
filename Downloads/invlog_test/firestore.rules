@@ -30,7 +30,7 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         // Allow any user to update likes and commentCount
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['likes', 'likedBy', 'commentCount'])
+          .hasOnly(['likes', 'likeCount', 'commentCount'])
       );
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }

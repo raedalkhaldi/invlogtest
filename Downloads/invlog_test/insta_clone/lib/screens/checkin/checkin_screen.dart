@@ -224,7 +224,7 @@ class _CheckInCard extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: Icon(
-                        checkIn.likedBy.contains(context.read<AuthProvider>().user?.uid)
+                        checkIn.likes.contains(context.read<AuthProvider>().user?.uid)
                             ? Icons.favorite
                             : Icons.favorite_border,
                         color: Colors.red,
@@ -238,7 +238,7 @@ class _CheckInCard extends StatelessWidget {
                         }
                       },
                     ),
-                    Text('${checkIn.likes} likes'),
+                    Text('${checkIn.likeCount} likes'),
                     const Spacer(),
                     Text(
                       '${checkIn.createdAt.day}/${checkIn.createdAt.month}/${checkIn.createdAt.year}',

@@ -79,7 +79,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
       if (userProfile == null) throw Exception('User profile not found');
 
       // Create check-in using the service
-      await _checkInService.createCheckIn(
+      final checkIn = await _checkInService.createCheckIn(
         userId: user.uid,
         username: userProfile.username,
         displayName: userProfile.displayName,
@@ -95,13 +95,18 @@ class _CheckInScreenState extends State<CheckInScreen> {
         _placeNameController.clear();
         _captionController.clear();
         
-        // Navigate back to timeline
-        Navigator.of(context).pop();
-        
-        // Show success message
+        // Show success message before navigation
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Check-in posted successfully!')),
         );
+
+        // Add a small delay to ensure the Firestore update is propagated
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Navigate back with the new check-in data
+        if (mounted) {
+          Navigator.of(context).pop(checkIn);
+        }
       }
     } catch (e) {
       if (mounted) {

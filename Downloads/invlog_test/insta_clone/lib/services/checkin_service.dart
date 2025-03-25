@@ -11,6 +11,8 @@ class CheckInService {
   // Create a new check-in
   Future<CheckInModel> createCheckIn({
     required String userId,
+    required String username,
+    String? displayName,
     required String restaurantName,
     required GeoPoint location,
     String? caption,
@@ -28,11 +30,16 @@ class CheckInService {
       final checkIn = CheckInModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: userId,
+        username: username,
+        displayName: displayName,
         restaurantName: restaurantName,
         photoUrl: photoUrl,
         caption: caption,
         location: location,
         createdAt: DateTime.now(),
+        likes: const [],
+        likeCount: 0,
+        commentCount: 0,
       );
 
       await _firestore
@@ -90,17 +97,17 @@ class CheckInService {
       if (!doc.exists) return;
 
       final checkIn = CheckInModel.fromFirestore(doc);
-      if (checkIn.likedBy.contains(userId)) {
+      if (checkIn.likes.contains(userId)) {
         // Unlike
         await _firestore.collection('checkins').doc(checkInId).update({
-          'likes': FieldValue.increment(-1),
-          'likedBy': FieldValue.arrayRemove([userId]),
+          'likes': FieldValue.arrayRemove([userId]),
+          'likeCount': FieldValue.increment(-1),
         });
       } else {
         // Like
         await _firestore.collection('checkins').doc(checkInId).update({
-          'likes': FieldValue.increment(1),
-          'likedBy': FieldValue.arrayUnion([userId]),
+          'likes': FieldValue.arrayUnion([userId]),
+          'likeCount': FieldValue.increment(1),
         });
       }
     } catch (e) {

@@ -38,7 +38,7 @@ class CheckInProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createCheckIn(String userId, GeoPoint location) async {
+  Future<void> createCheckIn(String userId, GeoPoint location, String username, String? displayName) async {
     if (_selectedRestaurant == null) {
       _error = 'Please select a restaurant';
       notifyListeners();
@@ -52,6 +52,8 @@ class CheckInProvider extends ChangeNotifier {
 
       await _checkInService.createCheckIn(
         userId: userId,
+        username: username,
+        displayName: displayName,
         restaurantName: _selectedRestaurant!,
         location: location,
         caption: _caption,

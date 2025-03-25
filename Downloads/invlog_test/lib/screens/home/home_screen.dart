@@ -16,27 +16,53 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final _firestore = FirebaseFirestore.instance;
   Stream<QuerySnapshot>? _checkInsStream;
   final _commentController = TextEditingController();
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _initCheckInsStream();
   }
 
   @override
   void dispose() {
     _commentController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
   void _initCheckInsStream() {
+    print('Initializing check-ins stream...'); // Debug log
     _checkInsStream = _firestore
         .collection('checkins')
-        .orderBy('timestamp', descending: true)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        ..listen(
+          (snapshot) {
+            print('Received ${snapshot.docs.length} check-ins'); // Debug log
+            if (snapshot.docs.isNotEmpty) {
+              final firstDoc = snapshot.docs.first.data() as Map<String, dynamic>;
+              print('Most recent check-in:');
+              print('- id: ${snapshot.docs.first.id}');
+              print('- createdAt: ${firstDoc['createdAt']}');
+              print('- restaurantName: ${firstDoc['restaurantName']}');
+            }
+          },
+          onError: (error) => print('Error in check-ins stream: $error'),
+        );
+  }
+
+  Stream<QuerySnapshot> _getLikedCheckInsStream(String userId) {
+    print('Getting liked check-ins stream for user: $userId'); // Debug log
+    return _firestore
+        .collection('checkins')
+        .where('likes', arrayContains: userId)
+        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
@@ -48,14 +74,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (currentLikes.contains(user.id)) {
         // Unlike
         await _firestore.collection('checkins').doc(checkInId).update({
-          'likedBy': FieldValue.arrayRemove([user.id]),
-          'likes': FieldValue.increment(-1),
+          'likes': FieldValue.arrayRemove([user.id]),
+          'likeCount': FieldValue.increment(-1),
         });
       } else {
         // Like
         await _firestore.collection('checkins').doc(checkInId).update({
-          'likedBy': FieldValue.arrayUnion([user.id]),
-          'likes': FieldValue.increment(1),
+          'likes': FieldValue.arrayUnion([user.id]),
+          'likeCount': FieldValue.increment(1),
         });
       }
     } catch (e) {
@@ -87,12 +113,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Timeline',
+          'InvLog',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Timeline'),
+            Tab(text: 'Nearby'),
+          ],
+        ),
       ),
-      body: _buildTimelineTab(),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildTimelineTab(),
+          _buildNearbyTab(),
+        ],
+      ),
     );
   }
 
@@ -126,20 +165,74 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildNearbyTab() {
+    final currentUser = context.watch<AuthViewModel>().currentUser;
+    if (currentUser == null) {
+      return const Center(child: Text('Please log in to see liked posts'));
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: _getLikedCheckInsStream(currentUser.id),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          print('Error in liked posts stream: ${snapshot.error}'); // Debug log
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final posts = snapshot.data?.docs ?? [];
+        print('Received ${posts.length} liked posts'); // Debug log
+        
+        if (posts.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.favorite_border, size: 48, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'No liked posts yet',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Double tap or tap the heart to like posts',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: posts.length,
+          itemBuilder: (context, index) {
+            final doc = posts[index];
+            final checkIn = CheckInModel.fromFirestore(doc);
+            return _buildPostCard(checkIn);
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildPostCard(CheckInModel checkIn) {
     final currentUser = context.read<AuthViewModel>().currentUser;
 
     return GestureDetector(
       onDoubleTap: () {
         if (currentUser != null) {
-          _toggleLike(checkIn.id, checkIn.likedBy);
+          _toggleLike(checkIn.id, checkIn.likes);
         }
       },
       child: widgets.CheckInCard(
         checkIn: checkIn,
         onLike: () {
           if (currentUser != null) {
-            _toggleLike(checkIn.id, checkIn.likedBy);
+            _toggleLike(checkIn.id, checkIn.likes);
           }
         },
         onUserTap: _navigateToUserProfile,
@@ -190,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Padding(
                           padding: const EdgeInsets.all(16),
                           child: Text(profile.bio!),
-                        ),
+                      ),
                     ],
                   );
                 },
