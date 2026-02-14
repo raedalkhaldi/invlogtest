@@ -1,29 +1,21 @@
 /**
  * Options Intelligence Hub - Cloudflare Worker
- * Fetches options chain data from Nasdaq and calculates:
- * - GEX (Gamma Exposure) Levels
- * - Max Pain
- * - Delta Walls
- * - Options Volume Profile
- * - Biggest Strike Levels (Option Walls)
- * - Expected Trading Range
+ * Uses CBOE (Chicago Board Options Exchange) delayed quotes API.
+ * No API key required. Returns real Greeks (delta, gamma, vega, theta).
+ * Calculates: GEX, Max Pain, Delta Walls, Volume Profile, Biggest OI Strikes, Expected Range.
  */
-
-const NASDAQ_BASE = 'https://api.nasdaq.com/api';
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'application/json',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Accept-Encoding': 'gzip, deflate, br',
-  'Origin': 'https://www.nasdaq.com',
-  'Referer': 'https://www.nasdaq.com/',
-};
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Content-Type': 'application/json',
+};
+
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Accept': 'application/json',
+  'Accept-Language': 'en-US,en;q=0.9',
 };
 
 export default {
@@ -36,12 +28,11 @@ export default {
 
     const path = url.pathname;
 
-    // Health check
     if (path === '/' || path === '/health') {
-      return jsonResponse({ status: 'ok', service: 'Options Intelligence Hub' });
+      return jsonResponse({ status: 'ok', service: 'Options Intelligence Hub', source: 'CBOE' });
     }
 
-    // Options analysis endpoint: /options/TSLA
+    // Options analysis: /options/TSLA
     const match = path.match(/^\/options\/([A-Za-z.]+)$/);
     if (match) {
       const ticker = match[1].toUpperCase();
@@ -53,21 +44,32 @@ export default {
       }
     }
 
-    // Batch endpoint: /batch?symbols=TSLA,AAPL,NVDA
+    // Batch: /batch?symbols=TSLA,AAPL,NVDA
     if (path === '/batch') {
       const symbols = (url.searchParams.get('symbols') || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-      if (symbols.length === 0) {
-        return jsonResponse({ error: 'No symbols provided. Use ?symbols=TSLA,AAPL' }, 400);
-      }
-      if (symbols.length > 15) {
-        return jsonResponse({ error: 'Max 15 symbols per batch request' }, 400);
-      }
+      if (symbols.length === 0) return jsonResponse({ error: 'No symbols provided. Use ?symbols=TSLA,AAPL' }, 400);
+      if (symbols.length > 15) return jsonResponse({ error: 'Max 15 symbols per batch' }, 400);
+
       const results = await Promise.allSettled(symbols.map(s => analyzeOptions(s)));
-      const data = symbols.map((sym, i) => {
-        if (results[i].status === 'fulfilled') return results[i].value;
-        return { symbol: sym, error: results[i].reason?.message || 'Unknown error' };
-      });
+      const data = symbols.map((sym, i) =>
+        results[i].status === 'fulfilled' ? results[i].value : { symbol: sym, error: results[i].reason?.message || 'Unknown error' }
+      );
       return jsonResponse({ results: data });
+    }
+
+    // Debug: /debug/TSLA
+    const debugMatch = path.match(/^\/debug\/([A-Za-z.]+)$/);
+    if (debugMatch) {
+      const ticker = debugMatch[1].toUpperCase();
+      try {
+        const [quote, options] = await Promise.all([
+          fetchCBOEQuote(ticker),
+          fetchCBOEOptions(ticker),
+        ]);
+        return jsonResponse({ symbol: ticker, quote, optionsCount: options.length, sampleOptions: options.slice(0, 5) });
+      } catch (err) {
+        return jsonResponse({ error: err.message, symbol: ticker }, 500);
+      }
     }
 
     return jsonResponse({ error: 'Not found. Use /options/TSLA or /batch?symbols=TSLA,AAPL' }, 404);
@@ -81,44 +83,64 @@ function jsonResponse(data, status = 200) {
 // ─── Main Analysis Pipeline ──────────────────────────────────────────────────
 
 async function analyzeOptions(ticker) {
-  // Fetch quote and options chain in parallel
-  const [quoteData, chainData] = await Promise.all([
-    fetchQuote(ticker),
-    fetchOptionsChain(ticker),
+  // Fetch quote and options in parallel from CBOE
+  const [quoteData, rawOptions] = await Promise.all([
+    fetchCBOEQuote(ticker),
+    fetchCBOEOptions(ticker),
   ]);
 
-  const currentPrice = quoteData.price;
-  const priceChange = quoteData.change;
-  const priceChangePercent = quoteData.changePercent;
+  const currentPrice = quoteData.current_price;
+  if (!currentPrice) throw new Error(`No price data for ${ticker}`);
 
-  // Parse options chain into structured data
-  const options = parseOptionsChain(chainData, currentPrice);
+  // Parse and filter options
+  const options = parseCBOEOptions(rawOptions, currentPrice);
 
   if (options.length === 0) {
-    throw new Error(`No options data available for ${ticker}`);
+    throw new Error(`No options data available for ${ticker}. The stock may not have listed options.`);
   }
 
-  // Run all calculations
-  const maxPain = calculateMaxPain(options);
-  const gex = calculateGEX(options, currentPrice);
-  const deltaWalls = calculateDeltaWalls(options, currentPrice);
-  const volumeProfile = calculateVolumeProfile(options);
-  const biggestStrikes = calculateBiggestStrikes(options);
-  const expectedRange = calculateExpectedRange(options, currentPrice, maxPain, gex, deltaWalls);
+  // Find nearest expiration from the parsed options
+  const expirations = [...new Set(options.map(o => o.expiration))].sort();
+  const nearestExp = expirations[0] || 'N/A';
 
-  // Data quality metrics
-  const totalCallOI = options.reduce((s, o) => s + o.callOI, 0);
-  const totalPutOI = options.reduce((s, o) => s + o.putOI, 0);
-  const totalCallVolume = options.reduce((s, o) => s + o.callVolume, 0);
-  const totalPutVolume = options.reduce((s, o) => s + o.putVolume, 0);
+  // Filter to nearest expiration only for calculations
+  const nearestOptions = options.filter(o => o.expiration === nearestExp);
+
+  // Aggregate by strike (combine all expirations data by strike)
+  // But use nearest expiration for primary analysis
+  const strikeData = aggregateByStrike(nearestOptions);
+
+  if (strikeData.length === 0) {
+    throw new Error(`No near-term options data for ${ticker}`);
+  }
+
+  // Run calculations
+  const maxPain = calculateMaxPain(strikeData);
+  const gex = calculateGEX(strikeData, currentPrice);
+  const deltaWalls = calculateDeltaWalls(strikeData, currentPrice);
+  const volumeProfile = calculateVolumeProfile(strikeData);
+  const biggestStrikes = calculateBiggestStrikes(strikeData);
+  const expectedRange = calculateExpectedRange(strikeData, currentPrice, maxPain, gex, deltaWalls);
+
+  const totalCallOI = strikeData.reduce((s, o) => s + o.callOI, 0);
+  const totalPutOI = strikeData.reduce((s, o) => s + o.putOI, 0);
+  const totalCallVolume = strikeData.reduce((s, o) => s + o.callVolume, 0);
+  const totalPutVolume = strikeData.reduce((s, o) => s + o.putVolume, 0);
+
+  // Days to expiration
+  let daysToExpiration = 0;
+  if (nearestExp !== 'N/A') {
+    const expDate = new Date(nearestExp + 'T16:00:00');
+    daysToExpiration = Math.max(0, Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24)));
+  }
 
   return {
     symbol: ticker,
     currentPrice,
-    priceChange,
-    priceChangePercent,
-    expiration: chainData.expiration || 'N/A',
-    daysToExpiration: chainData.daysToExpiration || 0,
+    priceChange: quoteData.price_change || 0,
+    priceChangePercent: quoteData.price_change_percent || 0,
+    expiration: nearestExp,
+    daysToExpiration,
     analysis: {
       maxPain,
       expectedLow: expectedRange.low,
@@ -135,141 +157,133 @@ async function analyzeOptions(ticker) {
       totalPutOI,
       totalCallVolume,
       totalPutVolume,
-      strikesAnalyzed: options.length,
+      strikesAnalyzed: strikeData.length,
       putCallRatio: totalPutOI > 0 ? +(totalCallOI / totalPutOI).toFixed(2) : 0,
     },
     timestamp: new Date().toISOString(),
   };
 }
 
-// ─── Data Fetching ───────────────────────────────────────────────────────────
+// ─── CBOE Data Fetching ─────────────────────────────────────────────────────
 
-async function fetchQuote(ticker) {
-  const url = `${NASDAQ_BASE}/quote/${ticker}/info?assetclass=stocks`;
-  const resp = await fetch(url, { headers: HEADERS });
-  if (!resp.ok) throw new Error(`Failed to fetch quote for ${ticker}: ${resp.status}`);
+async function fetchCBOEQuote(ticker) {
+  const url = `https://cdn.cboe.com/api/global/delayed_quotes/quotes/${ticker}.json`;
+  const resp = await fetch(url, { headers: FETCH_HEADERS });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(`CBOE quote API returned ${resp.status} for ${ticker}. ${text.slice(0, 100)}`);
+  }
+
   const json = await resp.json();
-
-  if (!json.data) throw new Error(`No quote data for ${ticker}`);
-
-  const data = json.data;
-  const priceStr = (data.primaryData?.lastSalePrice || '').replace(/[$,]/g, '');
-  const price = parseFloat(priceStr);
-  if (isNaN(price)) throw new Error(`Invalid price for ${ticker}`);
-
-  const changeStr = (data.primaryData?.netChange || '0').replace(/[$,]/g, '');
-  const changePctStr = (data.primaryData?.percentageChange || '0%').replace(/[%,]/g, '');
-
-  return {
-    price,
-    change: parseFloat(changeStr) || 0,
-    changePercent: parseFloat(changePctStr) || 0,
-  };
+  if (!json.data) throw new Error(`No quote data returned for ${ticker}`);
+  return json.data;
 }
 
-async function fetchOptionsChain(ticker) {
-  // First fetch to get available expirations, then get nearest expiration
-  const url = `${NASDAQ_BASE}/quote/${ticker}/option-chain?assetclass=stocks&limit=1000&fromdate=all&todate=all&money=all&type=all`;
-  const resp = await fetch(url, { headers: HEADERS });
-  if (!resp.ok) throw new Error(`Failed to fetch options chain for ${ticker}: ${resp.status}`);
+async function fetchCBOEOptions(ticker) {
+  const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${ticker}.json`;
+  const resp = await fetch(url, { headers: FETCH_HEADERS });
+
+  if (!resp.ok) {
+    // Try with underscore prefix for some index options
+    const url2 = `https://cdn.cboe.com/api/global/delayed_quotes/options/_${ticker}.json`;
+    const resp2 = await fetch(url2, { headers: FETCH_HEADERS });
+    if (!resp2.ok) {
+      throw new Error(`CBOE options API returned ${resp.status} for ${ticker}. Ticker may be invalid or have no listed options.`);
+    }
+    const json2 = await resp2.json();
+    return json2.data?.options || [];
+  }
+
   const json = await resp.json();
-
-  if (!json.data) throw new Error(`No options data for ${ticker}`);
-
-  return {
-    rows: json.data.table?.rows || json.data.optionChainList?.rows || [],
-    expiration: json.data.table?.headers?.expiryDate || json.data.lastTrade || '',
-    daysToExpiration: 0, // calculated from expiration
-  };
+  return json.data?.options || [];
 }
 
-function parseOptionsChain(chainData, currentPrice) {
-  const rows = chainData.rows;
-  if (!rows || rows.length === 0) return [];
+// ─── Parse CBOE Options ─────────────────────────────────────────────────────
 
-  const options = [];
+function parseCBOEOptions(rawOptions, currentPrice) {
+  // CBOE option symbol format: TSLA260218C00322500
+  // Ticker + YYMMDD + C/P + strike*1000 (8 digits)
+  const parsed = [];
 
-  for (const row of rows) {
-    // Nasdaq API returns rows with call/put data side by side
-    const strike = parseNum(row.strike);
-    if (!strike || strike <= 0) continue;
+  for (const opt of rawOptions) {
+    const sym = opt.option;
+    if (!sym) continue;
 
-    // Filter to reasonable range around current price (within 30%)
+    // Extract expiration and type from symbol
+    const symbolMatch = sym.match(/^([A-Z.]+)(\d{6})([CP])(\d{8})$/);
+    if (!symbolMatch) continue;
+
+    const expYY = symbolMatch[2].slice(0, 2);
+    const expMM = symbolMatch[2].slice(2, 4);
+    const expDD = symbolMatch[2].slice(4, 6);
+    const expiration = `20${expYY}-${expMM}-${expDD}`;
+    const isCall = symbolMatch[3] === 'C';
+    const strike = parseInt(symbolMatch[4]) / 1000;
+
+    if (strike <= 0) continue;
+    // Filter to ±30% of current price
     if (strike < currentPrice * 0.7 || strike > currentPrice * 1.3) continue;
 
-    const callOI = parseNum(row.c_Openinterest);
-    const putOI = parseNum(row.p_Openinterest);
-    const callVolume = parseNum(row.c_Volume);
-    const putVolume = parseNum(row.p_Volume);
-    const callBid = parseNum(row.c_Bid);
-    const callAsk = parseNum(row.c_Ask);
-    const putBid = parseNum(row.p_Bid);
-    const putAsk = parseNum(row.p_Ask);
-
-    // Parse Greeks - Nasdaq may provide these
-    const callDelta = parseNum(row.c_Delta) || estimateDelta(strike, currentPrice, true);
-    const putDelta = parseNum(row.p_Delta) || estimateDelta(strike, currentPrice, false);
-    const callGamma = parseNum(row.c_Gamma) || estimateGamma(strike, currentPrice);
-    const putGamma = parseNum(row.p_Gamma) || estimateGamma(strike, currentPrice);
-
-    options.push({
+    parsed.push({
+      symbol: sym,
       strike,
-      callOI,
-      putOI,
-      callVolume,
-      putVolume,
-      callBid,
-      callAsk,
-      putBid,
-      putAsk,
-      callDelta,
-      putDelta,
-      callGamma,
-      putGamma,
-      callMid: (callBid + callAsk) / 2,
-      putMid: (putBid + putAsk) / 2,
+      expiration,
+      isCall,
+      bid: opt.bid || 0,
+      ask: opt.ask || 0,
+      volume: opt.volume || 0,
+      openInterest: opt.open_interest || 0,
+      delta: opt.delta || 0,
+      gamma: opt.gamma || 0,
+      vega: opt.vega || 0,
+      theta: opt.theta || 0,
+      iv: opt.iv || 0,
+      lastPrice: opt.last_trade_price || 0,
     });
   }
 
-  return options.sort((a, b) => a.strike - b.strike);
+  return parsed;
 }
 
-function parseNum(val) {
-  if (val === null || val === undefined || val === '' || val === '--' || val === 'N/A') return 0;
-  const n = parseFloat(String(val).replace(/[,$%]/g, ''));
-  return isNaN(n) ? 0 : n;
-}
+function aggregateByStrike(options) {
+  const strikeMap = new Map();
 
-// ─── Greek Estimation (fallback when API doesn't provide) ────────────────────
+  for (const opt of options) {
+    if (!strikeMap.has(opt.strike)) {
+      strikeMap.set(opt.strike, {
+        strike: opt.strike,
+        callOI: 0, putOI: 0,
+        callVolume: 0, putVolume: 0,
+        callDelta: 0, putDelta: 0,
+        callGamma: 0, putGamma: 0,
+        callBid: 0, callAsk: 0,
+        putBid: 0, putAsk: 0,
+        callIV: 0, putIV: 0,
+      });
+    }
 
-function estimateDelta(strike, spot, isCall) {
-  // Simple delta approximation using moneyness
-  const moneyness = (spot - strike) / spot;
-  if (isCall) {
-    if (moneyness > 0.1) return 0.9;
-    if (moneyness > 0.05) return 0.75;
-    if (moneyness > 0) return 0.6;
-    if (moneyness > -0.05) return 0.4;
-    if (moneyness > -0.1) return 0.25;
-    return 0.1;
-  } else {
-    if (moneyness < -0.1) return -0.9;
-    if (moneyness < -0.05) return -0.75;
-    if (moneyness < 0) return -0.6;
-    if (moneyness < 0.05) return -0.4;
-    if (moneyness < 0.1) return -0.25;
-    return -0.1;
+    const entry = strikeMap.get(opt.strike);
+    if (opt.isCall) {
+      entry.callOI = opt.openInterest;
+      entry.callVolume = opt.volume;
+      entry.callDelta = opt.delta;
+      entry.callGamma = opt.gamma;
+      entry.callBid = opt.bid;
+      entry.callAsk = opt.ask;
+      entry.callIV = opt.iv;
+    } else {
+      entry.putOI = opt.openInterest;
+      entry.putVolume = opt.volume;
+      entry.putDelta = opt.delta;
+      entry.putGamma = opt.gamma;
+      entry.putBid = opt.bid;
+      entry.putAsk = opt.ask;
+      entry.putIV = opt.iv;
+    }
   }
-}
 
-function estimateGamma(strike, spot) {
-  // Gamma peaks at ATM and falls off
-  const moneyness = Math.abs(spot - strike) / spot;
-  if (moneyness < 0.02) return 0.05;
-  if (moneyness < 0.05) return 0.03;
-  if (moneyness < 0.1) return 0.015;
-  if (moneyness < 0.15) return 0.008;
-  return 0.003;
+  return Array.from(strikeMap.values()).sort((a, b) => a.strike - b.strike);
 }
 
 // ─── Calculation: Max Pain ───────────────────────────────────────────────────
@@ -280,24 +294,19 @@ function calculateMaxPain(options) {
 
   for (const opt of options) {
     let totalPain = 0;
-
     for (const other of options) {
-      // Call pain: call holders lose when price below their strike
       if (opt.strike > other.strike) {
         totalPain += (opt.strike - other.strike) * other.callOI;
       }
-      // Put pain: put holders lose when price above their strike
       if (opt.strike < other.strike) {
         totalPain += (other.strike - opt.strike) * other.putOI;
       }
     }
-
     if (totalPain < minPain) {
       minPain = totalPain;
       maxPainStrike = opt.strike;
     }
   }
-
   return maxPainStrike;
 }
 
@@ -307,31 +316,25 @@ function calculateGEX(options, spotPrice) {
   const gexByStrike = [];
 
   for (const opt of options) {
+    // Use real gamma from CBOE
     const callGEX = opt.callGamma * opt.callOI * 100 * spotPrice;
     const putGEX = -opt.putGamma * opt.putOI * 100 * spotPrice;
     const netGEX = callGEX + putGEX;
     gexByStrike.push({ strike: opt.strike, callGEX, putGEX, netGEX });
   }
 
-  // Find resistance (highest positive GEX above price)
   const abovePrice = gexByStrike.filter(g => g.strike > spotPrice && g.netGEX > 0);
   const belowPrice = gexByStrike.filter(g => g.strike < spotPrice && g.netGEX > 0);
 
   const resistance = abovePrice.length > 0
-    ? abovePrice.reduce((max, g) => g.netGEX > max.netGEX ? g : max).strike
-    : null;
-
+    ? abovePrice.reduce((max, g) => g.netGEX > max.netGEX ? g : max).strike : null;
   const support = belowPrice.length > 0
-    ? belowPrice.reduce((max, g) => g.netGEX > max.netGEX ? g : max).strike
-    : null;
+    ? belowPrice.reduce((max, g) => g.netGEX > max.netGEX ? g : max).strike : null;
 
-  // Zero GEX (flip point) - strike closest to zero net GEX
   const nearATM = gexByStrike.filter(g => Math.abs(g.strike - spotPrice) / spotPrice < 0.15);
   const zeroGEX = nearATM.length > 0
-    ? nearATM.reduce((min, g) => Math.abs(g.netGEX) < Math.abs(min.netGEX) ? g : min).strike
-    : null;
+    ? nearATM.reduce((min, g) => Math.abs(g.netGEX) < Math.abs(min.netGEX) ? g : min).strike : null;
 
-  // Net GEX sentiment
   const totalNetGEX = gexByStrike.reduce((s, g) => s + g.netGEX, 0);
 
   return {
@@ -347,10 +350,8 @@ function calculateGEX(options, spotPrice) {
 // ─── Calculation: Delta Walls ───────────────────────────────────────────────
 
 function calculateDeltaWalls(options, spotPrice) {
-  let maxCallDeltaOI = 0;
-  let callWallDelta = null;
-  let maxPutDeltaOI = 0;
-  let putWallDelta = null;
+  let maxCallDeltaOI = 0, callWallDelta = null;
+  let maxPutDeltaOI = 0, putWallDelta = null;
 
   for (const opt of options) {
     const callStrength = Math.abs(opt.callDelta) * opt.callOI;
@@ -360,18 +361,14 @@ function calculateDeltaWalls(options, spotPrice) {
       maxCallDeltaOI = callStrength;
       callWallDelta = opt.strike;
     }
-
     if (opt.strike <= spotPrice && putStrength > maxPutDeltaOI) {
       maxPutDeltaOI = putStrength;
       putWallDelta = opt.strike;
     }
   }
 
-  // Also find OI-based walls
-  let maxCallOI = 0;
-  let callWallOI = null;
-  let maxPutOI = 0;
-  let putWallOI = null;
+  let maxCallOI = 0, callWallOI = null;
+  let maxPutOI = 0, putWallOI = null;
 
   for (const opt of options) {
     if (opt.strike >= spotPrice && opt.callOI > maxCallOI) {
@@ -384,12 +381,7 @@ function calculateDeltaWalls(options, spotPrice) {
     }
   }
 
-  return {
-    callWallDelta,
-    putWallDelta,
-    callWallOI,
-    putWallOI,
-  };
+  return { callWallDelta, putWallDelta, callWallOI, putWallOI };
 }
 
 // ─── Calculation: Volume Profile ────────────────────────────────────────────
@@ -407,18 +399,11 @@ function calculateVolumeProfile(options) {
   }
 
   volumeData.sort((a, b) => b.volume - a.volume);
-
   const poc = volumeData[0].strike;
   const avgVolume = volumeData.reduce((s, v) => s + v.volume, 0) / volumeData.length;
-  const highVolumeStrikes = volumeData
-    .filter(v => v.volume > avgVolume * 1.5)
-    .map(v => v.strike);
-
+  const highVolumeStrikes = volumeData.filter(v => v.volume > avgVolume * 1.5).map(v => v.strike);
   const topVolumeStrikes = volumeData.slice(0, 5).map(v => ({
-    strike: v.strike,
-    volume: v.volume,
-    callVolume: v.callVolume,
-    putVolume: v.putVolume,
+    strike: v.strike, volume: v.volume, callVolume: v.callVolume, putVolume: v.putVolume,
   }));
 
   return { poc, highVolumeStrikes, topVolumeStrikes };
@@ -428,25 +413,16 @@ function calculateVolumeProfile(options) {
 
 function calculateBiggestStrikes(options) {
   const oiData = options.map(o => ({
-    strike: o.strike,
-    totalOI: o.callOI + o.putOI,
-    callOI: o.callOI,
-    putOI: o.putOI,
+    strike: o.strike, totalOI: o.callOI + o.putOI, callOI: o.callOI, putOI: o.putOI,
   })).filter(o => o.totalOI > 0);
 
   oiData.sort((a, b) => b.totalOI - a.totalOI);
-
   const topOIStrikes = oiData.slice(0, 5).map(o => ({
-    strike: o.strike,
-    totalOI: o.totalOI,
-    callOI: o.callOI,
-    putOI: o.putOI,
+    strike: o.strike, totalOI: o.totalOI, callOI: o.callOI, putOI: o.putOI,
   }));
 
-  // Find highest individual call and put OI
   let maxCallOI = { strike: 0, oi: 0 };
   let maxPutOI = { strike: 0, oi: 0 };
-
   for (const o of options) {
     if (o.callOI > maxCallOI.oi) maxCallOI = { strike: o.strike, oi: o.callOI };
     if (o.putOI > maxPutOI.oi) maxPutOI = { strike: o.strike, oi: o.putOI };
@@ -463,28 +439,19 @@ function calculateBiggestStrikes(options) {
 // ─── Calculation: Expected Trading Range ────────────────────────────────────
 
 function calculateExpectedRange(options, spotPrice, maxPain, gex, deltaWalls) {
-  // Combine multiple signals for range estimation
   const levels = [
-    deltaWalls.callWallDelta,
-    deltaWalls.putWallDelta,
-    deltaWalls.callWallOI,
-    deltaWalls.putWallOI,
-    gex.resistance,
-    gex.support,
-    maxPain,
+    deltaWalls.callWallDelta, deltaWalls.putWallDelta,
+    deltaWalls.callWallOI, deltaWalls.putWallOI,
+    gex.resistance, gex.support, maxPain,
   ].filter(v => v !== null && v !== undefined);
 
   const aboveLevels = levels.filter(l => l > spotPrice);
   const belowLevels = levels.filter(l => l < spotPrice);
 
-  // Expected high = average of resistance levels, biased toward nearest
   const high = aboveLevels.length > 0
-    ? aboveLevels.sort((a, b) => a - b)[0] // nearest resistance
-    : spotPrice * 1.03;
-
+    ? aboveLevels.sort((a, b) => a - b)[0] : spotPrice * 1.03;
   const low = belowLevels.length > 0
-    ? belowLevels.sort((a, b) => b - a)[0] // nearest support
-    : spotPrice * 0.97;
+    ? belowLevels.sort((a, b) => b - a)[0] : spotPrice * 0.97;
 
   return {
     low: +Math.min(low, spotPrice).toFixed(2),
