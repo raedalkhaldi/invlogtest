@@ -1,0 +1,268 @@
+{
+  "national": {
+    "total_population": 35300280,
+    "saudi": {
+      "male": 9827595,
+      "female": 9807663,
+      "total": 19635258
+    },
+    "non_saudi": {
+      "male": 12088577,
+      "female": 3576445,
+      "total": 15665022
+    },
+    "by_gender": {
+      "male": 21916172,
+      "female": 13384108
+    }
+  },
+  "provinces": {
+    "الرياض": {
+      "male": 5382340,
+      "female": 3209408,
+      "saudi": 4439210,
+      "non_saudi": 4152538,
+      "total": 8591748
+    },
+    "مكة المكرمة": {
+      "male": 4878926,
+      "female": 3142537,
+      "saudi": 4153723,
+      "non_saudi": 3867740,
+      "total": 8021463
+    },
+    "المنطقة الشرقية": {
+      "male": 3269878,
+      "female": 1855376,
+      "saudi": 2949854,
+      "non_saudi": 2175400,
+      "total": 5125254
+    },
+    "المدينة المنورة": {
+      "male": 1278117,
+      "female": 859866,
+      "saudi": 1352146,
+      "non_saudi": 785837,
+      "total": 2137983
+    },
+    "عسير": {
+      "male": 1201031,
+      "female": 823254,
+      "saudi": 1444688,
+      "non_saudi": 579597,
+      "total": 2024285
+    },
+    "جازان": {
+      "male": 800579,
+      "female": 604418,
+      "saudi": 1002779,
+      "non_saudi": 402218,
+      "total": 1404997
+    },
+    "القصيم": {
+      "male": 792227,
+      "female": 543952,
+      "saudi": 926490,
+      "non_saudi": 409689,
+      "total": 1336179
+    },
+    "تبوك": {
+      "male": 527681,
+      "female": 358355,
+      "saudi": 637601,
+      "non_saudi": 248435,
+      "total": 886036
+    },
+    "حائل": {
+      "male": 443406,
+      "female": 303000,
+      "saudi": 527885,
+      "non_saudi": 218521,
+      "total": 746406
+    },
+    "الجوف": {
+      "male": 345687,
+      "female": 250135,
+      "saudi": 440264,
+      "non_saudi": 155558,
+      "total": 595822
+    },
+    "نجران": {
+      "male": 349933,
+      "female": 242367,
+      "saudi": 394976,
+      "non_saudi": 197324,
+      "total": 592300
+    },
+    "الحدود الشمالية": {
+      "male": 214532,
+      "female": 159045,
+      "saudi": 271358,
+      "non_saudi": 102219,
+      "total": 373577
+    },
+    "الباحة": {
+      "male": 194258,
+      "female": 144916,
+      "saudi": 251288,
+      "non_saudi": 87886,
+      "total": 339174
+    }
+  },
+  "age_groups": {
+    "0 - 4": {
+      "male": 1314242,
+      "female": 1263917,
+      "saudi": 2173955,
+      "non_saudi": 404204,
+      "total": 2578159
+    },
+    "5 - 9": {
+      "male": 1407551,
+      "female": 1354766,
+      "saudi": 2257680,
+      "non_saudi": 504637,
+      "total": 2762317
+    },
+    "10 - 14": {
+      "male": 1297385,
+      "female": 1249029,
+      "saudi": 2100003,
+      "non_saudi": 446411,
+      "total": 2546414
+    },
+    "15 - 19": {
+      "male": 1116816,
+      "female": 1079884,
+      "saudi": 1858245,
+      "non_saudi": 338455,
+      "total": 2196700
+    },
+    "20 - 24": {
+      "male": 1565435,
+      "female": 1050547,
+      "saudi": 1719492,
+      "non_saudi": 896490,
+      "total": 2615982
+    },
+    "25 - 29": {
+      "male": 2503327,
+      "female": 1242388,
+      "saudi": 1702262,
+      "non_saudi": 2043453,
+      "total": 3745715
+    },
+    "30 - 34": {
+      "male": 2641972,
+      "female": 1250860,
+      "saudi": 1529157,
+      "non_saudi": 2363675,
+      "total": 3892832
+    },
+    "35 - 39": {
+      "male": 2351673,
+      "female": 1113283,
+      "saudi": 1354051,
+      "non_saudi": 2110905,
+      "total": 3464956
+    },
+    "40 - 44": {
+      "male": 1814846,
+      "female": 839031,
+      "saudi": 1077993,
+      "non_saudi": 1575884,
+      "total": 2653877
+    },
+    "45 - 49": {
+      "male": 1232924,
+      "female": 592256,
+      "saudi": 785913,
+      "non_saudi": 1039267,
+      "total": 1825180
+    },
+    "50 - 54": {
+      "male": 924529,
+      "female": 463843,
+      "saudi": 653994,
+      "non_saudi": 734378,
+      "total": 1388372
+    },
+    "55 - 59": {
+      "male": 643938,
+      "female": 351281,
+      "saudi": 529004,
+      "non_saudi": 466215,
+      "total": 995219
+    },
+    "60 - 64": {
+      "male": 394606,
+      "female": 253046,
+      "saudi": 390642,
+      "non_saudi": 257010,
+      "total": 647652
+    },
+    "65 - 69": {
+      "male": 212344,
+      "female": 156115,
+      "saudi": 257136,
+      "non_saudi": 111323,
+      "total": 368459
+    },
+    "70 - 74": {
+      "male": 110479,
+      "female": 94864,
+      "saudi": 155576,
+      "non_saudi": 49767,
+      "total": 205343
+    },
+    "75 - 79": {
+      "male": 67392,
+      "female": 64100,
+      "saudi": 110571,
+      "non_saudi": 20921,
+      "total": 131492
+    },
+    "80 - 84": {
+      "male": 43523,
+      "female": 40686,
+      "saudi": 72617,
+      "non_saudi": 11592,
+      "total": 84209
+    },
+    "85 - 89": {
+      "male": 21698,
+      "female": 20470,
+      "saudi": 37292,
+      "non_saudi": 4876,
+      "total": 42168
+    },
+    "90 - 94": {
+      "male": 8772,
+      "female": 9200,
+      "saudi": 15769,
+      "non_saudi": 2203,
+      "total": 17972
+    },
+    "95 - 99": {
+      "male": 2926,
+      "female": 3893,
+      "saudi": 6088,
+      "non_saudi": 731,
+      "total": 6819
+    },
+    "100+": {
+      "male": 2217,
+      "female": 3170,
+      "saudi": 4822,
+      "non_saudi": 565,
+      "total": 5387
+    }
+  },
+  "metadata": {
+    "source": "General Authority for Statistics (GASTAT)",
+    "api": "https://api.datasaudi.sa",
+    "national_year": 2024,
+    "detailed_year": 2022,
+    "note": "National totals are from 2024. Province and age breakdowns are from the most recent detailed census (2022)."
+  }
+}
