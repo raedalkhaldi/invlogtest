@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KSA Population Analysis 2024</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>Saudi Arabia Population Data Analysis</h1>
+        <p>Interactive visualization of KSA demographic data</p>
+        <span class="badge">Source: GASTAT via DataSaudi API | National Data: 2024 | Provincial Detail: 2022</span>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <span>Loading population data...</span>
+    </div>
+
+    <!-- Dashboard (hidden until data loads) -->
+    <div id="dashboard" style="display:none;">
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="icon">&#127468;&#127480;</div>
+                <div class="value" id="kpi-total">-</div>
+                <div class="label">Total Population</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="icon">&#127970;</div>
+                <div class="value" id="kpi-saudi">-</div>
+                <div class="label">Saudi Citizens</div>
+            </div>
+            <div class="kpi-card amber">
+                <div class="icon">&#127758;</div>
+                <div class="value" id="kpi-nonsaudi">-</div>
+                <div class="label">Non-Saudi Residents</div>
+            </div>
+            <div class="kpi-card">
+                <div class="icon">&#9794;&#65039;</div>
+                <div class="value" id="kpi-male">-</div>
+                <div class="label">Male Population</div>
+            </div>
+            <div class="kpi-card rose">
+                <div class="icon">&#9792;&#65039;</div>
+                <div class="value" id="kpi-female">-</div>
+                <div class="label">Female Population</div>
+            </div>
+            <div class="kpi-card purple">
+                <div class="icon">&#128202;</div>
+                <div class="value" id="kpi-ratio">-</div>
+                <div class="label">Non-Saudi Ratio</div>
+            </div>
+        </div>
+
+        <div class="charts-container">
+
+            <!-- Gender & Nationality -->
+            <h2 class="section-title">National Overview (2024)</h2>
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Gender Distribution</h3>
+                    <canvas id="genderChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Nationality Distribution</h3>
+                    <canvas id="nationalityChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card full-width">
+                    <h3>Nationality by Gender Breakdown (2024)</h3>
+                    <canvas id="natGenderChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Province Analysis -->
+            <h2 class="section-title">Province Analysis (2022 Census)</h2>
+            <div class="chart-grid">
+                <div class="chart-card full-width">
+                    <h3>Population by Province</h3>
+                    <canvas id="provinceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card full-width">
+                    <h3>Saudi vs Non-Saudi by Province</h3>
+                    <canvas id="provinceSaudiChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card full-width">
+                    <h3>Gender Comparison by Province</h3>
+                    <canvas id="provinceGenderChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Age Analysis -->
+            <h2 class="section-title">Age Group Analysis (2022 Census)</h2>
+            <div class="chart-grid">
+                <div class="chart-card full-width">
+                    <h3>Population Pyramid - Age by Gender</h3>
+                    <canvas id="pyramidChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card full-width">
+                    <h3>Age Distribution by Nationality</h3>
+                    <canvas id="ageChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <h2 class="section-title">Province Data Table (click headers to sort)</h2>
+            <div class="chart-card full-width">
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable(0)">#</th>
+                                <th onclick="sortTable(1)">Province</th>
+                                <th onclick="sortTable(2)">Total</th>
+                                <th onclick="sortTable(3)">Male</th>
+                                <th onclick="sortTable(4)">Female</th>
+                                <th onclick="sortTable(5)">Saudi</th>
+                                <th onclick="sortTable(6)">Non-Saudi</th>
+                                <th onclick="sortTable(7)">Saudi %</th>
+                                <th onclick="sortTable(8)">Male %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="province-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Data Source: <a href="https://datasaudi.sa" target="_blank">DataSaudi.sa</a> - General Authority for Statistics (GASTAT)</p>
+            <p>Student Project | Built with Python & Chart.js | Deployed on Cloudflare Pages</p>
+        </div>
+
+    </div>
+
+    <script src="/js/charts.js"></script>
+</body>
+</html>

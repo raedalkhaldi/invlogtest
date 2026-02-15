@@ -1,0 +1,6 @@
+name = "ksa-population"
+compatibility_date = "2024-01-01"
+
+# Cloudflare Pages uses the 'dist' directory as output
+[site]
+bucket = "./dist"
