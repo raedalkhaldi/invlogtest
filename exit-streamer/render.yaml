@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: scalping-exit-streamer
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node streamer.js
+    envVars:
+      - key: CF_BASE_URL
+        value: https://scalping-dashboard.pages.dev
+      - key: BOT_IDS
+        value: A,B,C
+      - key: CRON_SECRET
+        sync: false          # set in Render dashboard
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_API_SECRET
+        sync: false
+      - key: ALPACA_API_KEY_B
+        sync: false
+      - key: ALPACA_API_SECRET_B
+        sync: false
+      - key: ALPACA_API_KEY_C
+        sync: false
+      - key: ALPACA_API_SECRET_C
+        sync: false
+    healthCheckPath: /
