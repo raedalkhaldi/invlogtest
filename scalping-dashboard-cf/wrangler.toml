@@ -1,0 +1,8 @@
+name = "scalping-dashboard"
+compatibility_date = "2024-12-01"
+pages_build_output_dir = "./public"
+
+[[kv_namespaces]]
+binding = "SCALPING_CACHE"
+id = "7d69275513f74c0d8717b5dc44233600"
+preview_id = "eab0bfd28ae249b2a0dbcce70f9f0399"

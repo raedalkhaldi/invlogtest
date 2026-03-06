@@ -1,0 +1,14 @@
+{
+  "name": "scalping-dashboard-cf",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev public/ --kv SCALPING_CACHE",
+    "deploy": "wrangler pages deploy public/",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.69.0"
+  }
+}
