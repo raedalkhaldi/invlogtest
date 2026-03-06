@@ -8,6 +8,8 @@
 import type { Env } from "../../src/types";
 import { formatAlertCompact } from "../../src/telegram-formatter";
 import { tgSend, getSubscribers, getPortfolioSize } from "../../src/telegram-helpers";
+import { isMarketOpen } from "../../src/alpaca";
+import { getBotConfig, isInActiveHours } from "../../src/bot-config";
 
 const ALERT_TICKERS = [
   "SPY", "QQQ", "NVDA", "TSLA",
@@ -35,6 +37,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const token = env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     return Response.json({ error: "No bot token" }, { status: 500 });
+  }
+
+  // ── Market + Active Hours check ────────────────────────
+  const alpacaKey    = env.ALPACA_API_KEY;
+  const alpacaSecret = env.ALPACA_API_SECRET;
+  const auth = { key: alpacaKey, secret: alpacaSecret };
+
+  const marketOpen = await isMarketOpen(auth);
+  if (!marketOpen) {
+    return Response.json({ message: "Market closed — no alerts sent", alerts_sent: 0 });
+  }
+
+  const cfg = await getBotConfig(env.SCALPING_CACHE, "A");
+  if (!isInActiveHours(cfg)) {
+    return Response.json({ message: `Outside active hours (${cfg.activeHoursStart}–${cfg.activeHoursEnd} ET) — no alerts sent`, alerts_sent: 0 });
   }
 
   // ── Subscribers ────────────────────────────────────────
