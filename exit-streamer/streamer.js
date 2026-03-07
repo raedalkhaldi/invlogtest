@@ -206,10 +206,35 @@ function updateSubscriptions() {
 // ── Core exit logic ───────────────────────────────────────
 
 // Track positions we're currently closing (avoid double-close)
-const closing = new Set(); // occSymbol
+const closing = new Set(); // "botId:occSymbol"
+
+// Shared close helper — used by both stock-price and premium triggers
+async function closePosition(pos, reason) {
+  const key = `${pos.botId}:${pos.occ_symbol}`;
+  if (closing.has(key)) return; // already being closed
+  closing.add(key);
+
+  log(`🎯 ${reason} — Bot ${pos.botId} ${pos.ticker} ${pos.contract_type} $${pos.strike}`);
+
+  try {
+    await closeAlpacaPosition(pos.botId, pos.occ_symbol);
+    log(`✅ Closed ${pos.occ_symbol} on Alpaca (Bot ${pos.botId})`);
+
+    // Remove from local state so we don't try again
+    openPositions = openPositions.filter(
+      p => !(p.occ_symbol === pos.occ_symbol && p.botId === pos.botId)
+    );
+    subscribedTickers = new Set(openPositions.map(p => p.ticker));
+    updateSubscriptions();
+  } catch (err) {
+    log(`❌ Failed to close ${pos.occ_symbol}: ${err.message}`);
+    closing.delete(key); // allow retry on next tick
+  }
+}
+
+// ── Stock-price exit (WebSocket, sub-second) ──────────────
 
 async function handleTrade(ticker, price) {
-  // Find any open position for this ticker where target is hit
   for (const pos of openPositions) {
     if (pos.ticker !== ticker) continue;
 
@@ -219,28 +244,49 @@ async function handleTrade(ticker, price) {
 
     if (!targetHit) continue;
 
-    const key = `${pos.botId}:${pos.occ_symbol}`;
-    if (closing.has(key)) continue; // already being closed
+    await closePosition(
+      pos,
+      `STOCK TARGET HIT: ${ticker} @ $${price.toFixed(2)} (target $${pos.stock_target.toFixed(2)})`
+    );
+  }
+}
 
-    closing.add(key);
+// ── Option-premium exit (polled every 60s via Alpaca REST) ─
 
-    log(`🎯 TARGET HIT: ${ticker} @ $${price.toFixed(2)} (target $${pos.stock_target.toFixed(2)}) — Bot ${pos.botId} ${pos.contract_type} $${pos.strike}`);
+async function checkOptionPremiums() {
+  if (openPositions.length === 0) return;
 
+  for (const botId of BOT_IDS) {
+    const botPositions = openPositions.filter(p => p.botId === botId);
+    if (botPositions.length === 0) continue;
+
+    let alpacaPositions;
     try {
-      await closeAlpacaPosition(pos.botId, pos.occ_symbol);
-      log(`✅ Closed ${pos.occ_symbol} on Alpaca (Bot ${pos.botId})`);
-
-      // Remove from local state so we don't try again
-      openPositions = openPositions.filter(p => p.occ_symbol !== pos.occ_symbol || p.botId !== pos.botId);
-      subscribedTickers = new Set(openPositions.map(p => p.ticker));
-      updateSubscriptions();
-
-      // The Cloudflare cron will pick up the closed position on next run
-      // (it detects "gone from Alpaca" → marks EXPIRED/closed with fill price)
-      // We could also call a dedicated endpoint here if we want faster recording.
+      alpacaPositions = await alpacaGet(botId, "/positions");
     } catch (err) {
-      log(`❌ Failed to close ${pos.occ_symbol}: ${err.message}`);
-      closing.delete(key); // allow retry
+      log(`[Bot ${botId}] Alpaca positions fetch failed: ${err.message}`);
+      continue;
+    }
+
+    for (const pos of botPositions) {
+      if (!pos.target_premium || pos.target_premium <= 0) continue;
+
+      const alpPos = alpacaPositions.find(
+        p => p.symbol.trim() === pos.occ_symbol.trim()
+      );
+      if (!alpPos) continue;
+
+      const currentPrice = parseFloat(alpPos.current_price);
+      const returnPct = ((currentPrice - pos.entry_premium) / pos.entry_premium * 100).toFixed(0);
+
+      if (currentPrice >= pos.target_premium) {
+        await closePosition(
+          pos,
+          `PREMIUM TARGET HIT: ${pos.ticker} option $${currentPrice.toFixed(2)} ≥ $${pos.target_premium.toFixed(2)} (+${returnPct}%)`
+        );
+      } else {
+        log(`  ${pos.ticker} option @ $${currentPrice.toFixed(2)} / target $${pos.target_premium.toFixed(2)} (${returnPct > 0 ? '+' : ''}${returnPct}%)`);
+      }
     }
   }
 }
@@ -264,8 +310,15 @@ async function main() {
   // Connect to Alpaca real-time stream
   connectAlpacaStream();
 
-  // Sync positions every 60 seconds (to pick up new entries)
-  setInterval(syncPositions, 60_000);
+  // Sync positions every 60s (picks up new entries)
+  // After each sync, check option premiums via Alpaca REST
+  setInterval(async () => {
+    await syncPositions();
+    await checkOptionPremiums();
+  }, 60_000);
+
+  // Also run premium check immediately after startup sync
+  await checkOptionPremiums();
 }
 
 // ── HTTP health check (required for Render free tier) ─────

@@ -174,17 +174,37 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       continue;
     }
 
-    // ── Check if stock hit stock_target ───────────────
-    const stockPrice = await getStockPrice(auth, ticker);
-    if (stockPrice == null) {
-      log.push(`${ticker}: Could not fetch stock price — skip exit check`);
-      continue;
-    }
+    // ── Determine exit trigger (stock price vs option premium) ──
+    const currentOptionPrice = parseFloat(alpPos.current_price);
+    const useOptionPremiumExit = cfg.exitTrigger === "option_premium";
 
-    const targetHit =
-      pos.contract_type === "CALL"
-        ? stockPrice >= pos.stock_target
-        : stockPrice <= pos.stock_target;
+    let targetHit = false;
+    let exitReason = "";
+
+    if (useOptionPremiumExit) {
+      // Exit when live option price reaches target_premium stored at entry
+      targetHit = currentOptionPrice >= pos.target_premium;
+      exitReason = `OPTION PREMIUM TARGET HIT ($${currentOptionPrice.toFixed(2)} ≥ $${pos.target_premium.toFixed(2)})`;
+      if (!targetHit) {
+        const pctToTarget = ((pos.target_premium - currentOptionPrice) / pos.entry_premium * 100).toFixed(0);
+        log.push(`${ticker}: Holding — option $${currentOptionPrice.toFixed(2)} (target $${pos.target_premium.toFixed(2)}, +${pctToTarget}% to go)`);
+      }
+    } else {
+      // Original: exit when stock price hits stock_target
+      const stockPrice = await getStockPrice(auth, ticker);
+      if (stockPrice == null) {
+        log.push(`${ticker}: Could not fetch stock price — skip exit check`);
+        continue;
+      }
+      targetHit =
+        pos.contract_type === "CALL"
+          ? stockPrice >= pos.stock_target
+          : stockPrice <= pos.stock_target;
+      exitReason = `STOCK TARGET HIT ($${stockPrice.toFixed(2)} vs target $${pos.stock_target.toFixed(2)})`;
+      if (!targetHit) {
+        log.push(`${ticker}: Holding — stock $${stockPrice.toFixed(2)} (target $${pos.stock_target.toFixed(2)}) option $${currentOptionPrice.toFixed(2)}`);
+      }
+    }
 
     if (targetHit) {
       // Remove from KV FIRST — prevents double-close from concurrent cron runs
@@ -192,7 +212,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       try {
         const closeOrder = await closePosition(auth, pos.occ_symbol.trim());
         await new Promise((r) => setTimeout(r, 2000));
-        let exitPremium = parseFloat(alpPos.current_price);
+        let exitPremium = currentOptionPrice;
         try {
           const filled = await getOrder(auth, closeOrder.id);
           if (filled.filled_avg_price && parseFloat(filled.filled_avg_price) > 0) {
@@ -214,7 +234,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         await setLastExitTime(cache, ticker, botId);
         await addDailyPnl(cache, pnl, botId);
         const pnlNote = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
-        log.push(`${ticker}: STOCK TARGET HIT ($${stockPrice.toFixed(2)}) — option @ $${exitPremium.toFixed(2)} → ${result} ${pnlNote}`);
+        log.push(`${ticker}: ${exitReason} — option @ $${exitPremium.toFixed(2)} → ${result} ${pnlNote}`);
         exitsClosed++;
         await notifyAll(cache, token, formatExitMsg(closedTrade));
       } catch (err: any) {
@@ -224,8 +244,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
       continue;
     }
-
-    log.push(`${ticker}: Holding — stock $${stockPrice.toFixed(2)} (target $${pos.stock_target.toFixed(2)}) option $${parseFloat(alpPos.current_price).toFixed(2)}`);
   }
 
   // ═══════════════════════════════════════════════════════
