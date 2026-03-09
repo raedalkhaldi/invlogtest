@@ -36,12 +36,18 @@ import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
     }),
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get('redis.host'),
-          port: configService.get('redis.port'),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const redisUrl = configService.get<string | null>('redis.url');
+        if (redisUrl) {
+          return { connection: { url: redisUrl } };
+        }
+        return {
+          connection: {
+            host: configService.get('redis.host'),
+            port: configService.get('redis.port'),
+          },
+        };
+      },
     }),
     ThrottlerModule.forRoot([
       {

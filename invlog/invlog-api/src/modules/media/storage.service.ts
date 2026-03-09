@@ -76,8 +76,8 @@ export class StorageService implements OnModuleInit {
 
         this.logger.log(`Bucket "${this.bucket}" created with public-read policy`);
       } else {
-        this.logger.error('Failed to check/create bucket', err);
-        throw err;
+        this.logger.error('Failed to check/create bucket');
+        this.logger.warn('S3 storage unavailable — media features will not work');
       }
     }
   }
