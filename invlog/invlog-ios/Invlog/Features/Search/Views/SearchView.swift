@@ -48,6 +48,31 @@ struct SearchView: View {
             if searchText.isEmpty {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        // Quick Actions
+                        HStack(spacing: 12) {
+                            NavigationLink(value: NearbyRestaurantsDestination()) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "map")
+                                        .font(.title3)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Nearby")
+                                            .font(.subheadline.bold())
+                                        Text("Map & Restaurants")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(Color(.systemGray6))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .frame(minHeight: 44)
+                            .accessibilityLabel("View nearby restaurants on map")
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
                         // Nearby Restaurants Section
                         if !nearbyRestaurants.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
@@ -90,11 +115,11 @@ struct SearchView: View {
                             }
                             .padding()
                         }
+
+                        // Explore feed
+                        ExploreFeedView()
                     }
                 }
-                .frame(maxHeight: nearbyRestaurants.isEmpty && !isLoadingNearby ? 0 : 200)
-
-                ExploreFeedView()
             } else if isSearching {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -149,7 +174,9 @@ struct SearchView: View {
         }
         .onAppear {
             let status = locationManager.authorizationStatus
-            if status == .authorizedWhenInUse || status == .authorizedAlways {
+            if status == .notDetermined {
+                locationManager.requestPermission()
+            } else if status == .authorizedWhenInUse || status == .authorizedAlways {
                 locationManager.startUpdating()
             }
         }

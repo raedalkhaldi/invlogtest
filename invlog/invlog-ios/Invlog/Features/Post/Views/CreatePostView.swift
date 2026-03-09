@@ -240,6 +240,7 @@ struct CreatePostView: View {
                 )
             )
 
+            NotificationCenter.default.post(name: .didCreatePost, object: nil)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
