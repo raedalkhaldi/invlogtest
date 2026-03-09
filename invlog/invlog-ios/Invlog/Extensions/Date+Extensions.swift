@@ -7,3 +7,7 @@ extension Date {
         return formatter.localizedString(for: self, relativeTo: Date())
     }
 }
+
+extension Notification.Name {
+    static let didCreatePost = Notification.Name("didCreatePost")
+}

@@ -63,5 +63,8 @@ struct FeedView: View {
                 await viewModel.loadFeed()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .didCreatePost)) { _ in
+            Task { await viewModel.refresh() }
+        }
     }
 }
