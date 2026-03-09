@@ -21,7 +21,7 @@ enum APIEndpoint {
     case exploreFeed(cursor: String?, limit: Int)
 
     // Posts
-    case createPost(content: String?, mediaIds: [String], restaurantId: String?, rating: Int?, latitude: Double?, longitude: Double?, locationName: String?)
+    case createPost(content: String?, mediaIds: [String], restaurantId: String?, rating: Int?, latitude: Double?, longitude: Double?, locationName: String?, locationAddress: String?)
     case postDetail(id: String)
     case updatePost(id: String, content: String?, rating: Int?)
     case deletePost(id: String)
@@ -228,7 +228,7 @@ enum APIEndpoint {
             return ["refreshToken": token]
         case .logout(let refreshToken):
             return ["refreshToken": refreshToken]
-        case .createPost(let content, let mediaIds, let restaurantId, let rating, let lat, let lng, let locationName):
+        case .createPost(let content, let mediaIds, let restaurantId, let rating, let lat, let lng, let locationName, let locationAddress):
             var body: [String: Any] = ["mediaIds": mediaIds]
             if let content { body["content"] = content }
             if let restaurantId { body["restaurantId"] = restaurantId }
@@ -236,6 +236,7 @@ enum APIEndpoint {
             if let lat { body["latitude"] = lat }
             if let lng { body["longitude"] = lng }
             if let locationName { body["locationName"] = locationName }
+            if let locationAddress { body["locationAddress"] = locationAddress }
             return body
         case .createComment(_, let content, let parentId):
             var body: [String: Any] = ["content": content]

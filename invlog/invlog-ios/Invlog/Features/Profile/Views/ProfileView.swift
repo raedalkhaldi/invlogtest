@@ -78,6 +78,9 @@ struct ProfileView: View {
         .task {
             await loadProfile()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .didCreatePost)) { _ in
+            Task { await loadProfile() }
+        }
     }
 
     private func loadProfile() async {
@@ -98,11 +101,11 @@ struct ProfileView: View {
             }
 
             if let user {
-                let (postData, _) = try await APIClient.shared.requestWrapped(
+                let (feedResponse, _) = try await APIClient.shared.requestWrapped(
                     .userPosts(userId: user.id, cursor: nil, limit: 20),
-                    responseType: [Post].self
+                    responseType: FeedResponse.self
                 )
-                posts = postData
+                posts = feedResponse.data
             }
         } catch {
             // Handle error

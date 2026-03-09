@@ -16,13 +16,13 @@ final class ExploreFeedViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
-            let (data, meta) = try await APIClient.shared.requestWrapped(
+            let (feedResponse, _) = try await APIClient.shared.requestWrapped(
                 .exploreFeed(cursor: nil, limit: 20),
-                responseType: [Post].self
+                responseType: FeedResponse.self
             )
-            posts = data
-            cursor = meta?.cursor
-            hasMore = meta?.hasMore ?? false
+            posts = feedResponse.data
+            cursor = feedResponse.nextCursor
+            hasMore = feedResponse.nextCursor != nil
         } catch {
             self.error = error.localizedDescription
         }
@@ -34,13 +34,13 @@ final class ExploreFeedViewModel: ObservableObject {
         guard hasMore, !isLoadingMore, let cursor else { return }
         isLoadingMore = true
         do {
-            let (data, meta) = try await APIClient.shared.requestWrapped(
+            let (feedResponse, _) = try await APIClient.shared.requestWrapped(
                 .exploreFeed(cursor: cursor, limit: 20),
-                responseType: [Post].self
+                responseType: FeedResponse.self
             )
-            posts.append(contentsOf: data)
-            self.cursor = meta?.cursor
-            hasMore = meta?.hasMore ?? false
+            posts.append(contentsOf: feedResponse.data)
+            self.cursor = feedResponse.nextCursor
+            hasMore = feedResponse.nextCursor != nil
         } catch {
             self.error = error.localizedDescription
         }

@@ -51,6 +51,7 @@
 		5E6F7A8B9C0D1E2F3A4B5C6D /* CheckInHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D0E1F2A3B4C5D6 /* CheckInHistoryView.swift */; };
 		6F7A8B9C0D1E2F3A4B5C6D7E /* RestaurantPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A7B8C9D0E1F2A3B4C5D6E7 /* RestaurantPickerView.swift */; };
 		7A8B9C0D1E2F3A4B5C6D7E8F /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B8C9D0E1F2A3B4C5D6E7F8 /* PushNotificationManager.swift */; };
+		8B9C0D1E2F3A4B5C6D7E8FA0 /* PlacePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C0D1E2F3A4B5C6D7E8FA01 /* PlacePickerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -99,6 +100,7 @@
 		E5F6A7B8C9D0E1F2A3B4C5D6 /* CheckInHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CheckInHistoryView.swift"; path = "CheckInHistoryView.swift"; sourceTree = "<group>"; };
 		F6A7B8C9D0E1F2A3B4C5D6E7 /* RestaurantPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RestaurantPickerView.swift"; path = "RestaurantPickerView.swift"; sourceTree = "<group>"; };
 		A7B8C9D0E1F2A3B4C5D6E7F8 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PushNotificationManager.swift"; path = "PushNotificationManager.swift"; sourceTree = "<group>"; };
+		B9C0D1E2F3A4B5C6D7E8FA01 /* PlacePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PlacePickerView.swift"; path = "PlacePickerView.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -165,6 +167,7 @@
 				DBB07ABFE62E071D533E47F7 /* CreatePostView.swift */,
 				CF9EDA60B654428A46799A83 /* PostDetailView.swift */,
 				F6A7B8C9D0E1F2A3B4C5D6E7 /* RestaurantPickerView.swift */,
+				B9C0D1E2F3A4B5C6D7E8FA01 /* PlacePickerView.swift */,
 			);
 			name = "Views";
 			path = "Views";
@@ -558,6 +561,7 @@
 				0152428C71229B9EE0D697A7 /* PostCardView.swift in Sources */,
 				E8E01E3E7658172CD0E88EDD /* NotificationsListView.swift in Sources */,
 				615A2F832C5EBABBAD453A3C /* CreatePostView.swift in Sources */,
+				8B9C0D1E2F3A4B5C6D7E8FA0 /* PlacePickerView.swift in Sources */,
 				BACE2290B5B0CAB8B561E78D /* PostDetailView.swift in Sources */,
 				F4FBDBFFA78990C611AD26E9 /* EditProfileView.swift in Sources */,
 				778C4932ED1D0D3C39CDB1D7 /* FollowersListView.swift in Sources */,

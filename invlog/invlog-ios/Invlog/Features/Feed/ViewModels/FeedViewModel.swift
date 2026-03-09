@@ -20,13 +20,13 @@ final class FeedViewModel: ObservableObject {
         error = nil
 
         do {
-            let (data, meta) = try await apiClient.requestWrapped(
+            let (feedResponse, _) = try await apiClient.requestWrapped(
                 .feed(cursor: nil, limit: 20),
-                responseType: [Post].self
+                responseType: FeedResponse.self
             )
-            posts = data
-            cursor = meta?.cursor
-            hasMore = meta?.hasMore ?? false
+            posts = feedResponse.data
+            cursor = feedResponse.nextCursor
+            hasMore = feedResponse.nextCursor != nil
         } catch {
             self.error = error.localizedDescription
         }
@@ -39,13 +39,13 @@ final class FeedViewModel: ObservableObject {
         isLoadingMore = true
 
         do {
-            let (data, meta) = try await apiClient.requestWrapped(
+            let (feedResponse, _) = try await apiClient.requestWrapped(
                 .feed(cursor: cursor, limit: 20),
-                responseType: [Post].self
+                responseType: FeedResponse.self
             )
-            posts.append(contentsOf: data)
-            self.cursor = meta?.cursor
-            hasMore = meta?.hasMore ?? false
+            posts.append(contentsOf: feedResponse.data)
+            self.cursor = feedResponse.nextCursor
+            hasMore = feedResponse.nextCursor != nil
         } catch {
             self.error = error.localizedDescription
         }

@@ -79,8 +79,8 @@ struct PostCardView: View {
             }
 
             // Media
-            if let firstMedia = post.media.first {
-                AsyncImage(url: firstMedia.thumbnailUrl ?? firstMedia.url) { image in
+            if let media = post.media, let firstMedia = media.first {
+                AsyncImage(url: URL(string: firstMedia.thumbnailUrl ?? firstMedia.url)) { image in
                     image
                         .resizable()
                         .scaledToFill()
@@ -93,8 +93,8 @@ struct PostCardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .accessibilityLabel("Post photo")
 
-                if post.media.count > 1 {
-                    Text("+\(post.media.count - 1) more")
+                if media.count > 1 {
+                    Text("+\(media.count - 1) more")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
