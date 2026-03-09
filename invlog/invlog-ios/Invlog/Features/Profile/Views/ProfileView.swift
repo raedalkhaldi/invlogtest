@@ -1,0 +1,256 @@
+import SwiftUI
+
+struct FollowListDestination: Hashable {
+    let userId: String
+    let mode: FollowersListView.Mode
+}
+
+struct CheckInListDestination: Hashable {
+    let userId: String
+}
+
+struct ProfileView: View {
+    let userId: String? // nil = current user
+    @EnvironmentObject private var appState: AppState
+    @State private var user: User?
+    @State private var posts: [Post] = []
+    @State private var isLoading = true
+    @State private var showSettings = false
+
+    private var isCurrentUser: Bool { userId == nil }
+
+    var body: some View {
+        ScrollView {
+            if let user {
+                VStack(spacing: 0) {
+                    // Profile Header
+                    ProfileHeaderView(user: user, isCurrentUser: isCurrentUser)
+
+                    Divider()
+
+                    // Posts Grid
+                    LazyVStack(spacing: 1) {
+                        ForEach(posts) { post in
+                            NavigationLink(value: post) {
+                                PostCardView(post: post)
+                                    .padding()
+                            }
+                            Divider()
+                        }
+                    }
+                }
+            } else if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.top, 100)
+            }
+        }
+        .navigationTitle(user?.username ?? "Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: Post.self) { post in
+            PostDetailView(postId: post.id)
+        }
+        .navigationDestination(for: FollowListDestination.self) { dest in
+            FollowersListView(userId: dest.userId, mode: dest.mode)
+        }
+        .navigationDestination(for: CheckInListDestination.self) { dest in
+            CheckInHistoryView(mode: .user, id: dest.userId)
+        }
+        .navigationDestination(for: User.self) { user in
+            ProfileView(userId: user.username)
+        }
+        .toolbar {
+            if isCurrentUser {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("Settings")
+                }
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .task {
+            await loadProfile()
+        }
+    }
+
+    private func loadProfile() async {
+        do {
+            if isCurrentUser {
+                let (data, _) = try await APIClient.shared.requestWrapped(
+                    .currentUser,
+                    responseType: User.self
+                )
+                user = data
+                appState.currentUser = data
+            } else if let userId {
+                let (data, _) = try await APIClient.shared.requestWrapped(
+                    .userProfile(username: userId),
+                    responseType: User.self
+                )
+                user = data
+            }
+
+            if let user {
+                let (postData, _) = try await APIClient.shared.requestWrapped(
+                    .userPosts(userId: user.id, cursor: nil, limit: 20),
+                    responseType: [Post].self
+                )
+                posts = postData
+            }
+        } catch {
+            // Handle error
+        }
+        isLoading = false
+    }
+}
+
+struct ProfileHeaderView: View {
+    let user: User
+    let isCurrentUser: Bool
+    @State private var isFollowing: Bool
+
+    init(user: User, isCurrentUser: Bool) {
+        self.user = user
+        self.isCurrentUser = isCurrentUser
+        _isFollowing = State(initialValue: user.isFollowedByMe ?? false)
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // Avatar
+            AsyncImage(url: user.avatarUrl) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 80, height: 80)
+            .clipShape(Circle())
+            .accessibilityLabel("\(user.displayName ?? user.username)'s profile picture")
+
+            // Name
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    Text(user.displayName ?? user.username)
+                        .font(.title2.bold())
+                    if user.isVerified {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundColor(.blue)
+                            .accessibilityLabel("Verified")
+                    }
+                }
+
+                Text("@\(user.username)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                if let bio = user.bio, !bio.isEmpty {
+                    Text(bio)
+                        .font(.subheadline)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
+                }
+            }
+
+            // Stats
+            HStack(spacing: 32) {
+                StatView(count: user.postCount, label: "Posts")
+
+                NavigationLink(value: FollowListDestination(userId: user.id, mode: .followers)) {
+                    StatView(count: user.followerCount, label: "Followers")
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink(value: FollowListDestination(userId: user.id, mode: .following)) {
+                    StatView(count: user.followingCount, label: "Following")
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Check-ins link
+            NavigationLink(value: CheckInListDestination(userId: user.id)) {
+                HStack(spacing: 8) {
+                    Image(systemName: "mappin.and.ellipse")
+                        .foregroundColor(.secondary)
+                    Text("Check-in History")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .accessibilityLabel("View check-in history")
+
+            // Action Buttons
+            if !isCurrentUser {
+                profileFollowButton
+            }
+        }
+        .padding()
+    }
+
+    @ViewBuilder
+    private var profileFollowButton: some View {
+        let label = Text(isFollowing ? "Following" : "Follow")
+            .font(.subheadline.bold())
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+        let accessLabel = isFollowing ? "Unfollow \(user.username)" : "Follow \(user.username)"
+
+        if isFollowing {
+            Button { toggleFollow() } label: { label }
+                .buttonStyle(.bordered)
+                .accessibilityLabel(accessLabel)
+        } else {
+            Button { toggleFollow() } label: { label }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel(accessLabel)
+        }
+    }
+
+    private func toggleFollow() {
+        isFollowing.toggle()
+        Task {
+            do {
+                if isFollowing {
+                    try await APIClient.shared.requestVoid(.followUser(id: user.id))
+                } else {
+                    try await APIClient.shared.requestVoid(.unfollowUser(id: user.id))
+                }
+            } catch {
+                isFollowing.toggle() // Revert
+            }
+        }
+    }
+}
+
+struct StatView: View {
+    let count: Int
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("\(count)")
+                .font(.headline)
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(count) \(label)")
+    }
+}
