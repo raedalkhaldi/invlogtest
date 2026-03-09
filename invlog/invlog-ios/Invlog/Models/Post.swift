@@ -11,10 +11,11 @@ struct Post: Codable, Identifiable, Hashable {
     let latitude: Double?
     let longitude: Double?
     let locationName: String?
+    let locationAddress: String?
     let likeCount: Int
     let commentCount: Int
     let isPublic: Bool
-    let media: [PostMedia]
+    let media: [PostMedia]?
     let createdAt: Date
     var isLikedByMe: Bool?
 }
@@ -22,12 +23,19 @@ struct Post: Codable, Identifiable, Hashable {
 struct PostMedia: Codable, Identifiable, Hashable {
     let id: String
     let mediaType: String
-    let url: URL
-    let thumbnailUrl: URL?
+    let url: String
+    let mediumUrl: String?
+    let thumbnailUrl: String?
     let width: Int?
     let height: Int?
     let durationSecs: Double?
-    let sortOrder: Int
+    let sortOrder: Int?
     let blurhash: String?
-    let processingStatus: String
+    let processingStatus: String?
+}
+
+/// Wrapper for cursor-paginated feed responses from backend
+struct FeedResponse: Codable {
+    let data: [Post]
+    let nextCursor: String?
 }

@@ -9,8 +9,8 @@ struct CreatePostView: View {
     @State private var rating: Int?
     @State private var isSubmitting = false
     @State private var showDiscardAlert = false
-    @State private var showRestaurantPicker = false
-    @State private var selectedRestaurant: Restaurant?
+    @State private var showPlacePicker = false
+    @State private var selectedPlace: SelectedPlace?
     @StateObject private var uploadService = MediaUploadService()
     @StateObject private var locationManager = LocationManager()
     @State private var errorMessage: String?
@@ -108,36 +108,47 @@ struct CreatePostView: View {
                 }
                 .padding(.horizontal)
 
-                // Restaurant Tag
+                // Place Tag (MKLocalSearch)
                 Button {
-                    showRestaurantPicker = true
+                    showPlacePicker = true
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "building.2")
-                            .foregroundColor(.secondary)
+                        Image(systemName: "mappin.circle.fill")
+                            .foregroundColor(.red)
 
-                        if let restaurant = selectedRestaurant {
+                        if let place = selectedPlace {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(restaurant.name)
+                                Text(place.name)
                                     .font(.subheadline.bold())
                                     .foregroundColor(.primary)
-                                if let cuisines = restaurant.cuisineType, !cuisines.isEmpty {
-                                    Text(cuisines.joined(separator: " · "))
+                                if !place.address.isEmpty {
+                                    Text(place.address)
                                         .font(.caption)
                                         .foregroundColor(.secondary)
+                                        .lineLimit(1)
                                 }
                             }
                         } else {
-                            Text("Tag a Restaurant")
+                            Text("Add Place")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
 
                         Spacer()
 
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        if selectedPlace != nil {
+                            Button {
+                                selectedPlace = nil
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(minWidth: 44, minHeight: 44)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .padding()
                     .background(Color(.systemGray6))
@@ -145,10 +156,10 @@ struct CreatePostView: View {
                 }
                 .frame(minHeight: 44)
                 .padding(.horizontal)
-                .accessibilityLabel(selectedRestaurant != nil ? "Tagged restaurant: \(selectedRestaurant!.name). Tap to change." : "Tag a restaurant")
+                .accessibilityLabel(selectedPlace != nil ? "Place: \(selectedPlace!.name). Tap to change." : "Add a place")
 
-                // Location toggle
-                if locationManager.location != nil {
+                // Location status
+                if locationManager.location != nil && selectedPlace == nil {
                     HStack(spacing: 8) {
                         Image(systemName: "location.fill")
                             .font(.caption)
@@ -161,8 +172,8 @@ struct CreatePostView: View {
                 }
             }
         }
-        .sheet(isPresented: $showRestaurantPicker) {
-            RestaurantPickerView(selectedRestaurant: $selectedRestaurant)
+        .sheet(isPresented: $showPlacePicker) {
+            PlacePickerView(selectedPlace: $selectedPlace)
         }
         .navigationTitle("New Post")
         .navigationBarTitleDisplayMode(.inline)
@@ -223,20 +234,22 @@ struct CreatePostView: View {
                 mediaIds = try await uploadService.uploadImages(selectedImages)
             }
 
-            // 2. Create post with media IDs
-            let lat = locationManager.location?.latitude
-            let lng = locationManager.location?.longitude
-            let locName = selectedRestaurant?.name
+            // 2. Create post with place info
+            let lat = selectedPlace?.latitude ?? locationManager.location?.latitude
+            let lng = selectedPlace?.longitude ?? locationManager.location?.longitude
+            let locName = selectedPlace?.name
+            let locAddress = selectedPlace?.address
 
             try await APIClient.shared.requestVoid(
                 .createPost(
                     content: content.isEmpty ? nil : content,
                     mediaIds: mediaIds,
-                    restaurantId: selectedRestaurant?.id,
+                    restaurantId: selectedPlace?.restaurantId,
                     rating: rating,
                     latitude: lat,
                     longitude: lng,
-                    locationName: locName
+                    locationName: locName,
+                    locationAddress: locAddress
                 )
             )
 

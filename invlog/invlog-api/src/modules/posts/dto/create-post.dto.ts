@@ -46,6 +46,11 @@ export class CreatePostDto {
   locationName?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  locationAddress?: string;
+
+  @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
 }

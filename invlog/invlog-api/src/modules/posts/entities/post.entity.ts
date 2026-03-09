@@ -10,6 +10,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+import { Restaurant } from '../../restaurants/entities/restaurant.entity';
 
 @Entity('posts')
 export class Post {
@@ -20,9 +22,17 @@ export class Post {
   @Column({ name: 'author_id' })
   authorId: string;
 
+  @ManyToOne(() => User, { eager: false })
+  @JoinColumn({ name: 'author_id' })
+  author: User;
+
   @Index()
   @Column({ name: 'restaurant_id', nullable: true })
   restaurantId: string;
+
+  @ManyToOne(() => Restaurant, { eager: false, nullable: true })
+  @JoinColumn({ name: 'restaurant_id' })
+  restaurant: Restaurant;
 
   @Column({ type: 'text', nullable: true })
   content: string;
@@ -38,6 +48,9 @@ export class Post {
 
   @Column({ name: 'location_name', length: 255, nullable: true })
   locationName: string;
+
+  @Column({ name: 'location_address', length: 500, nullable: true })
+  locationAddress: string;
 
   @Column({ name: 'like_count', type: 'int', default: 0 })
   likeCount: number;
