@@ -22,7 +22,7 @@ export class Post {
   @Column({ name: 'author_id' })
   authorId: string;
 
-  @ManyToOne(() => User, { eager: false })
+  @ManyToOne(() => User, { eager: false, createForeignKeyConstraints: false })
   @JoinColumn({ name: 'author_id' })
   author: User;
 
@@ -30,7 +30,7 @@ export class Post {
   @Column({ name: 'restaurant_id', nullable: true })
   restaurantId: string;
 
-  @ManyToOne(() => Restaurant, { eager: false, nullable: true })
+  @ManyToOne(() => Restaurant, { eager: false, nullable: true, createForeignKeyConstraints: false })
   @JoinColumn({ name: 'restaurant_id' })
   restaurant: Restaurant;
 
