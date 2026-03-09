@@ -11,7 +11,7 @@ export default registerAs(
         type: 'postgres',
         url: databaseUrl,
         autoLoadEntities: true,
-        synchronize: process.env.NODE_ENV !== 'production',
+        synchronize: process.env.DB_SYNCHRONIZE === 'true',
         logging: process.env.NODE_ENV !== 'production',
         migrations: ['dist/database/migrations/*.js'],
         migrationsRun: false,
