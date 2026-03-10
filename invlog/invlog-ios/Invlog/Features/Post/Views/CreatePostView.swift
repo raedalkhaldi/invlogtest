@@ -254,17 +254,32 @@ struct CreatePostView: View {
                 mediaIds = try await uploadService.uploadMedia(mediaItems)
             }
 
-            // 2. Create post with place info
+            // 2. Ensure we have a restaurantId — auto-create if place came from Apple Maps
             let lat = selectedPlace?.latitude ?? locationManager.location?.latitude
             let lng = selectedPlace?.longitude ?? locationManager.location?.longitude
             let locName = selectedPlace?.name
             let locAddress = selectedPlace?.address
 
+            var restaurantId = selectedPlace?.restaurantId
+            if restaurantId == nil, let place = selectedPlace {
+                let (restaurant, _) = try await APIClient.shared.requestWrapped(
+                    .createRestaurant(data: [
+                        "name": place.name,
+                        "latitude": place.latitude,
+                        "longitude": place.longitude,
+                        "addressLine1": place.address,
+                    ]),
+                    responseType: Restaurant.self
+                )
+                restaurantId = restaurant.id
+            }
+
+            // 3. Create post
             try await APIClient.shared.requestVoid(
                 .createPost(
                     content: content.isEmpty ? nil : content,
                     mediaIds: mediaIds,
-                    restaurantId: selectedPlace?.restaurantId,
+                    restaurantId: restaurantId,
                     rating: rating,
                     latitude: lat,
                     longitude: lng,
