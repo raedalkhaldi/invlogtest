@@ -7,6 +7,7 @@ struct NewConversationView: View {
     @State private var searchResults: [User] = []
     @State private var isSearching = false
     @State private var selectedConversation: Conversation?
+    @State private var navigateToThread = false
 
     var body: some View {
         NavigationStack {
@@ -65,11 +66,13 @@ struct NewConversationView: View {
             .onChange(of: searchText) { newValue in
                 Task { await search(query: newValue) }
             }
-            .navigationDestination(item: $selectedConversation) { conversation in
-                MessageThreadView(
-                    conversationId: conversation.id,
-                    otherUser: conversation.otherUser
-                )
+            .navigationDestination(isPresented: $navigateToThread) {
+                if let conversation = selectedConversation {
+                    MessageThreadView(
+                        conversationId: conversation.id,
+                        otherUser: conversation.otherUser
+                    )
+                }
             }
         }
     }
@@ -83,8 +86,9 @@ struct NewConversationView: View {
 
         isSearching = true
         do {
-            let results: SearchResponse = try await APIClient.shared.request(
-                .search(query: trimmed, type: "users", lat: nil, lng: nil)
+            let results = try await APIClient.shared.request(
+                .search(query: trimmed, type: "users", lat: nil, lng: nil),
+                responseType: SearchResponse.self
             )
             searchResults = results.users ?? []
         } catch {
@@ -96,10 +100,12 @@ struct NewConversationView: View {
     private func startConversation(with user: User) {
         Task {
             do {
-                let conversation: Conversation = try await APIClient.shared.request(
-                    .startConversation(userId: user.id)
+                let conversation = try await APIClient.shared.request(
+                    .startConversation(userId: user.id),
+                    responseType: Conversation.self
                 )
                 selectedConversation = conversation
+                navigateToThread = true
             } catch {
                 // Handle error
             }
