@@ -45,7 +45,16 @@ actor APIClient {
         self.session = session
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: string) { return date }
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: string) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(string)")
+        }
         self.decoder = decoder
     }
 
