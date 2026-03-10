@@ -28,7 +28,8 @@ export class FollowsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('perPage', new DefaultValuePipe(20), ParseIntPipe) perPage: number,
   ) {
-    return this.followsService.getFollowersWithUsers(id, user.sub, page, perPage);
+    const result = await this.followsService.getFollowersWithUsers(id, user.sub, page, perPage);
+    return result.data;
   }
 
   @Get('users/:id/following')
@@ -39,7 +40,8 @@ export class FollowsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('perPage', new DefaultValuePipe(20), ParseIntPipe) perPage: number,
   ) {
-    return this.followsService.getFollowingWithUsers(id, user.sub, page, perPage);
+    const result = await this.followsService.getFollowingWithUsers(id, user.sub, page, perPage);
+    return result.data;
   }
 
   @Post('users/:id/follow')

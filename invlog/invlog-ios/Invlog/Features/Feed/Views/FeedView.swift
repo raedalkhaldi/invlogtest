@@ -58,6 +58,9 @@ struct FeedView: View {
         .navigationDestination(for: Post.self) { post in
             PostDetailView(postId: post.id)
         }
+        .navigationDestination(for: Restaurant.self) { restaurant in
+            RestaurantDetailView(restaurantSlug: restaurant.slug)
+        }
         .task {
             if viewModel.posts.isEmpty {
                 await viewModel.loadFeed()
