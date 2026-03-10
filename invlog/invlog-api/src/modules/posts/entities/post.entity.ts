@@ -18,21 +18,19 @@ export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Index()
-  @Column({ name: 'author_id' })
-  authorId: string;
-
   @ManyToOne(() => User, { eager: false, createForeignKeyConstraints: false })
   @JoinColumn({ name: 'author_id' })
   author: User;
 
-  @Index()
-  @Column({ name: 'restaurant_id', nullable: true })
-  restaurantId: string;
+  @Column({ name: 'author_id', type: 'uuid' })
+  authorId: string;
 
   @ManyToOne(() => Restaurant, { eager: false, nullable: true, createForeignKeyConstraints: false })
   @JoinColumn({ name: 'restaurant_id' })
   restaurant: Restaurant;
+
+  @Column({ name: 'restaurant_id', type: 'uuid', nullable: true })
+  restaurantId: string;
 
   @Column({ type: 'text', nullable: true })
   content: string;
