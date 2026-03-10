@@ -8,7 +8,7 @@ final class StoriesViewModel: ObservableObject {
     func loadStories() async {
         isLoading = true
         do {
-            let groups: [StoryGroup] = try await APIClient.shared.request(.storyFeed)
+            let groups = try await APIClient.shared.request(.storyFeed, responseType: [StoryGroup].self)
             storyGroups = groups
         } catch {
             // Silently handle — stories bar just stays empty

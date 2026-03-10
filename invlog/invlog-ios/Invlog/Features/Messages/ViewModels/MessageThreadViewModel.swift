@@ -47,8 +47,9 @@ final class MessageThreadViewModel: ObservableObject {
 
     func sendMessage(_ content: String) async {
         do {
-            let message: Message = try await APIClient.shared.request(
-                .sendMessage(conversationId: conversationId, content: content)
+            let message = try await APIClient.shared.request(
+                .sendMessage(conversationId: conversationId, content: content),
+                responseType: Message.self
             )
             messages.append(message)
         } catch {
