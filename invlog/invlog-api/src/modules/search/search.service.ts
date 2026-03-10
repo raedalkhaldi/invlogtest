@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { Post } from '../posts/entities/post.entity';
+import { Follow } from '../follows/entities/follow.entity';
 import { SearchQueryDto } from './dto/search-query.dto';
 
 @Injectable()
@@ -15,6 +16,8 @@ export class SearchService {
     private readonly restaurantRepo: Repository<Restaurant>,
     @InjectRepository(Post)
     private readonly postRepo: Repository<Post>,
+    @InjectRepository(Follow)
+    private readonly followRepo: Repository<Follow>,
   ) {}
 
   async search(
@@ -32,7 +35,7 @@ export class SearchService {
       return { restaurants, users: [], posts: [] };
     }
     if (type === 'people') {
-      const users = await this.searchUsers(pattern, limit);
+      const users = await this.searchUsers(pattern, limit, currentUserId);
       return { restaurants: [], users, posts: [] };
     }
     if (type === 'posts') {
@@ -43,14 +46,14 @@ export class SearchService {
     // No type filter — search all in parallel
     const [restaurants, users, posts] = await Promise.all([
       this.searchRestaurants(pattern, limit),
-      this.searchUsers(pattern, limit),
+      this.searchUsers(pattern, limit, currentUserId),
       this.searchPosts(pattern, limit),
     ]);
 
     return { restaurants, users, posts };
   }
 
-  private async searchUsers(pattern: string | null, limit: number): Promise<User[]> {
+  private async searchUsers(pattern: string | null, limit: number, currentUserId?: string): Promise<any[]> {
     const qb = this.userRepo
       .createQueryBuilder('u')
       .select([
@@ -74,10 +77,29 @@ export class SearchService {
       });
     }
 
-    return qb
+    const users = await qb
       .orderBy('u.followerCount', 'DESC')
       .limit(limit)
       .getMany();
+
+    if (users.length === 0 || !currentUserId) return users;
+
+    // Batch check which users the current user follows
+    const userIds = users.map((u) => u.id);
+    const follows = await this.followRepo.find({
+      where: {
+        followerId: currentUserId,
+        targetType: 'user',
+        targetId: In(userIds),
+      },
+      select: ['targetId'],
+    });
+    const followedSet = new Set(follows.map((f) => f.targetId));
+
+    return users.map((u) => ({
+      ...u,
+      isFollowedByMe: followedSet.has(u.id),
+    }));
   }
 
   private async searchRestaurants(

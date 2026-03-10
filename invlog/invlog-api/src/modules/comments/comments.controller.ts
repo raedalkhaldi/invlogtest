@@ -22,11 +22,12 @@ export class CommentsController {
 
   @Get('posts/:postId/comments')
   @ApiOperation({ summary: 'List comments for a post (paginated)' })
-  findByPost(
+  async findByPost(
     @Param('postId', ParseUUIDPipe) postId: string,
     @Query() query: PaginationQueryDto,
   ) {
-    return this.commentsService.findByPostId(postId, query.page, query.perPage);
+    const result = await this.commentsService.findByPostId(postId, query.page, query.perPage);
+    return result.data;
   }
 
   @Post('posts/:postId/comments')

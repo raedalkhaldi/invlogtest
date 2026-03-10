@@ -39,6 +39,7 @@ struct PostCardView: View {
                             }
                             .foregroundColor(.accentColor)
                         }
+                        .buttonStyle(.borderless)
                         .frame(minHeight: 44)
                         .accessibilityLabel("At \(restaurant.name), tap to view restaurant")
                     } else if let locationName = post.locationName {

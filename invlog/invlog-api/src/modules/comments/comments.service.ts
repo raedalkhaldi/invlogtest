@@ -4,10 +4,11 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, In } from 'typeorm';
 import { Comment } from './entities/comment.entity';
 import { CreateCommentDto, UpdateCommentDto } from './dto/create-comment.dto';
 import { Post } from '../posts/entities/post.entity';
+import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -17,6 +18,8 @@ export class CommentsService {
     private readonly commentRepo: Repository<Comment>,
     @InjectRepository(Post)
     private readonly postRepo: Repository<Post>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -24,7 +27,7 @@ export class CommentsService {
     postId: string,
     authorId: string,
     dto: CreateCommentDto,
-  ): Promise<Comment> {
+  ): Promise<any> {
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) {
       throw new NotFoundException('Post not found');
@@ -63,14 +66,20 @@ export class CommentsService {
       targetId: postId,
     });
 
-    return saved;
+    // Hydrate with author info
+    const author = await this.userRepo.findOne({
+      where: { id: authorId },
+      select: ['id', 'username', 'displayName', 'avatarUrl', 'isVerified'],
+    });
+
+    return { ...saved, author: author || null };
   }
 
   async findByPostId(
     postId: string,
     page: number = 1,
     perPage: number = 20,
-  ): Promise<{ data: Comment[]; total: number }> {
+  ): Promise<{ data: any[]; total: number }> {
     const [data, total] = await this.commentRepo.findAndCount({
       where: { postId, parentId: IsNull() },
       order: { createdAt: 'ASC' },
@@ -78,7 +87,22 @@ export class CommentsService {
       take: perPage,
     });
 
-    return { data, total };
+    if (data.length === 0) return { data: [], total };
+
+    // Hydrate with author info
+    const authorIds = [...new Set(data.map((c) => c.authorId))];
+    const authors = await this.userRepo.find({
+      where: { id: In(authorIds) },
+      select: ['id', 'username', 'displayName', 'avatarUrl', 'isVerified'],
+    });
+    const authorMap = new Map(authors.map((a) => [a.id, a]));
+
+    const hydrated = data.map((c) => ({
+      ...c,
+      author: authorMap.get(c.authorId) || null,
+    }));
+
+    return { data: hydrated, total };
   }
 
   async findReplies(

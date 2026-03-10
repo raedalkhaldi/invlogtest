@@ -79,6 +79,9 @@ struct PostDetailView: View {
         }
         .navigationTitle("Post")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: Restaurant.self) { restaurant in
+            RestaurantDetailView(restaurantSlug: restaurant.slug)
+        }
         .task {
             await loadPost()
             await loadComments()
