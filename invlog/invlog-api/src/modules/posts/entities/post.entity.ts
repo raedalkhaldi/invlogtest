@@ -18,19 +18,19 @@ export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ name: 'author_id', type: 'uuid' })
+  authorId: string;
+
   @ManyToOne(() => User, { eager: false, createForeignKeyConstraints: false })
   @JoinColumn({ name: 'author_id' })
   author: User;
 
-  // Auto-populated by TypeORM from the @ManyToOne relation
-  authorId: string;
+  @Column({ name: 'restaurant_id', type: 'uuid', nullable: true })
+  restaurantId: string;
 
   @ManyToOne(() => Restaurant, { eager: false, nullable: true, createForeignKeyConstraints: false })
   @JoinColumn({ name: 'restaurant_id' })
   restaurant: Restaurant;
-
-  // Auto-populated by TypeORM from the @ManyToOne relation
-  restaurantId: string;
 
   @Column({ type: 'text', nullable: true })
   content: string;
