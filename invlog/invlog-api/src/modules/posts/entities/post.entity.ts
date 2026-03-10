@@ -74,16 +74,15 @@ export class PostMedia {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Index()
-  @Column({ name: 'post_id', nullable: true })
-  postId: string | null;
-
   @ManyToOne(() => Post, (post) => post.media, {
     onDelete: 'CASCADE',
     nullable: true,
   })
   @JoinColumn({ name: 'post_id' })
   post: Post;
+
+  // Auto-populated by TypeORM from the @ManyToOne relation
+  postId: string | null;
 
   @Column({ name: 'uploader_id', nullable: true })
   uploaderId: string;
