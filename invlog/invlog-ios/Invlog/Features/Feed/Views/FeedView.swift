@@ -4,6 +4,7 @@ import NukeUI
 
 struct FeedView: View {
     @StateObject private var viewModel = FeedViewModel()
+    @StateObject private var storiesViewModel = StoriesViewModel()
     private let prefetcher = ImagePrefetcher()
 
     var body: some View {
@@ -29,6 +30,15 @@ struct FeedView: View {
                 )
             } else {
                 List {
+                    // Stories bar
+                    if !storiesViewModel.storyGroups.isEmpty {
+                        Section {
+                            StoriesBarView(storyGroups: storiesViewModel.storyGroups)
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                    }
+
                     ForEach(viewModel.posts) { post in
                         NavigationLink(value: post) {
                             PostCardView(post: post)
@@ -67,6 +77,15 @@ struct FeedView: View {
             }
         }
         .navigationTitle("Feed")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                NavigationLink(destination: ConversationsListView()) {
+                    Image(systemName: "paperplane")
+                }
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("Messages")
+            }
+        }
         .navigationDestination(for: Post.self) { post in
             PostDetailView(postId: post.id)
         }
@@ -77,6 +96,7 @@ struct FeedView: View {
             if viewModel.posts.isEmpty {
                 await viewModel.loadFeed()
             }
+            await storiesViewModel.loadStories()
         }
         .onReceive(NotificationCenter.default.publisher(for: .didCreatePost)) { _ in
             Task { await viewModel.refresh() }

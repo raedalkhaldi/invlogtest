@@ -215,6 +215,28 @@ struct ProfileHeaderView: View {
             }
             .accessibilityLabel("View check-in history")
 
+            // Saved Posts link (current user only)
+            if isCurrentUser {
+                NavigationLink(destination: BookmarksView()) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bookmark")
+                            .foregroundColor(.secondary)
+                        Text("Saved Posts")
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 44)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .accessibilityLabel("View saved posts")
+            }
+
             // Action Buttons
             if !isCurrentUser {
                 profileFollowButton

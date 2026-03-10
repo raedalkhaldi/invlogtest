@@ -5,11 +5,14 @@ struct PostCardView: View {
     let post: Post
     @State private var isLiked: Bool
     @State private var likeCount: Int
+    @State private var isBookmarked: Bool
+    @State private var showShareSheet = false
 
     init(post: Post) {
         self.post = post
         _isLiked = State(initialValue: post.isLikedByMe ?? false)
         _likeCount = State(initialValue: post.likeCount)
+        _isBookmarked = State(initialValue: post.isBookmarkedByMe ?? false)
     }
 
     var body: some View {
@@ -127,10 +130,63 @@ struct PostCardView: View {
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel(post.commentCount > 0 ? "\(post.commentCount) comments, tap to view" : "Add a comment")
 
+                // Share
+                Button {
+                    showShareSheet = true
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("Share post")
+
                 Spacer()
+
+                // Bookmark
+                Button {
+                    toggleBookmark()
+                } label: {
+                    Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                        .foregroundColor(isBookmarked ? .accentColor : .secondary)
+                }
+                .buttonStyle(.borderless)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark post")
             }
         }
         .padding(.vertical, 4)
+        .sheet(isPresented: $showShareSheet) {
+            ShareSheetView(items: [shareText])
+        }
+    }
+
+    private var shareText: String {
+        var text = post.author?.displayName ?? post.author?.username ?? "Someone"
+        if let restaurant = post.restaurant {
+            text += " at \(restaurant.name)"
+        }
+        if let content = post.content, !content.isEmpty {
+            text += ": \(content)"
+        }
+        return text
+    }
+
+    private func toggleBookmark() {
+        let was = isBookmarked
+        isBookmarked.toggle()
+
+        Task {
+            do {
+                if isBookmarked {
+                    try await APIClient.shared.requestVoid(.bookmarkPost(id: post.id))
+                } else {
+                    try await APIClient.shared.requestVoid(.removeBookmark(id: post.id))
+                }
+            } catch {
+                isBookmarked = was
+            }
+        }
     }
 
     private func toggleLike() {

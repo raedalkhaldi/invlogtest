@@ -60,6 +60,20 @@
 		FF6677AABB6677AABB6677FF /* ShimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66778899001122AABBCCDD /* ShimmerView.swift */; };
 		AA88BBCC99DD00EE11FF2233 /* MediaCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */; };
 		BB99CCDD00EE11FF22334455 /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB99CC00DD11EE22FF334455 /* AppearanceManager.swift */; };
+		A001B001C001D001E001F001 /* ShareSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A001B001C001D001E001F002 /* ShareSheetView.swift */; };
+		A002B002C002D002E002F001 /* BookmarksViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A002B002C002D002E002F002 /* BookmarksViewModel.swift */; };
+		A003B003C003D003E003F001 /* BookmarksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A003B003C003D003E003F002 /* BookmarksView.swift */; };
+		A004B004C004D004E004F001 /* Story.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004B004C004D004E004F002 /* Story.swift */; };
+		A005B005C005D005E005F001 /* StoriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A005B005C005D005E005F002 /* StoriesViewModel.swift */; };
+		A006B006C006D006E006F001 /* StoriesBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A006B006C006D006E006F002 /* StoriesBarView.swift */; };
+		A007B007C007D007E007F001 /* StoryViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A007B007C007D007E007F002 /* StoryViewerView.swift */; };
+		A008B008C008D008E008F001 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A008B008C008D008E008F002 /* Conversation.swift */; };
+		A009B009C009D009E009F001 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = A009B009C009D009E009F002 /* Message.swift */; };
+		A010B010C010D010E010F001 /* ConversationsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A010B010C010D010E010F002 /* ConversationsViewModel.swift */; };
+		A011B011C011D011E011F001 /* MessageThreadViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A011B011C011D011E011F002 /* MessageThreadViewModel.swift */; };
+		A012B012C012D012E012F001 /* ConversationsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A012B012C012D012E012F002 /* ConversationsListView.swift */; };
+		A013B013C013D013E013F001 /* MessageThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A013B013C013D013E013F002 /* MessageThreadView.swift */; };
+		A014B014C014D014E014F001 /* NewConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A014B014C014D014E014F002 /* NewConversationView.swift */; };
 		NUKE000400040004NUKE0004 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000200020002NUKE0002 /* Nuke */; };
 		NUKE000500050005NUKE0005 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000300030003NUKE0003 /* NukeUI */; };
 /* End PBXBuildFile section */
@@ -119,6 +133,20 @@
 		FF66778899001122AABBCCDD /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ShimmerView.swift"; path = "ShimmerView.swift"; sourceTree = "<group>"; };
 		AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "MediaCarouselView.swift"; path = "MediaCarouselView.swift"; sourceTree = "<group>"; };
 		BB99CC00DD11EE22FF334455 /* AppearanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AppearanceManager.swift"; path = "AppearanceManager.swift"; sourceTree = "<group>"; };
+		A001B001C001D001E001F002 /* ShareSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ShareSheetView.swift"; path = "ShareSheetView.swift"; sourceTree = "<group>"; };
+		A002B002C002D002E002F002 /* BookmarksViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BookmarksViewModel.swift"; path = "BookmarksViewModel.swift"; sourceTree = "<group>"; };
+		A003B003C003D003E003F002 /* BookmarksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BookmarksView.swift"; path = "BookmarksView.swift"; sourceTree = "<group>"; };
+		A004B004C004D004E004F002 /* Story.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Story.swift"; path = "Story.swift"; sourceTree = "<group>"; };
+		A005B005C005D005E005F002 /* StoriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StoriesViewModel.swift"; path = "StoriesViewModel.swift"; sourceTree = "<group>"; };
+		A006B006C006D006E006F002 /* StoriesBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StoriesBarView.swift"; path = "StoriesBarView.swift"; sourceTree = "<group>"; };
+		A007B007C007D007E007F002 /* StoryViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StoryViewerView.swift"; path = "StoryViewerView.swift"; sourceTree = "<group>"; };
+		A008B008C008D008E008F002 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Conversation.swift"; path = "Conversation.swift"; sourceTree = "<group>"; };
+		A009B009C009D009E009F002 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Message.swift"; path = "Message.swift"; sourceTree = "<group>"; };
+		A010B010C010D010E010F002 /* ConversationsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ConversationsViewModel.swift"; path = "ConversationsViewModel.swift"; sourceTree = "<group>"; };
+		A011B011C011D011E011F002 /* MessageThreadViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "MessageThreadViewModel.swift"; path = "MessageThreadViewModel.swift"; sourceTree = "<group>"; };
+		A012B012C012D012E012F002 /* ConversationsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ConversationsListView.swift"; path = "ConversationsListView.swift"; sourceTree = "<group>"; };
+		A013B013C013D013E013F002 /* MessageThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "MessageThreadView.swift"; path = "MessageThreadView.swift"; sourceTree = "<group>"; };
+		A014B014C014D014E014F002 /* NewConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "NewConversationView.swift"; path = "NewConversationView.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -236,6 +264,7 @@
 		3432914F19DA17DCB8E8148D /* Profile */ = {
 			isa = PBXGroup;
 			children = (
+				A002B002AAAA0000BBBB0000 /* ViewModels */,
 				E8D6E48A6CD99E0CD0CFB7F0 /* Views */,
 			);
 			name = "Profile";
@@ -261,17 +290,79 @@
 			path = "CheckIn";
 			sourceTree = "<group>";
 		};
-		466D2C6B464D3A82BE53B1E9 /* Features */ = {
+			A100B100C100D100E100F100 /* Stories */ = {
+			isa = PBXGroup;
+			children = (
+				A101B101C101D101E101F101 /* ViewModels */,
+				A102B102C102D102E102F102 /* Views */,
+			);
+			name = "Stories";
+			path = "Stories";
+			sourceTree = "<group>";
+		};
+		A101B101C101D101E101F101 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				A005B005C005D005E005F002 /* StoriesViewModel.swift */,
+			);
+			name = "ViewModels";
+			path = "ViewModels";
+			sourceTree = "<group>";
+		};
+		A102B102C102D102E102F102 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A006B006C006D006E006F002 /* StoriesBarView.swift */,
+				A007B007C007D007E007F002 /* StoryViewerView.swift */,
+			);
+			name = "Views";
+			path = "Views";
+			sourceTree = "<group>";
+		};
+		A200B200C200D200E200F200 /* Messages */ = {
+			isa = PBXGroup;
+			children = (
+				A201B201C201D201E201F201 /* ViewModels */,
+				A202B202C202D202E202F202 /* Views */,
+			);
+			name = "Messages";
+			path = "Messages";
+			sourceTree = "<group>";
+		};
+		A201B201C201D201E201F201 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				A010B010C010D010E010F002 /* ConversationsViewModel.swift */,
+				A011B011C011D011E011F002 /* MessageThreadViewModel.swift */,
+			);
+			name = "ViewModels";
+			path = "ViewModels";
+			sourceTree = "<group>";
+		};
+		A202B202C202D202E202F202 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A012B012C012D012E012F002 /* ConversationsListView.swift */,
+				A013B013C013D013E013F002 /* MessageThreadView.swift */,
+				A014B014C014D014E014F002 /* NewConversationView.swift */,
+			);
+			name = "Views";
+			path = "Views";
+			sourceTree = "<group>";
+		};
+	466D2C6B464D3A82BE53B1E9 /* Features */ = {
 			isa = PBXGroup;
 			children = (
 				26FA7A0900DAFE77AB40EF78 /* Auth */,
 				BBBB2222BBBB2222BBBB2222 /* CheckIn */,
 				7E6E0829F19688B005F6E03B /* Feed */,
+				A200B200C200D200E200F200 /* Messages */,
 				2CAA43BCF3EB3DA41A2B49A6 /* Notifications */,
 				14624E3CCD212FD7E27C29C6 /* Post */,
 				3432914F19DA17DCB8E8148D /* Profile */,
 				2326843F33DAA61C2A8AB00C /* Restaurant */,
 				9F71A39F365B4AE935CD2D14 /* Search */,
+				A100B100C100D100E100F100 /* Stories */,
 			);
 			name = "Features";
 			path = "Features";
@@ -283,8 +374,11 @@
 				26C96819FE8E7B94CD237D43 /* AppNotification.swift */,
 				1D447AF17261B0F4819646C0 /* CheckIn.swift */,
 				78D28E08E4A96E6BE2A52526 /* Comment.swift */,
+				A008B008C008D008E008F002 /* Conversation.swift */,
+				A009B009C009D009E009F002 /* Message.swift */,
 				7BA3C15947947A9C979B30A7 /* Post.swift */,
 				ABCC08AE9A5E43650B116532 /* Restaurant.swift */,
+				A004B004C004D004E004F002 /* Story.swift */,
 				79310E69862619086120C7AB /* User.swift */,
 			);
 			name = "Models";
@@ -345,6 +439,7 @@
 				2C04220E27BC6959336F8222 /* EmptyStateView.swift */,
 				3127282C2A36603988C126E6 /* FollowableUserRowView.swift */,
 				AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */,
+				A001B001C001D001E001F002 /* ShareSheetView.swift */,
 				FF66778899001122AABBCCDD /* ShimmerView.swift */,
 			);
 			name = "Components";
@@ -494,9 +589,19 @@
 			path = "Views";
 			sourceTree = "<group>";
 		};
-		E8D6E48A6CD99E0CD0CFB7F0 /* Views */ = {
+			A002B002AAAA0000BBBB0000 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				A002B002C002D002E002F002 /* BookmarksViewModel.swift */,
+			);
+			name = "ViewModels";
+			path = "ViewModels";
+			sourceTree = "<group>";
+		};
+	E8D6E48A6CD99E0CD0CFB7F0 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A003B003C003D003E003F002 /* BookmarksView.swift */,
 				071A76EECEF1BBE6918B90FB /* EditProfileView.swift */,
 				9E88EDC1F50A931D2E9B8901 /* FollowersListView.swift */,
 				D1F3EEF9406B3868BBDDF548 /* ProfileView.swift */,
@@ -659,6 +764,20 @@
 				FF6677AABB6677AABB6677FF /* ShimmerView.swift in Sources */,
 				AA88BBCC99DD00EE11FF2233 /* MediaCarouselView.swift in Sources */,
 				BB99CCDD00EE11FF22334455 /* AppearanceManager.swift in Sources */,
+				A001B001C001D001E001F001 /* ShareSheetView.swift in Sources */,
+				A002B002C002D002E002F001 /* BookmarksViewModel.swift in Sources */,
+				A003B003C003D003E003F001 /* BookmarksView.swift in Sources */,
+				A004B004C004D004E004F001 /* Story.swift in Sources */,
+				A005B005C005D005E005F001 /* StoriesViewModel.swift in Sources */,
+				A006B006C006D006E006F001 /* StoriesBarView.swift in Sources */,
+				A007B007C007D007E007F001 /* StoryViewerView.swift in Sources */,
+				A008B008C008D008E008F001 /* Conversation.swift in Sources */,
+				A009B009C009D009E009F001 /* Message.swift in Sources */,
+				A010B010C010D010E010F001 /* ConversationsViewModel.swift in Sources */,
+				A011B011C011D011E011F001 /* MessageThreadViewModel.swift in Sources */,
+				A012B012C012D012E012F001 /* ConversationsListView.swift in Sources */,
+				A013B013C013D013E013F001 /* MessageThreadView.swift in Sources */,
+				A014B014C014D014E014F001 /* NewConversationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
