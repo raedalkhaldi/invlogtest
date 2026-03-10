@@ -13,6 +13,20 @@ struct PostDetailView: View {
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
+                    Text("Couldn't load post")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Button("Try Again") {
+                        Task { await loadPost(); await loadComments() }
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let post {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
