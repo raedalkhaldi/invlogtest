@@ -114,6 +114,7 @@ struct PostCardView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                .buttonStyle(.borderless)
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel(isLiked ? "Unlike post, \(likeCount) likes" : "Like post, \(likeCount) likes")
 

@@ -45,7 +45,8 @@ struct SearchView: View {
                 .padding(.vertical, 8)
             }
 
-            if searchText.isEmpty {
+            if searchText.isEmpty && selectedFilter == .all {
+                // Default discover view: nearby + explore feed
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         // Quick Actions
@@ -123,6 +124,18 @@ struct SearchView: View {
             } else if isSearching {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if results.restaurants.isEmpty && results.users.isEmpty && results.posts.isEmpty {
+                VStack(spacing: 12) {
+                    Spacer()
+                    Image(systemName: "magnifyingglass")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
+                    Text(searchText.isEmpty ? "Tap a tab to browse" : "No results found")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
                     if !results.restaurants.isEmpty {
@@ -203,18 +216,26 @@ struct SearchView: View {
 
     private func triggerSearch() {
         searchTask?.cancel()
-        guard !searchText.isEmpty else { return }
+
+        // If search is empty and "All" tab, show default view
+        guard !searchText.isEmpty || selectedFilter != .all else {
+            results = .empty
+            return
+        }
 
         searchTask = Task {
-            // Debounce 300ms
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            guard !Task.isCancelled else { return }
+            // Only debounce when user is typing; tab switches load immediately
+            if !searchText.isEmpty {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
+            }
 
             isSearching = true
             do {
+                let query: String? = searchText.isEmpty ? nil : searchText
                 let type = selectedFilter == .all ? nil : selectedFilter.rawValue.lowercased()
                 let (data, _) = try await APIClient.shared.requestWrapped(
-                    .search(query: searchText, type: type, lat: nil, lng: nil),
+                    .search(query: query, type: type, lat: nil, lng: nil),
                     responseType: SearchResults.self
                 )
                 if !Task.isCancelled {

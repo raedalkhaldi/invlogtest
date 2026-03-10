@@ -181,6 +181,41 @@ async function seed() {
     },
   ];
 
+  // Create Restaurant records
+  const restaurantIds: string[] = [];
+  for (const place of riyadhPlaces) {
+    const slug = place.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const existing = await qr.query(
+      `SELECT id FROM restaurants WHERE slug = $1`,
+      [slug],
+    );
+    if (existing.length > 0) {
+      restaurantIds.push(existing[0].id);
+      console.log(`Restaurant ${place.name} already exists`);
+      continue;
+    }
+
+    const result = await qr.query(
+      `INSERT INTO restaurants (owner_id, name, slug, cuisine_type, latitude, longitude, address_line1, city, country, is_active, is_verified, avg_rating, review_count, follower_count, checkin_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Riyadh', 'SA', true, true, $8, 0, 0, 0)
+       RETURNING id`,
+      [
+        userIds[0], // first demo user as owner
+        place.name,
+        slug,
+        place.cuisines,
+        place.lat,
+        place.lng,
+        place.address,
+        (3.5 + Math.random() * 1.5).toFixed(2), // random rating 3.5-5.0
+      ],
+    );
+    restaurantIds.push(result[0].id);
+    console.log(`Created restaurant: ${place.name}`);
+  }
+
+  console.log(`${restaurantIds.length} restaurants ready`);
+
   // Posts with check-in style content
   const postTemplates = [
     { content: 'Amazing kabsa! The spices here are incredible', rating: 5 },
@@ -200,20 +235,28 @@ async function seed() {
     { content: 'Beautiful presentation and authentic flavors', rating: 4 },
   ];
 
+  // Delete existing seed posts so we can re-create them with restaurant_id
+  for (const uid of userIds) {
+    await qr.query(`DELETE FROM posts WHERE author_id = $1`, [uid]);
+  }
+
   // Create posts — each user gets 3 posts at different restaurants
   let postIndex = 0;
   for (let u = 0; u < userIds.length; u++) {
     const userId = userIds[u];
     for (let p = 0; p < 3; p++) {
-      const place = riyadhPlaces[(u * 3 + p) % riyadhPlaces.length];
+      const placeIdx = (u * 3 + p) % riyadhPlaces.length;
+      const place = riyadhPlaces[placeIdx];
+      const restaurantId = restaurantIds[placeIdx];
       const template = postTemplates[postIndex % postTemplates.length];
 
-      // Create post with location (check-in style)
+      // Create post linked to restaurant
       await qr.query(
-        `INSERT INTO posts (author_id, content, rating, latitude, longitude, location_name, location_address, is_public, like_count, comment_count)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, 0)`,
+        `INSERT INTO posts (author_id, restaurant_id, content, rating, latitude, longitude, location_name, location_address, is_public, like_count, comment_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, 0)`,
         [
           userId,
+          restaurantId,
           template.content,
           template.rating,
           place.lat,
