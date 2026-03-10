@@ -83,49 +83,11 @@ struct PostCardView: View {
             }
 
             // Media
-            if let media = post.media, let firstMedia = media.first {
-                if firstMedia.mediaType == "video", let videoUrl = URL(string: firstMedia.url) {
-                    AutoPlayVideoView(
-                        url: videoUrl,
-                        thumbnailUrl: URL(string: firstMedia.thumbnailUrl ?? firstMedia.url),
-                        blurhash: firstMedia.blurhash
-                    )
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 240)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .accessibilityLabel("Post video")
-                } else {
-                    LazyImage(url: URL(string: firstMedia.mediumUrl ?? firstMedia.url)) { state in
-                        if let image = state.image {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } else if state.isLoading {
-                            ZStack {
-                                if let blurhash = firstMedia.blurhash {
-                                    BlurhashView(blurhash: blurhash)
-                                }
-                                ShimmerView()
-                                    .opacity(0.4)
-                            }
-                        } else {
-                            Rectangle()
-                                .fill(Color(.systemGray5))
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 240)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .accessibilityLabel("Post photo")
-                }
+            if let media = post.media, !media.isEmpty {
+                MediaCarouselView(media: media)
 
-                if media.count > 1 {
-                    Text("+\(media.count - 1) more")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                if firstMedia.mediaType == "video", let duration = firstMedia.durationSecs {
+                if let firstVideo = media.first(where: { $0.mediaType == "video" }),
+                   let duration = firstVideo.durationSecs {
                     HStack {
                         Image(systemName: "video.fill")
                             .font(.caption2)

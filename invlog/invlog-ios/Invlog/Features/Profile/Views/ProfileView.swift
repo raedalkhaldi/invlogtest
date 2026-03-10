@@ -17,6 +17,7 @@ struct ProfileView: View {
     @State private var posts: [Post] = []
     @State private var isLoading = true
     @State private var showSettings = false
+    @State private var error: String?
 
     private var isCurrentUser: Bool { userId == nil }
 
@@ -44,7 +45,19 @@ struct ProfileView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.top, 100)
+            } else if let error {
+                EmptyStateView(
+                    systemImage: "exclamationmark.triangle",
+                    title: "Something went wrong",
+                    description: error,
+                    buttonTitle: "Retry",
+                    buttonAction: { Task { await loadProfile() } }
+                )
+                .padding(.top, 60)
             }
+        }
+        .refreshable {
+            await loadProfile()
         }
         .navigationTitle(user?.username ?? "Profile")
         .navigationBarTitleDisplayMode(.inline)
@@ -85,6 +98,7 @@ struct ProfileView: View {
     }
 
     private func loadProfile() async {
+        error = nil
         do {
             if isCurrentUser {
                 let (data, _) = try await APIClient.shared.requestWrapped(
@@ -109,7 +123,7 @@ struct ProfileView: View {
                 posts = feedResponse.data
             }
         } catch {
-            // Handle error
+            self.error = error.localizedDescription
         }
         isLoading = false
     }

@@ -5,6 +5,7 @@ struct InvlogApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState = AppState()
     @StateObject private var container = DependencyContainer()
+    @StateObject private var appearanceManager = AppearanceManager.shared
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -22,6 +23,8 @@ struct InvlogApp: App {
             }
             .environmentObject(appState)
             .environmentObject(container)
+            .environmentObject(appearanceManager)
+            .preferredColorScheme(appearanceManager.preferredColorScheme)
             .onChange(of: scenePhase) { _ in
                 if scenePhase == .active {
                     appState.refreshUnreadCount()
