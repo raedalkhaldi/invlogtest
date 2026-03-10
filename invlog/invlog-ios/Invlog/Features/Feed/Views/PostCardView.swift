@@ -118,16 +118,16 @@ struct PostCardView: View {
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel(isLiked ? "Unlike post, \(likeCount) likes" : "Like post, \(likeCount) likes")
 
-                // Comments
+                // Comments — tap navigates to post detail (via parent NavigationLink)
                 HStack(spacing: 4) {
                     Image(systemName: "bubble.right")
-                        .foregroundColor(.secondary)
-                    Text("\(post.commentCount)")
+                        .foregroundColor(.accentColor)
+                    Text(post.commentCount > 0 ? "\(post.commentCount)" : "Comment")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.accentColor)
                 }
                 .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel("\(post.commentCount) comments")
+                .accessibilityLabel(post.commentCount > 0 ? "\(post.commentCount) comments, tap to view" : "Add a comment")
 
                 Spacer()
             }

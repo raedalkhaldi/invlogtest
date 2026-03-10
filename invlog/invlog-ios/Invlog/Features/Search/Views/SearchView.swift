@@ -152,7 +152,7 @@ struct SearchView: View {
                     if !results.users.isEmpty {
                         Section("People") {
                             ForEach(results.users) { user in
-                                UserRowView(user: user)
+                                FollowableUserRowView(user: user)
                                     .frame(minHeight: 44)
                             }
                         }
@@ -223,14 +223,16 @@ struct SearchView: View {
             return
         }
 
+        // Clear stale results immediately so old tab data doesn't show under new tab
+        results = .empty
+        isSearching = true
+
         searchTask = Task {
             // Only debounce when user is typing; tab switches load immediately
             if !searchText.isEmpty {
                 try? await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
             }
-
-            isSearching = true
             do {
                 let query: String? = searchText.isEmpty ? nil : searchText
                 let type = selectedFilter == .all ? nil : selectedFilter.rawValue.lowercased()

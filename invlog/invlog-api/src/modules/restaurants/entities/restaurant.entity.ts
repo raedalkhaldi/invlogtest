@@ -73,7 +73,14 @@ export class Restaurant {
   @Column({ name: 'price_range', type: 'smallint', nullable: true })
   priceRange: number;
 
-  @Column({ name: 'avg_rating', type: 'decimal', precision: 3, scale: 2, default: 0 })
+  @Column({
+    name: 'avg_rating',
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    default: 0,
+    transformer: { to: (v: number) => v, from: (v: string) => parseFloat(v) || 0 },
+  })
   avgRating: number;
 
   @Column({ name: 'review_count', type: 'int', default: 0 })
@@ -150,7 +157,13 @@ export class MenuItem {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: { to: (v: number) => v, from: (v: string) => v != null ? parseFloat(v) || 0 : null },
+  })
   price: number;
 
   @Column({ length: 3, default: 'USD' })
