@@ -57,6 +57,7 @@
 		CC3344AABB3344AABB3344CC /* BlurhashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC33445566778899AABBCCDD /* BlurhashView.swift */; };
 		DD4455AABB4455AABB4455DD /* AutoPlayVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD44556677889900AABBCCDD /* AutoPlayVideoView.swift */; };
 		EE5566AABB5566AABB5566EE /* UIImage+HEIC.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE55667788990011AABBCCDD /* UIImage+HEIC.swift */; };
+		FF6677AABB6677AABB6677FF /* ShimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66778899001122AABBCCDD /* ShimmerView.swift */; };
 		NUKE000400040004NUKE0004 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000200020002NUKE0002 /* Nuke */; };
 		NUKE000500050005NUKE0005 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000300030003NUKE0003 /* NukeUI */; };
 /* End PBXBuildFile section */
@@ -113,6 +114,7 @@
 		CC33445566778899AABBCCDD /* BlurhashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BlurhashView.swift"; path = "BlurhashView.swift"; sourceTree = "<group>"; };
 		DD44556677889900AABBCCDD /* AutoPlayVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AutoPlayVideoView.swift"; path = "AutoPlayVideoView.swift"; sourceTree = "<group>"; };
 		EE55667788990011AABBCCDD /* UIImage+HEIC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "UIImage+HEIC.swift"; path = "UIImage+HEIC.swift"; sourceTree = "<group>"; };
+		FF66778899001122AABBCCDD /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ShimmerView.swift"; path = "ShimmerView.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -338,6 +340,7 @@
 				CC33445566778899AABBCCDD /* BlurhashView.swift */,
 				2C04220E27BC6959336F8222 /* EmptyStateView.swift */,
 				3127282C2A36603988C126E6 /* FollowableUserRowView.swift */,
+				FF66778899001122AABBCCDD /* ShimmerView.swift */,
 			);
 			name = "Components";
 			path = "Components";
@@ -638,6 +641,7 @@
 				CC3344AABB3344AABB3344CC /* BlurhashView.swift in Sources */,
 				DD4455AABB4455AABB4455DD /* AutoPlayVideoView.swift in Sources */,
 				EE5566AABB5566AABB5566EE /* UIImage+HEIC.swift in Sources */,
+				FF6677AABB6677AABB6677FF /* ShimmerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
