@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var appearanceManager: AppearanceManager
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteAlert = false
     @State private var showLogoutAlert = false
@@ -9,6 +10,17 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("Appearance") {
+                    Picker("Theme", selection: $appearanceManager.mode) {
+                        ForEach(AppearanceMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("App theme")
+                }
+
                 Section("Account") {
                     NavigationLink {
                         EditProfileView()

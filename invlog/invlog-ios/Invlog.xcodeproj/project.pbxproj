@@ -58,6 +58,8 @@
 		DD4455AABB4455AABB4455DD /* AutoPlayVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD44556677889900AABBCCDD /* AutoPlayVideoView.swift */; };
 		EE5566AABB5566AABB5566EE /* UIImage+HEIC.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE55667788990011AABBCCDD /* UIImage+HEIC.swift */; };
 		FF6677AABB6677AABB6677FF /* ShimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66778899001122AABBCCDD /* ShimmerView.swift */; };
+		AA88BBCC99DD00EE11FF2233 /* MediaCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */; };
+		BB99CCDD00EE11FF22334455 /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB99CC00DD11EE22FF334455 /* AppearanceManager.swift */; };
 		NUKE000400040004NUKE0004 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000200020002NUKE0002 /* Nuke */; };
 		NUKE000500050005NUKE0005 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000300030003NUKE0003 /* NukeUI */; };
 /* End PBXBuildFile section */
@@ -115,6 +117,8 @@
 		DD44556677889900AABBCCDD /* AutoPlayVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AutoPlayVideoView.swift"; path = "AutoPlayVideoView.swift"; sourceTree = "<group>"; };
 		EE55667788990011AABBCCDD /* UIImage+HEIC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "UIImage+HEIC.swift"; path = "UIImage+HEIC.swift"; sourceTree = "<group>"; };
 		FF66778899001122AABBCCDD /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ShimmerView.swift"; path = "ShimmerView.swift"; sourceTree = "<group>"; };
+		AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "MediaCarouselView.swift"; path = "MediaCarouselView.swift"; sourceTree = "<group>"; };
+		BB99CC00DD11EE22FF334455 /* AppearanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AppearanceManager.swift"; path = "AppearanceManager.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -340,6 +344,7 @@
 				CC33445566778899AABBCCDD /* BlurhashView.swift */,
 				2C04220E27BC6959336F8222 /* EmptyStateView.swift */,
 				3127282C2A36603988C126E6 /* FollowableUserRowView.swift */,
+				AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */,
 				FF66778899001122AABBCCDD /* ShimmerView.swift */,
 			);
 			name = "Components";
@@ -454,9 +459,19 @@
 			path = "Push";
 			sourceTree = "<group>";
 		};
-		DDFD0D30D5D6A32A5A71E3A5 /* Core */ = {
+			CC00DD11EE22FF3344556677 /* Appearance */ = {
 			isa = PBXGroup;
 			children = (
+				BB99CC00DD11EE22FF334455 /* AppearanceManager.swift */,
+			);
+			name = "Appearance";
+			path = "Appearance";
+			sourceTree = "<group>";
+		};
+	DDFD0D30D5D6A32A5A71E3A5 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				CC00DD11EE22FF3344556677 /* Appearance */,
 				AB9DED6A800390154C2D43B4 /* DI */,
 				AAAA1111AAAA1111AAAA1111 /* Location */,
 				D33FDBF6F4AAB6C8470FBB0E /* Media */,
@@ -642,6 +657,8 @@
 				DD4455AABB4455AABB4455DD /* AutoPlayVideoView.swift in Sources */,
 				EE5566AABB5566AABB5566EE /* UIImage+HEIC.swift in Sources */,
 				FF6677AABB6677AABB6677FF /* ShimmerView.swift in Sources */,
+				AA88BBCC99DD00EE11FF2233 /* MediaCarouselView.swift in Sources */,
+				BB99CCDD00EE11FF22334455 /* AppearanceManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
