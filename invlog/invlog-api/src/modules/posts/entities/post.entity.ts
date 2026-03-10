@@ -97,7 +97,14 @@ export class PostMedia {
   @Column({ type: 'int', nullable: true })
   height: number;
 
-  @Column({ name: 'duration_secs', type: 'decimal', precision: 8, scale: 2, nullable: true })
+  @Column({
+    name: 'duration_secs',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+    transformer: { to: (v: number) => v, from: (v: string) => v != null ? parseFloat(v) : null },
+  })
   durationSecs: number;
 
   @Column({ name: 'sort_order', type: 'smallint', default: 0 })

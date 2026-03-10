@@ -18,11 +18,17 @@ struct AutoPlayVideoView: View {
                     .onDisappear {
                         player.pause()
                     }
-            } else if let blurhash {
-                BlurhashView(blurhash: blurhash)
             } else {
-                Rectangle()
-                    .fill(Color(.systemGray5))
+                ZStack {
+                    if let blurhash {
+                        BlurhashView(blurhash: blurhash)
+                    } else {
+                        Rectangle()
+                            .fill(Color(.systemGray5))
+                    }
+                    ShimmerView()
+                        .opacity(0.4)
+                }
             }
 
             // Mute/unmute button
@@ -41,6 +47,7 @@ struct AutoPlayVideoView: View {
                             .background(Color.black.opacity(0.6))
                             .clipShape(Circle())
                     }
+                    .buttonStyle(.borderless)
                     .padding(8)
                 }
             }
