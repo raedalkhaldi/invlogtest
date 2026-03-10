@@ -58,11 +58,12 @@ export class RestaurantsController {
 
   @Get(':id/checkins')
   @ApiOperation({ summary: 'Get check-ins for a restaurant' })
-  getCheckins(
+  async getCheckins(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: PaginationQueryDto,
   ) {
-    return this.restaurantsService.getCheckins(id, query.page, query.perPage);
+    const result = await this.restaurantsService.getCheckins(id, query.page, query.perPage);
+    return result.data;
   }
 
   @Get(':id/operating-hours')

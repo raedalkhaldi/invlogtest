@@ -29,16 +29,18 @@ export class CheckInsController {
 
   @Get('recent')
   @ApiOperation({ summary: 'Get recent check-ins' })
-  findRecent(@Query() query: PaginationQueryDto) {
-    return this.checkinsService.findRecent(query.page, query.perPage);
+  async findRecent(@Query() query: PaginationQueryDto) {
+    const result = await this.checkinsService.findRecent(query.page, query.perPage);
+    return result.data;
   }
 
   @Get('user/:userId')
   @ApiOperation({ summary: 'Get check-ins by a specific user' })
-  findByUser(
+  async findByUser(
     @Param('userId', ParseUUIDPipe) userId: string,
     @Query() query: PaginationQueryDto,
   ) {
-    return this.checkinsService.findByUserId(userId, query.page, query.perPage);
+    const result = await this.checkinsService.findByUserId(userId, query.page, query.perPage);
+    return result.data;
   }
 }

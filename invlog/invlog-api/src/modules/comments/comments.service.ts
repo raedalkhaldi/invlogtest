@@ -69,7 +69,7 @@ export class CommentsService {
     // Hydrate with author info
     const author = await this.userRepo.findOne({
       where: { id: authorId },
-      select: ['id', 'username', 'displayName', 'avatarUrl', 'isVerified'],
+      select: ['id', 'username', 'displayName', 'avatarUrl', 'isVerified', 'isPrivate', 'followerCount', 'followingCount', 'postCount'],
     });
 
     return { ...saved, author: author || null };
@@ -93,7 +93,7 @@ export class CommentsService {
     const authorIds = [...new Set(data.map((c) => c.authorId))];
     const authors = await this.userRepo.find({
       where: { id: In(authorIds) },
-      select: ['id', 'username', 'displayName', 'avatarUrl', 'isVerified'],
+      select: ['id', 'username', 'displayName', 'avatarUrl', 'isVerified', 'isPrivate', 'followerCount', 'followingCount', 'postCount'],
     });
     const authorMap = new Map(authors.map((a) => [a.id, a]));
 

@@ -60,6 +60,10 @@ export class NotificationsService {
           'u.displayName',
           'u.avatarUrl',
           'u.isVerified',
+          'u.isPrivate',
+          'u.followerCount',
+          'u.followingCount',
+          'u.postCount',
         ])
         .where('u.id IN (:...ids)', { ids: actorIds })
         .getMany();
