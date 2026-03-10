@@ -21,7 +21,8 @@ export class SearchService {
     dto: SearchQueryDto,
     currentUserId: string,
   ): Promise<{ restaurants: Restaurant[]; users: User[]; posts: any[] }> {
-    const pattern = `%${dto.q}%`;
+    const hasQuery = dto.q && dto.q.trim().length > 0;
+    const pattern = hasQuery ? `%${dto.q}%` : null;
     const type = dto.type ?? null;
     const limit = dto.limit ?? (type ? 20 : 5);
 
@@ -49,12 +50,11 @@ export class SearchService {
     return { restaurants, users, posts };
   }
 
-  private async searchUsers(pattern: string, limit: number): Promise<User[]> {
-    return this.userRepo
+  private async searchUsers(pattern: string | null, limit: number): Promise<User[]> {
+    const qb = this.userRepo
       .createQueryBuilder('u')
       .select([
         'u.id',
-        'u.email',
         'u.username',
         'u.displayName',
         'u.bio',
@@ -66,36 +66,51 @@ export class SearchService {
         'u.followingCount',
         'u.postCount',
         'u.createdAt',
-      ])
-      .where('u.username ILIKE :pattern OR u.display_name ILIKE :pattern', {
+      ]);
+
+    if (pattern) {
+      qb.where('u.username ILIKE :pattern OR u.display_name ILIKE :pattern', {
         pattern,
-      })
+      });
+    }
+
+    return qb
       .orderBy('u.followerCount', 'DESC')
       .limit(limit)
       .getMany();
   }
 
   private async searchRestaurants(
-    pattern: string,
+    pattern: string | null,
     limit: number,
   ): Promise<Restaurant[]> {
-    return this.restaurantRepo
+    const qb = this.restaurantRepo
       .createQueryBuilder('r')
-      .where('r.is_active = true')
-      .andWhere(
+      .where('r.is_active = true');
+
+    if (pattern) {
+      qb.andWhere(
         '(r.name ILIKE :pattern OR r.description ILIKE :pattern OR r.cuisine_type::text ILIKE :pattern)',
         { pattern },
-      )
+      );
+    }
+
+    return qb
       .orderBy('r.followerCount', 'DESC')
       .limit(limit)
       .getMany();
   }
 
-  private async searchPosts(pattern: string, limit: number): Promise<any[]> {
-    const posts = await this.postRepo
+  private async searchPosts(pattern: string | null, limit: number): Promise<any[]> {
+    const qb = this.postRepo
       .createQueryBuilder('p')
-      .where('p.is_public = true')
-      .andWhere('p.content ILIKE :pattern', { pattern })
+      .where('p.is_public = true');
+
+    if (pattern) {
+      qb.andWhere('p.content ILIKE :pattern', { pattern });
+    }
+
+    const posts = await qb
       .orderBy('p.created_at', 'DESC')
       .limit(limit)
       .getMany();

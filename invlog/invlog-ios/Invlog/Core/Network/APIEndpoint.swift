@@ -67,7 +67,7 @@ enum APIEndpoint {
     case userCheckins(userId: String, page: Int, perPage: Int)
 
     // Search
-    case search(query: String, type: String?, lat: Double?, lng: Double?)
+    case search(query: String?, type: String?, lat: Double?, lng: Double?)
 
     // Notifications
     case notifications(cursor: String?, limit: Int)
@@ -202,11 +202,12 @@ enum APIEndpoint {
                 URLQueryItem(name: "limit", value: "\(limit)"),
             ]
         case .search(let query, let type, let lat, let lng):
-            var items: [URLQueryItem] = [URLQueryItem(name: "q", value: query)]
+            var items: [URLQueryItem] = []
+            if let query, !query.isEmpty { items.append(URLQueryItem(name: "q", value: query)) }
             if let type { items.append(URLQueryItem(name: "type", value: type)) }
             if let lat { items.append(URLQueryItem(name: "lat", value: "\(lat)")) }
             if let lng { items.append(URLQueryItem(name: "lng", value: "\(lng)")) }
-            return items
+            return items.isEmpty ? nil : items
         default:
             return nil
         }

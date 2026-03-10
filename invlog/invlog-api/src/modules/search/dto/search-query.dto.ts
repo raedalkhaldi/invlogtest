@@ -10,10 +10,10 @@ import {
 import { Type } from 'class-transformer';
 
 export class SearchQueryDto {
+  @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(100)
-  q: string;
+  q?: string;
 
   @IsOptional()
   @IsIn(['restaurants', 'people', 'posts'])
