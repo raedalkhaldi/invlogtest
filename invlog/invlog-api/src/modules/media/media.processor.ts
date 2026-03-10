@@ -13,10 +13,14 @@ import { writeFile, unlink, readFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const ffmpeg = require('fluent-ffmpeg');
-ffmpeg.setFfmpegPath(ffmpegPath);
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+  ffmpeg.setFfmpegPath(ffmpegPath);
+} catch {
+  // Fall back to system ffmpeg (installed via apk in Dockerfile)
+}
 
 @Processor('media-processing')
 export class MediaProcessor extends WorkerHost {
