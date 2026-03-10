@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull } from 'typeorm';
 import { Post, PostMedia } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { CreatePostDto, UpdatePostDto } from './dto/create-post.dto';
 
 @Injectable()
@@ -20,6 +21,23 @@ export class PostsService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
   ) {}
+
+  private baseQuery() {
+    return this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.media', 'media')
+      .leftJoinAndMapOne('post.author', User, 'author', 'author.id = post.author_id')
+      .leftJoinAndMapOne('post.restaurant', Restaurant, 'restaurant', 'restaurant.id = post.restaurant_id');
+  }
+
+  private stripPasswordHash(posts: Post[]): Post[] {
+    for (const post of posts) {
+      if (post.author) {
+        delete (post.author as any).passwordHash;
+      }
+    }
+    return posts;
+  }
 
   async create(authorId: string, dto: CreatePostDto): Promise<Post> {
     const post = this.postRepo.create({
@@ -74,29 +92,22 @@ export class PostsService {
   }
 
   async findById(id: string): Promise<Post> {
-    const post = await this.postRepo
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
-      .leftJoin('post.author', 'author')
-      .addSelect(['author.id', 'author.username', 'author.displayName', 'author.avatarUrl', 'author.isVerified', 'author.bio', 'author.followerCount', 'author.followingCount', 'author.postCount', 'author.email', 'author.isPrivate', 'author.coverUrl'])
-      .leftJoinAndSelect('post.restaurant', 'restaurant')
+    const post = await this.baseQuery()
       .where('post.id = :id', { id })
       .getOne();
     if (!post) {
       throw new NotFoundException('Post not found');
     }
+    this.stripPasswordHash([post]);
     return post;
   }
 
   async findByIds(ids: string[]): Promise<Post[]> {
     if (!ids.length) return [];
-    return this.postRepo
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
-      .leftJoin('post.author', 'author')
-      .addSelect(['author.id', 'author.username', 'author.displayName', 'author.avatarUrl', 'author.isVerified'])
+    const posts = await this.baseQuery()
       .where('post.id IN (:...ids)', { ids })
       .getMany();
+    return this.stripPasswordHash(posts);
   }
 
   async findByAuthor(
@@ -104,12 +115,7 @@ export class PostsService {
     cursor?: string,
     limit: number = 20,
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
-    const qb = this.postRepo
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
-      .leftJoin('post.author', 'author')
-      .addSelect(['author.id', 'author.username', 'author.displayName', 'author.avatarUrl', 'author.isVerified'])
-      .leftJoinAndSelect('post.restaurant', 'restaurant')
+    const qb = this.baseQuery()
       .where('post.author_id = :authorId', { authorId })
       .orderBy('post.created_at', 'DESC')
       .take(limit + 1);
@@ -122,6 +128,7 @@ export class PostsService {
     }
 
     const posts = await qb.getMany();
+    this.stripPasswordHash(posts);
     let nextCursor: string | null = null;
 
     if (posts.length > limit) {
@@ -137,13 +144,14 @@ export class PostsService {
     page: number = 1,
     perPage: number = 20,
   ): Promise<{ data: Post[]; total: number }> {
-    const [data, total] = await this.postRepo.findAndCount({
-      where: { isPublic: true },
-      relations: ['media', 'author'],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * perPage,
-      take: perPage,
-    });
+    const qb = this.baseQuery()
+      .where('post.is_public = true')
+      .orderBy('post.created_at', 'DESC')
+      .skip((page - 1) * perPage)
+      .take(perPage);
+
+    const [data, total] = await qb.getManyAndCount();
+    this.stripPasswordHash(data);
     return { data, total };
   }
 
@@ -204,12 +212,7 @@ export class PostsService {
     cursor?: string,
     limit: number = 20,
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
-    const qb = this.postRepo
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
-      .leftJoin('post.author', 'author')
-      .addSelect(['author.id', 'author.username', 'author.displayName', 'author.avatarUrl', 'author.isVerified'])
-      .leftJoinAndSelect('post.restaurant', 'restaurant')
+    const qb = this.baseQuery()
       .where('post.is_public = true')
       .andWhere('post.author_id != :excludeUserId', { excludeUserId })
       .orderBy('post.created_at', 'DESC')
@@ -223,6 +226,7 @@ export class PostsService {
     }
 
     const posts = await qb.getMany();
+    this.stripPasswordHash(posts);
     let nextCursor: string | null = null;
 
     if (posts.length > limit) {
@@ -241,12 +245,7 @@ export class PostsService {
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
     if (!authorIds.length) return { data: [], nextCursor: null };
 
-    const qb = this.postRepo
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
-      .leftJoin('post.author', 'author')
-      .addSelect(['author.id', 'author.username', 'author.displayName', 'author.avatarUrl', 'author.isVerified'])
-      .leftJoinAndSelect('post.restaurant', 'restaurant')
+    const qb = this.baseQuery()
       .where('post.author_id IN (:...authorIds)', { authorIds })
       .andWhere('post.is_public = true')
       .orderBy('post.created_at', 'DESC')
@@ -260,6 +259,7 @@ export class PostsService {
     }
 
     const posts = await qb.getMany();
+    this.stripPasswordHash(posts);
     let nextCursor: string | null = null;
 
     if (posts.length > limit) {
