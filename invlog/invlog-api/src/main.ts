@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import compression from 'compression';
 import { AppModule } from './app.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
@@ -9,6 +10,9 @@ import type { AppConfig } from './config/configuration.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Enable gzip compression for all responses
+  app.use(compression());
   const configService = app.get(ConfigService);
 
   const appConfig = configService.get<AppConfig['app']>('app')!;

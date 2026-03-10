@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import NukeUI
 
 struct CheckInView: View {
     let restaurant: Restaurant
@@ -16,12 +17,14 @@ struct CheckInView: View {
 
                 // Restaurant Info
                 VStack(spacing: 12) {
-                    AsyncImage(url: restaurant.avatarUrl) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Image(systemName: "building.2")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
+                    LazyImage(url: restaurant.avatarUrl) { state in
+                        if let image = state.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Image(systemName: "building.2")
+                                .font(.system(size: 40))
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: 12))

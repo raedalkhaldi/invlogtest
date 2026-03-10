@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct NotificationsListView: View {
     @EnvironmentObject private var appState: AppState
@@ -93,11 +94,13 @@ struct NotificationRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: notification.actor?.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: iconForType)
-                    .foregroundColor(.secondary)
+            LazyImage(url: notification.actor?.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: iconForType)
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(width: 40, height: 40)
             .clipShape(Circle())

@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct RestaurantPickerView: View {
     @Binding var selectedRestaurant: Restaurant?
@@ -147,11 +148,13 @@ struct RestaurantPickerView: View {
     @ViewBuilder
     private func restaurantInfo(_ restaurant: Restaurant) -> some View {
         HStack(spacing: 12) {
-            AsyncImage(url: restaurant.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "building.2")
-                    .foregroundColor(.secondary)
+            LazyImage(url: restaurant.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "building.2")
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(width: 36, height: 36)
             .clipShape(RoundedRectangle(cornerRadius: 6))

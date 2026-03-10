@@ -9,6 +9,7 @@ import {
   IsNumber,
   MaxLength,
   IsBoolean,
+  IsNotEmpty,
 } from 'class-validator';
 
 export class CreatePostDto {
@@ -22,9 +23,9 @@ export class CreatePostDto {
   @IsUUID('4', { each: true })
   mediaIds?: string[];
 
-  @IsOptional()
+  @IsNotEmpty({ message: 'Restaurant is required — every post is a check-in' })
   @IsUUID()
-  restaurantId?: string;
+  restaurantId: string;
 
   @IsOptional()
   @IsInt()

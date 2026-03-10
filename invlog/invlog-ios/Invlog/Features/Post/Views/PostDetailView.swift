@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct PostDetailView: View {
     let postId: String
@@ -135,11 +136,13 @@ struct CommentRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            AsyncImage(url: comment.author?.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "person.circle.fill")
-                    .foregroundColor(.secondary)
+            LazyImage(url: comment.author?.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(width: 32, height: 32)
             .clipShape(Circle())

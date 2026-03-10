@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import NukeUI
 
 struct CheckInHistoryDestination: Hashable {
     let restaurantId: String
@@ -72,11 +73,13 @@ struct RestaurantDetailView: View {
 
     @ViewBuilder
     private func coverImageSection(_ restaurant: Restaurant) -> some View {
-        AsyncImage(url: restaurant.coverUrl) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Rectangle()
-                .fill(Color(.systemGray5))
+        LazyImage(url: restaurant.coverUrl) { state in
+            if let image = state.image {
+                image.resizable().scaledToFill()
+            } else {
+                Rectangle()
+                    .fill(Color(.systemGray5))
+            }
         }
         .frame(height: 200)
         .clipped()

@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import NukeUI
 
 struct NearbyRestaurantsView: View {
     @StateObject private var viewModel = NearbyRestaurantsViewModel()
@@ -183,11 +184,13 @@ struct NearbyRestaurantRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: restaurant.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "building.2")
-                    .foregroundColor(.secondary)
+            LazyImage(url: restaurant.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "building.2")
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(width: 44, height: 44)
             .clipShape(RoundedRectangle(cornerRadius: 8))

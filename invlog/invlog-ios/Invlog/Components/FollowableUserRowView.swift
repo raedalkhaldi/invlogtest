@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct FollowableUserRowView: View {
     let user: User
@@ -11,12 +12,14 @@ struct FollowableUserRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: user.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .foregroundColor(.secondary)
+            LazyImage(url: user.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(width: 44, height: 44)
             .clipShape(Circle())

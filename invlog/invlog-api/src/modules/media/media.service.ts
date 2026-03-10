@@ -38,10 +38,12 @@ export class MediaService {
 
     const publicUrl = this.storageService.getPublicUrl(s3Key);
 
+    const mediaType = dto.contentType.startsWith('video/') ? 'video' : 'image';
+
     const record = this.mediaRepo.create({
       uploaderId,
       postId: null,
-      mediaType: 'image',
+      mediaType,
       url: publicUrl,
       processingStatus: 'pending',
       sortOrder: 0,
