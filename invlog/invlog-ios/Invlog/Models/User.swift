@@ -2,7 +2,7 @@ import Foundation
 
 struct User: Codable, Identifiable, Hashable {
     let id: String
-    let email: String
+    let email: String?
     let username: String
     let displayName: String?
     let bio: String?
