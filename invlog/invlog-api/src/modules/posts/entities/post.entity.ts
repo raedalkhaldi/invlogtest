@@ -10,8 +10,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-import { Restaurant } from '../../restaurants/entities/restaurant.entity';
+import type { User } from '../../users/entities/user.entity';
+import type { Restaurant } from '../../restaurants/entities/restaurant.entity';
 
 @Entity('posts')
 export class Post {
@@ -21,16 +21,12 @@ export class Post {
   @Column({ name: 'author_id', type: 'uuid' })
   authorId: string;
 
-  @ManyToOne(() => User, { eager: false, createForeignKeyConstraints: false })
-  @JoinColumn({ name: 'author_id' })
-  author: User;
-
   @Column({ name: 'restaurant_id', type: 'uuid', nullable: true })
   restaurantId: string;
 
-  @ManyToOne(() => Restaurant, { eager: false, nullable: true, createForeignKeyConstraints: false })
-  @JoinColumn({ name: 'restaurant_id' })
-  restaurant: Restaurant;
+  // Populated via leftJoinAndMapOne in queries (no @ManyToOne to avoid synchronize conflicts)
+  author?: User;
+  restaurant?: Restaurant;
 
   @Column({ type: 'text', nullable: true })
   content: string;
