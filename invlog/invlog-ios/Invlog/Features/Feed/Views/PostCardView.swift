@@ -100,8 +100,14 @@ struct PostCardView: View {
                             image
                                 .resizable()
                                 .scaledToFill()
-                        } else if let blurhash = firstMedia.blurhash {
-                            BlurhashView(blurhash: blurhash)
+                        } else if state.isLoading {
+                            ZStack {
+                                if let blurhash = firstMedia.blurhash {
+                                    BlurhashView(blurhash: blurhash)
+                                }
+                                ShimmerView()
+                                    .opacity(0.4)
+                            }
                         } else {
                             Rectangle()
                                 .fill(Color(.systemGray5))

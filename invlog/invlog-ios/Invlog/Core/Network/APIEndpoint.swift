@@ -27,7 +27,7 @@ enum APIEndpoint {
     case deletePost(id: String)
 
     // Comments
-    case comments(postId: String, cursor: String?, limit: Int)
+    case comments(postId: String, page: Int, perPage: Int)
     case createComment(postId: String, content: String, parentId: String?)
     case updateComment(id: String, content: String)
     case deleteComment(id: String)
@@ -184,11 +184,12 @@ enum APIEndpoint {
             var items: [URLQueryItem] = [URLQueryItem(name: "limit", value: "\(limit)")]
             if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
             return items
-        case .comments(_, let cursor, let limit), .userPosts(_, let cursor, let limit):
+        case .userPosts(_, let cursor, let limit):
             var items: [URLQueryItem] = [URLQueryItem(name: "limit", value: "\(limit)")]
             if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
             return items
-        case .followers(_, let page, let perPage), .following(_, let page, let perPage),
+        case .comments(_, let page, let perPage),
+             .followers(_, let page, let perPage), .following(_, let page, let perPage),
              .restaurantCheckins(_, let page, let perPage), .userCheckins(_, let page, let perPage):
             return [
                 URLQueryItem(name: "page", value: "\(page)"),

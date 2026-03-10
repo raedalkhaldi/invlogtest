@@ -105,7 +105,7 @@ struct PostDetailView: View {
     private func loadComments() async {
         do {
             let (data, _) = try await APIClient.shared.requestWrapped(
-                .comments(postId: postId, cursor: nil, limit: 50),
+                .comments(postId: postId, page: 1, perPage: 50),
                 responseType: [Comment].self
             )
             comments = data

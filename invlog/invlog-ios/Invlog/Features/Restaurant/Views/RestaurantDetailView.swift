@@ -45,10 +45,18 @@ struct RestaurantDetailView: View {
     private func restaurantContent(_ restaurant: Restaurant) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                LazyImage(url: restaurant.coverUrl)
-                    .frame(height: 200)
-                    .clipped()
-                    .accessibilityLabel("\(restaurant.name) cover photo")
+                LazyImage(url: restaurant.coverUrl) { state in
+                    if let image = state.image {
+                        image.resizable().scaledToFill()
+                    } else if state.isLoading {
+                        ShimmerView()
+                    } else {
+                        Rectangle().fill(Color(.systemGray5))
+                    }
+                }
+                .frame(height: 200)
+                .clipped()
+                .accessibilityLabel("\(restaurant.name) cover photo")
 
                 VStack(alignment: .leading, spacing: 12) {
                     nameAndRatingSection(restaurant)
