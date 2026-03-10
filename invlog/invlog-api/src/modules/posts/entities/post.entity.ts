@@ -5,9 +5,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
-  ManyToOne,
-  OneToMany,
-  JoinColumn,
   Index,
 } from 'typeorm';
 import type { User } from '../../users/entities/user.entity';
@@ -24,7 +21,7 @@ export class Post {
   @Column({ name: 'restaurant_id', type: 'uuid', nullable: true })
   restaurantId: string;
 
-  // Populated via leftJoinAndMapOne in queries (no @ManyToOne to avoid synchronize conflicts)
+  // Populated via batch hydration in queries (no @ManyToOne to avoid TypeORM metadata issues)
   author?: User;
   restaurant?: Restaurant;
 
@@ -65,8 +62,8 @@ export class Post {
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz' })
   deletedAt: Date;
 
-  @OneToMany(() => PostMedia, (media) => media.post, { cascade: true, eager: true })
-  media: PostMedia[];
+  // Populated via batch hydration in queries (no @OneToMany to avoid TypeORM metadata issues)
+  media?: PostMedia[];
 }
 
 @Entity('post_media')
@@ -74,14 +71,8 @@ export class PostMedia {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Post, (post) => post.media, {
-    onDelete: 'CASCADE',
-    nullable: true,
-  })
-  @JoinColumn({ name: 'post_id' })
-  post: Post;
-
-  // Auto-populated by TypeORM from the @ManyToOne relation
+  @Index()
+  @Column({ name: 'post_id', type: 'uuid', nullable: true })
   postId: string | null;
 
   @Column({ name: 'uploader_id', nullable: true })
