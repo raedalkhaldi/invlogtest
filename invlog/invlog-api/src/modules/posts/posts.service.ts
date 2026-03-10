@@ -31,6 +31,23 @@ export class PostsService {
   private async hydratePosts(posts: Post[]): Promise<Post[]> {
     if (!posts.length) return posts;
 
+    const postIds = posts.map((p) => p.id);
+
+    // Batch-fetch media
+    const allMedia = await this.mediaRepo.find({
+      where: { postId: In(postIds) },
+      order: { sortOrder: 'ASC' },
+    });
+    const mediaMap = new Map<string, PostMedia[]>();
+    for (const m of allMedia) {
+      const list = mediaMap.get(m.postId!) ?? [];
+      list.push(m);
+      mediaMap.set(m.postId!, list);
+    }
+    for (const post of posts) {
+      post.media = mediaMap.get(post.id) ?? [];
+    }
+
     // Batch-fetch authors
     const authorIds = [...new Set(posts.map((p) => p.authorId).filter(Boolean))];
     if (authorIds.length) {
@@ -117,7 +134,6 @@ export class PostsService {
   async findById(id: string): Promise<Post> {
     const post = await this.postRepo.findOne({
       where: { id },
-      relations: ['media'],
     });
     if (!post) {
       throw new NotFoundException('Post not found');
@@ -130,7 +146,6 @@ export class PostsService {
     if (!ids.length) return [];
     const posts = await this.postRepo.find({
       where: { id: In(ids) },
-      relations: ['media'],
     });
     return this.hydratePosts(posts);
   }
@@ -142,7 +157,6 @@ export class PostsService {
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
     const qb = this.postRepo
       .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
       .where('post.author_id = :authorId', { authorId })
       .orderBy('post.created_at', 'DESC')
       .take(limit + 1);
@@ -173,7 +187,6 @@ export class PostsService {
   ): Promise<{ data: Post[]; total: number }> {
     const [data, total] = await this.postRepo.findAndCount({
       where: { isPublic: true },
-      relations: ['media'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * perPage,
       take: perPage,
@@ -241,7 +254,6 @@ export class PostsService {
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
     const qb = this.postRepo
       .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
       .where('post.is_public = true')
       .andWhere('post.author_id != :excludeUserId', { excludeUserId })
       .orderBy('post.created_at', 'DESC')
@@ -276,7 +288,6 @@ export class PostsService {
 
     const qb = this.postRepo
       .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
       .where('post.author_id IN (:...authorIds)', { authorIds })
       .andWhere('post.is_public = true')
       .orderBy('post.created_at', 'DESC')
