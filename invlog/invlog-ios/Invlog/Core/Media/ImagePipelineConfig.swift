@@ -14,7 +14,6 @@ enum ImagePipelineConfig {
             dataCache?.sizeLimit = 300 * 1024 * 1024 // 300 MB
             $0.dataCache = dataCache
 
-            $0.isDeduplicationEnabled = true
             $0.isProgressiveDecodingEnabled = true
         }
         ImagePipeline.shared = pipeline

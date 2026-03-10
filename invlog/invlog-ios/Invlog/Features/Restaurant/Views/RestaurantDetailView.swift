@@ -73,17 +73,10 @@ struct RestaurantDetailView: View {
 
     @ViewBuilder
     private func coverImageSection(_ restaurant: Restaurant) -> some View {
-        LazyImage(url: restaurant.coverUrl) { state in
-            if let image = state.image {
-                image.resizable().scaledToFill()
-            } else {
-                Rectangle()
-                    .fill(Color(.systemGray5))
-            }
-        }
-        .frame(height: 200)
-        .clipped()
-        .accessibilityLabel("\(restaurant.name) cover photo")
+        LazyImage(url: restaurant.coverUrl)
+            .frame(height: 200)
+            .clipped()
+            .accessibilityLabel("\(restaurant.name) cover photo")
     }
 
     // MARK: - Name & Rating
