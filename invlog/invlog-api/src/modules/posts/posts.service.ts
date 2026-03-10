@@ -20,22 +20,45 @@ export class PostsService {
     private readonly mediaRepo: Repository<PostMedia>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Restaurant)
+    private readonly restaurantRepo: Repository<Restaurant>,
   ) {}
 
-  private baseQuery() {
-    return this.postRepo
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.media', 'media')
-      .leftJoinAndMapOne('post.author', User, 'author', 'author.id = post.author_id')
-      .leftJoinAndMapOne('post.restaurant', Restaurant, 'restaurant', 'restaurant.id = post.restaurant_id');
-  }
+  /**
+   * Hydrate posts with author and restaurant data using batch queries.
+   * Avoids TypeORM join metadata issues entirely.
+   */
+  private async hydratePosts(posts: Post[]): Promise<Post[]> {
+    if (!posts.length) return posts;
 
-  private stripPasswordHash(posts: Post[]): Post[] {
-    for (const post of posts) {
-      if (post.author) {
-        delete (post.author as any).passwordHash;
+    // Batch-fetch authors
+    const authorIds = [...new Set(posts.map((p) => p.authorId).filter(Boolean))];
+    if (authorIds.length) {
+      const authors = await this.userRepo
+        .createQueryBuilder('u')
+        .select(['u.id', 'u.username', 'u.displayName', 'u.avatarUrl', 'u.isVerified', 'u.bio', 'u.followerCount', 'u.followingCount', 'u.postCount', 'u.isPrivate', 'u.coverUrl'])
+        .where('u.id IN (:...ids)', { ids: authorIds })
+        .getMany();
+      const authorMap = new Map(authors.map((a) => [a.id, a]));
+      for (const post of posts) {
+        post.author = authorMap.get(post.authorId);
       }
     }
+
+    // Batch-fetch restaurants
+    const restaurantIds = [...new Set(posts.map((p) => p.restaurantId).filter(Boolean))];
+    if (restaurantIds.length) {
+      const restaurants = await this.restaurantRepo.find({
+        where: { id: In(restaurantIds) },
+      });
+      const restMap = new Map(restaurants.map((r) => [r.id, r]));
+      for (const post of posts) {
+        if (post.restaurantId) {
+          post.restaurant = restMap.get(post.restaurantId);
+        }
+      }
+    }
+
     return posts;
   }
 
@@ -92,22 +115,24 @@ export class PostsService {
   }
 
   async findById(id: string): Promise<Post> {
-    const post = await this.baseQuery()
-      .where('post.id = :id', { id })
-      .getOne();
+    const post = await this.postRepo.findOne({
+      where: { id },
+      relations: ['media'],
+    });
     if (!post) {
       throw new NotFoundException('Post not found');
     }
-    this.stripPasswordHash([post]);
+    await this.hydratePosts([post]);
     return post;
   }
 
   async findByIds(ids: string[]): Promise<Post[]> {
     if (!ids.length) return [];
-    const posts = await this.baseQuery()
-      .where('post.id IN (:...ids)', { ids })
-      .getMany();
-    return this.stripPasswordHash(posts);
+    const posts = await this.postRepo.find({
+      where: { id: In(ids) },
+      relations: ['media'],
+    });
+    return this.hydratePosts(posts);
   }
 
   async findByAuthor(
@@ -115,7 +140,9 @@ export class PostsService {
     cursor?: string,
     limit: number = 20,
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
-    const qb = this.baseQuery()
+    const qb = this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.media', 'media')
       .where('post.author_id = :authorId', { authorId })
       .orderBy('post.created_at', 'DESC')
       .take(limit + 1);
@@ -128,7 +155,7 @@ export class PostsService {
     }
 
     const posts = await qb.getMany();
-    this.stripPasswordHash(posts);
+    await this.hydratePosts(posts);
     let nextCursor: string | null = null;
 
     if (posts.length > limit) {
@@ -144,14 +171,14 @@ export class PostsService {
     page: number = 1,
     perPage: number = 20,
   ): Promise<{ data: Post[]; total: number }> {
-    const qb = this.baseQuery()
-      .where('post.is_public = true')
-      .orderBy('post.created_at', 'DESC')
-      .skip((page - 1) * perPage)
-      .take(perPage);
-
-    const [data, total] = await qb.getManyAndCount();
-    this.stripPasswordHash(data);
+    const [data, total] = await this.postRepo.findAndCount({
+      where: { isPublic: true },
+      relations: ['media'],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * perPage,
+      take: perPage,
+    });
+    await this.hydratePosts(data);
     return { data, total };
   }
 
@@ -212,7 +239,9 @@ export class PostsService {
     cursor?: string,
     limit: number = 20,
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
-    const qb = this.baseQuery()
+    const qb = this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.media', 'media')
       .where('post.is_public = true')
       .andWhere('post.author_id != :excludeUserId', { excludeUserId })
       .orderBy('post.created_at', 'DESC')
@@ -226,7 +255,7 @@ export class PostsService {
     }
 
     const posts = await qb.getMany();
-    this.stripPasswordHash(posts);
+    await this.hydratePosts(posts);
     let nextCursor: string | null = null;
 
     if (posts.length > limit) {
@@ -245,7 +274,9 @@ export class PostsService {
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
     if (!authorIds.length) return { data: [], nextCursor: null };
 
-    const qb = this.baseQuery()
+    const qb = this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.media', 'media')
       .where('post.author_id IN (:...authorIds)', { authorIds })
       .andWhere('post.is_public = true')
       .orderBy('post.created_at', 'DESC')
@@ -259,7 +290,7 @@ export class PostsService {
     }
 
     const posts = await qb.getMany();
-    this.stripPasswordHash(posts);
+    await this.hydratePosts(posts);
     let nextCursor: string | null = null;
 
     if (posts.length > limit) {
