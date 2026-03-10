@@ -21,6 +21,9 @@ import { FeedModule } from './modules/feed/feed.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MediaModule } from './modules/media/media.module';
 import { SearchModule } from './modules/search/search.module';
+import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
+import { StoriesModule } from './modules/stories/stories.module';
+import { MessagesModule } from './modules/messages/messages.module';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 @Module({
@@ -68,6 +71,9 @@ import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
     NotificationsModule,
     MediaModule,
     SearchModule,
+    BookmarksModule,
+    StoriesModule,
+    MessagesModule,
   ],
   providers: [
     {

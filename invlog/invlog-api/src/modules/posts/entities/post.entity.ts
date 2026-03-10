@@ -65,6 +65,10 @@ export class Post {
 
   // Populated via batch hydration in queries (no @OneToMany to avoid TypeORM metadata issues)
   media?: PostMedia[];
+
+  // Populated dynamically
+  isLikedByMe?: boolean;
+  isBookmarkedByMe?: boolean;
 }
 
 @Entity('post_media')

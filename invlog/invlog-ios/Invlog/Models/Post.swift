@@ -18,6 +18,7 @@ struct Post: Codable, Identifiable, Hashable {
     let media: [PostMedia]?
     let createdAt: Date
     var isLikedByMe: Bool?
+    var isBookmarkedByMe: Bool?
 }
 
 struct PostMedia: Codable, Identifiable, Hashable {

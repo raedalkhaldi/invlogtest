@@ -81,19 +81,42 @@ enum APIEndpoint {
     case completeUpload(mediaId: String)
     case mediaStatus(id: String)
 
+    // Bookmarks
+    case bookmarkPost(id: String)
+    case removeBookmark(id: String)
+    case bookmarks(cursor: String?, limit: Int)
+
+    // Stories
+    case createStory(mediaId: String)
+    case storyFeed
+    case viewStory(id: String)
+    case storyViewers(id: String)
+    case deleteStory(id: String)
+
+    // Conversations / DMs
+    case conversations(cursor: String?, limit: Int)
+    case startConversation(userId: String)
+    case messages(conversationId: String, cursor: String?, limit: Int)
+    case sendMessage(conversationId: String, content: String)
+    case markConversationRead(conversationId: String)
+
     var method: HTTPMethod {
         switch self {
         case .register, .login, .socialLogin, .refreshToken, .logout,
              .createPost, .createComment, .likePost, .likeComment,
              .followUser, .followRestaurant, .createRestaurant,
              .createCheckIn, .addMenuItem, .registerDeviceToken,
-             .presignUpload, .completeUpload:
+             .presignUpload, .completeUpload,
+             .bookmarkPost, .createStory, .viewStory,
+             .startConversation, .sendMessage:
             return .post
         case .updateProfile, .updatePost, .updateComment, .updateRestaurant,
-             .markNotificationRead, .markAllNotificationsRead:
+             .markNotificationRead, .markAllNotificationsRead,
+             .markConversationRead:
             return .patch
         case .deleteAccount, .deletePost, .deleteComment,
-             .unlikePost, .unlikeComment, .unfollowUser, .unfollowRestaurant:
+             .unlikePost, .unlikeComment, .unfollowUser, .unfollowRestaurant,
+             .removeBookmark, .deleteStory:
             return .delete
         default:
             return .get
@@ -174,17 +197,38 @@ enum APIEndpoint {
         case .presignUpload: return "/media/presign"
         case .completeUpload(let mediaId): return "/media/\(mediaId)/complete"
         case .mediaStatus(let id): return "/media/\(id)"
+
+        // Bookmarks
+        case .bookmarkPost(let id): return "/posts/\(id)/bookmark"
+        case .removeBookmark(let id): return "/posts/\(id)/bookmark"
+        case .bookmarks: return "/bookmarks"
+
+        // Stories
+        case .createStory: return "/stories"
+        case .storyFeed: return "/stories/feed"
+        case .viewStory(let id): return "/stories/\(id)/view"
+        case .storyViewers(let id): return "/stories/\(id)/viewers"
+        case .deleteStory(let id): return "/stories/\(id)"
+
+        // Conversations / DMs
+        case .conversations: return "/conversations"
+        case .startConversation: return "/conversations"
+        case .messages(let conversationId, _, _): return "/conversations/\(conversationId)/messages"
+        case .sendMessage(let conversationId, _): return "/conversations/\(conversationId)/messages"
+        case .markConversationRead(let conversationId): return "/conversations/\(conversationId)/read"
         }
     }
 
     var queryItems: [URLQueryItem]? {
         switch self {
         case .feed(let cursor, let limit), .exploreFeed(let cursor, let limit),
-             .recentCheckIns(let cursor, let limit), .notifications(let cursor, let limit):
+             .recentCheckIns(let cursor, let limit), .notifications(let cursor, let limit),
+             .bookmarks(let cursor, let limit), .conversations(let cursor, let limit):
             var items: [URLQueryItem] = [URLQueryItem(name: "limit", value: "\(limit)")]
             if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
             return items
-        case .userPosts(_, let cursor, let limit):
+        case .userPosts(_, let cursor, let limit),
+             .messages(_, let cursor, let limit):
             var items: [URLQueryItem] = [URLQueryItem(name: "limit", value: "\(limit)")]
             if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
             return items
@@ -271,6 +315,12 @@ enum APIEndpoint {
             return [:]
         case .createRestaurant(let data), .updateRestaurant(_, let data), .addMenuItem(_, let data):
             return data
+        case .createStory(let mediaId):
+            return ["mediaId": mediaId]
+        case .startConversation(let userId):
+            return ["userId": userId]
+        case .sendMessage(_, let content):
+            return ["content": content]
         default:
             return nil
         }
