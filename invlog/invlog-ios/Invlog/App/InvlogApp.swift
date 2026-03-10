@@ -7,6 +7,10 @@ struct InvlogApp: App {
     @StateObject private var container = DependencyContainer()
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        ImagePipelineConfig.setup()
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {

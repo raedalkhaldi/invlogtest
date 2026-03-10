@@ -38,7 +38,7 @@ struct MainTabView: View {
             Color.clear
                 .tag(Tab.create)
                 .tabItem {
-                    Label("Post", systemImage: "plus.circle.fill")
+                    Label("Check In", systemImage: "mappin.circle.fill")
                 }
 
             // Tab 4: Notifications

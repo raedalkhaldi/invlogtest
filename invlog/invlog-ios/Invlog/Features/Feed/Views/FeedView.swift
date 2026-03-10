@@ -1,7 +1,10 @@
 import SwiftUI
+import Nuke
+import NukeUI
 
 struct FeedView: View {
     @StateObject private var viewModel = FeedViewModel()
+    private let prefetcher = ImagePrefetcher()
 
     var body: some View {
         Group {
@@ -35,6 +38,15 @@ struct FeedView: View {
                         .onAppear {
                             if post.id == viewModel.posts.last?.id {
                                 Task { await viewModel.loadMore() }
+                            }
+                            // Prefetch next 5 posts' media images
+                            if let currentIndex = viewModel.posts.firstIndex(where: { $0.id == post.id }) {
+                                let nextPosts = viewModel.posts.suffix(from: min(currentIndex + 1, viewModel.posts.endIndex)).prefix(5)
+                                let urls = nextPosts.compactMap { p -> URL? in
+                                    guard let media = p.media?.first else { return nil }
+                                    return URL(string: media.mediumUrl ?? media.url)
+                                }
+                                prefetcher.startPrefetching(with: urls)
                             }
                         }
                     }

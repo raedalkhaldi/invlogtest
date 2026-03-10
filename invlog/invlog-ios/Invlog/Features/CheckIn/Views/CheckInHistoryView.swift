@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct CheckInHistoryView: View {
     let mode: Mode
@@ -118,21 +119,25 @@ struct CheckInRow: View {
         HStack(spacing: 12) {
             // Restaurant or User avatar
             if let restaurant = checkIn.restaurant {
-                AsyncImage(url: restaurant.avatarUrl) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Image(systemName: "building.2")
-                        .foregroundColor(.secondary)
+                LazyImage(url: restaurant.avatarUrl) { state in
+                    if let image = state.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Image(systemName: "building.2")
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityHidden(true)
             } else if let user = checkIn.user {
-                AsyncImage(url: user.avatarUrl) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Image(systemName: "person.circle.fill")
-                        .foregroundColor(.secondary)
+                LazyImage(url: user.avatarUrl) { state in
+                    if let image = state.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(Circle())

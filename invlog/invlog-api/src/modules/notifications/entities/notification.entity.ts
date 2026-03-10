@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 
 @Entity('notifications')
+@Index(['recipientId', 'createdAt'])
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;

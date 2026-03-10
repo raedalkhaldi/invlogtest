@@ -15,6 +15,7 @@ export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ name: 'author_id', type: 'uuid' })
   authorId: string;
 

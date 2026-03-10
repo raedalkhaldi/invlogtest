@@ -9,6 +9,7 @@ import { Repository, In, IsNull } from 'typeorm';
 import { Post, PostMedia } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
+import { CheckIn } from '../checkins/entities/checkin.entity';
 import { CreatePostDto, UpdatePostDto } from './dto/create-post.dto';
 
 @Injectable()
@@ -22,6 +23,8 @@ export class PostsService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
+    @InjectRepository(CheckIn)
+    private readonly checkinRepo: Repository<CheckIn>,
   ) {}
 
   /**
@@ -127,6 +130,28 @@ export class PostsService {
       .set({ postCount: () => '"post_count" + 1' })
       .where('id = :id', { id: authorId })
       .execute();
+
+    // Auto-create check-in linked to this post
+    if (dto.restaurantId) {
+      const checkin = this.checkinRepo.create({
+        userId: authorId,
+        restaurantId: dto.restaurantId,
+        postId: saved.id,
+      });
+      if (dto.latitude != null && dto.longitude != null) {
+        checkin.latitude = dto.latitude;
+        checkin.longitude = dto.longitude;
+      }
+      await this.checkinRepo.save(checkin);
+
+      // Increment restaurant check-in count
+      await this.restaurantRepo
+        .createQueryBuilder()
+        .update(Restaurant)
+        .set({ checkinCount: () => '"checkin_count" + 1' })
+        .where('id = :id', { id: dto.restaurantId })
+        .execute();
+    }
 
     return this.findById(saved.id);
   }

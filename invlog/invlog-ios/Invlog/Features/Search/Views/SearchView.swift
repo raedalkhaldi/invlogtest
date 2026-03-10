@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct NearbyRestaurantsDestination: Hashable {}
 
@@ -264,11 +265,13 @@ struct RestaurantRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: restaurant.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "building.2")
-                    .foregroundColor(.secondary)
+            LazyImage(url: restaurant.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "building.2")
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(width: 44, height: 44)
             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -306,11 +309,13 @@ struct UserRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: user.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "person.circle.fill")
-                    .foregroundColor(.secondary)
+            LazyImage(url: user.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(width: 44, height: 44)
             .clipShape(Circle())
@@ -339,14 +344,16 @@ struct NearbyRestaurantCard: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            AsyncImage(url: restaurant.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "building.2")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(.systemGray5))
+            LazyImage(url: restaurant.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "building.2")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemGray5))
+                }
             }
             .frame(width: 100, height: 80)
             .clipShape(RoundedRectangle(cornerRadius: 8))

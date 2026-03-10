@@ -9,6 +9,7 @@ import {
 
 @Entity('follows')
 @Unique(['followerId', 'targetType', 'targetId'])
+@Index(['targetId', 'targetType'])
 export class Follow {
   @PrimaryGeneratedColumn('uuid')
   id: string;

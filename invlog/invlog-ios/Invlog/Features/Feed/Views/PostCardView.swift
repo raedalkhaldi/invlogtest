@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct PostCardView: View {
     let post: Post
@@ -15,11 +16,13 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Author Header
             HStack(spacing: 10) {
-                AsyncImage(url: post.author?.avatarUrl) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Image(systemName: "person.circle.fill")
-                        .foregroundColor(.secondary)
+                LazyImage(url: post.author?.avatarUrl) { state in
+                    if let image = state.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
@@ -81,23 +84,49 @@ struct PostCardView: View {
 
             // Media
             if let media = post.media, let firstMedia = media.first {
-                AsyncImage(url: URL(string: firstMedia.thumbnailUrl ?? firstMedia.url)) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Rectangle()
-                        .fill(Color(.systemGray5))
+                if firstMedia.mediaType == "video", let videoUrl = URL(string: firstMedia.url) {
+                    AutoPlayVideoView(
+                        url: videoUrl,
+                        thumbnailUrl: URL(string: firstMedia.thumbnailUrl ?? firstMedia.url),
+                        blurhash: firstMedia.blurhash
+                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .accessibilityLabel("Post video")
+                } else {
+                    LazyImage(url: URL(string: firstMedia.mediumUrl ?? firstMedia.url)) { state in
+                        if let image = state.image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } else if let blurhash = firstMedia.blurhash {
+                            BlurhashView(blurhash: blurhash)
+                        } else {
+                            Rectangle()
+                                .fill(Color(.systemGray5))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .accessibilityLabel("Post photo")
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 240)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .accessibilityLabel("Post photo")
 
                 if media.count > 1 {
                     Text("+\(media.count - 1) more")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+
+                if firstMedia.mediaType == "video", let duration = firstMedia.durationSecs {
+                    HStack {
+                        Image(systemName: "video.fill")
+                            .font(.caption2)
+                        Text(String(format: "0:%02d", Int(duration)))
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.secondary)
                 }
             }
 

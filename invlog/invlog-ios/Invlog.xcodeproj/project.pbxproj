@@ -52,6 +52,13 @@
 		6F7A8B9C0D1E2F3A4B5C6D7E /* RestaurantPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A7B8C9D0E1F2A3B4C5D6E7 /* RestaurantPickerView.swift */; };
 		7A8B9C0D1E2F3A4B5C6D7E8F /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B8C9D0E1F2A3B4C5D6E7F8 /* PushNotificationManager.swift */; };
 		8B9C0D1E2F3A4B5C6D7E8FA0 /* PlacePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C0D1E2F3A4B5C6D7E8FA01 /* PlacePickerView.swift */; };
+		AA1122AABB1122AABB1122AA /* ImagePipelineConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677AABBCCDD /* ImagePipelineConfig.swift */; };
+		BB2233AABB2233AABB2233BB /* BlurHashDecode.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22334455667788AABBCCDD /* BlurHashDecode.swift */; };
+		CC3344AABB3344AABB3344CC /* BlurhashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC33445566778899AABBCCDD /* BlurhashView.swift */; };
+		DD4455AABB4455AABB4455DD /* AutoPlayVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD44556677889900AABBCCDD /* AutoPlayVideoView.swift */; };
+		EE5566AABB5566AABB5566EE /* UIImage+HEIC.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE55667788990011AABBCCDD /* UIImage+HEIC.swift */; };
+		NUKE000400040004NUKE0004 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000200020002NUKE0002 /* Nuke */; };
+		NUKE000500050005NUKE0005 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000300030003NUKE0003 /* NukeUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -101,6 +108,11 @@
 		F6A7B8C9D0E1F2A3B4C5D6E7 /* RestaurantPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RestaurantPickerView.swift"; path = "RestaurantPickerView.swift"; sourceTree = "<group>"; };
 		A7B8C9D0E1F2A3B4C5D6E7F8 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PushNotificationManager.swift"; path = "PushNotificationManager.swift"; sourceTree = "<group>"; };
 		B9C0D1E2F3A4B5C6D7E8FA01 /* PlacePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PlacePickerView.swift"; path = "PlacePickerView.swift"; sourceTree = "<group>"; };
+		AA11223344556677AABBCCDD /* ImagePipelineConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ImagePipelineConfig.swift"; path = "ImagePipelineConfig.swift"; sourceTree = "<group>"; };
+		BB22334455667788AABBCCDD /* BlurHashDecode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BlurHashDecode.swift"; path = "BlurHashDecode.swift"; sourceTree = "<group>"; };
+		CC33445566778899AABBCCDD /* BlurhashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BlurhashView.swift"; path = "BlurhashView.swift"; sourceTree = "<group>"; };
+		DD44556677889900AABBCCDD /* AutoPlayVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AutoPlayVideoView.swift"; path = "AutoPlayVideoView.swift"; sourceTree = "<group>"; };
+		EE55667788990011AABBCCDD /* UIImage+HEIC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "UIImage+HEIC.swift"; path = "UIImage+HEIC.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +120,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				NUKE000400040004NUKE0004 /* Nuke in Frameworks */,
+				NUKE000500050005NUKE0005 /* NukeUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -126,8 +140,10 @@
 		09427F7ED1DC17E755137124 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				BB22334455667788AABBCCDD /* BlurHashDecode.swift */,
 				27773FA5EF1234C638831A18 /* Color+Theme.swift */,
 				89EC8F1FA0C405A2FBD20255 /* Date+Extensions.swift */,
+				EE55667788990011AABBCCDD /* UIImage+HEIC.swift */,
 			);
 			name = "Extensions";
 			path = "Extensions";
@@ -318,6 +334,8 @@
 		87C27D2D694A2383EC6A8B10 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				DD44556677889900AABBCCDD /* AutoPlayVideoView.swift */,
+				CC33445566778899AABBCCDD /* BlurhashView.swift */,
 				2C04220E27BC6959336F8222 /* EmptyStateView.swift */,
 				3127282C2A36603988C126E6 /* FollowableUserRowView.swift */,
 			);
@@ -408,6 +426,7 @@
 		D33FDBF6F4AAB6C8470FBB0E /* Media */ = {
 			isa = PBXGroup;
 			children = (
+				AA11223344556677AABBCCDD /* ImagePipelineConfig.swift */,
 				04ABE1A136CF79ADB232244D /* MediaUploadService.swift */,
 			);
 			name = "Media";
@@ -496,6 +515,10 @@
 			dependencies = (
 			);
 			name = Invlog;
+			packageProductDependencies = (
+				NUKE000200020002NUKE0002 /* Nuke */,
+				NUKE000300030003NUKE0003 /* NukeUI */,
+			);
 			productName = Invlog;
 			productReference = 4235931EC4BE2C0990FDAFBB /* Invlog.app */;
 			productType = "com.apple.product-type.application";
@@ -514,6 +537,9 @@
 				Base,
 			);
 			mainGroup = 29D443E57F6C19D75F52476D;
+			packageReferences = (
+				NUKE000100010001NUKE0001 /* XCRemoteSwiftPackageReference "Nuke" */,
+			);
 			productRefGroup = 6DB962113490C5000F1C01A3 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -522,6 +548,30 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		NUKE000100010001NUKE0001 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		NUKE000200020002NUKE0002 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = NUKE000100010001NUKE0001 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		NUKE000300030003NUKE0003 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = NUKE000100010001NUKE0001 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXResourcesBuildPhase section */
 		24B97018A4FAA6754C1CB6DE /* Resources */ = {
@@ -583,6 +633,11 @@
 				5E6F7A8B9C0D1E2F3A4B5C6D /* CheckInHistoryView.swift in Sources */,
 				6F7A8B9C0D1E2F3A4B5C6D7E /* RestaurantPickerView.swift in Sources */,
 				7A8B9C0D1E2F3A4B5C6D7E8F /* PushNotificationManager.swift in Sources */,
+				AA1122AABB1122AABB1122AA /* ImagePipelineConfig.swift in Sources */,
+				BB2233AABB2233AABB2233BB /* BlurHashDecode.swift in Sources */,
+				CC3344AABB3344AABB3344CC /* BlurhashView.swift in Sources */,
+				DD4455AABB4455AABB4455DD /* AutoPlayVideoView.swift in Sources */,
+				EE5566AABB5566AABB5566EE /* UIImage+HEIC.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

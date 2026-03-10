@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct FollowListDestination: Hashable {
     let userId: String
@@ -128,12 +129,14 @@ struct ProfileHeaderView: View {
     var body: some View {
         VStack(spacing: 16) {
             // Avatar
-            AsyncImage(url: user.avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.secondary)
+            LazyImage(url: user.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 80))
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(width: 80, height: 80)
             .clipShape(Circle())

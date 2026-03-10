@@ -1,11 +1,28 @@
 import SwiftUI
 import PhotosUI
+import AVFoundation
+
+struct VideoTransferable: Transferable {
+    let url: URL
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { video in
+            SentTransferredFile(video.url)
+        } importing: { received in
+            let tempDir = FileManager.default.temporaryDirectory
+            let fileName = "video_\(UUID().uuidString).mp4"
+            let destination = tempDir.appendingPathComponent(fileName)
+            try FileManager.default.copyItem(at: received.file, to: destination)
+            return Self(url: destination)
+        }
+    }
+}
 
 struct CreatePostView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var content = ""
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var selectedImages: [UIImage] = []
+    @State private var mediaItems: [MediaItem] = []
     @State private var rating: Int?
     @State private var isSubmitting = false
     @State private var showDiscardAlert = false
@@ -16,14 +33,14 @@ struct CreatePostView: View {
     @State private var errorMessage: String?
 
     private var hasContent: Bool {
-        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !selectedImages.isEmpty
+        selectedPlace != nil && (!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !selectedImages.isEmpty)
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 // Text Input
-                TextField("What are you eating?", text: $content, axis: .vertical)
+                TextField("Share your experience...", text: $content, axis: .vertical)
                     .font(.body)
                     .lineLimit(5...10)
                     .padding()
@@ -129,26 +146,16 @@ struct CreatePostView: View {
                                 }
                             }
                         } else {
-                            Text("Add Place")
+                            Text("Select Restaurant *")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
 
                         Spacer()
 
-                        if selectedPlace != nil {
-                            Button {
-                                selectedPlace = nil
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(minWidth: 44, minHeight: 44)
-                        } else {
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color(.systemGray6))
@@ -159,12 +166,12 @@ struct CreatePostView: View {
                 .accessibilityLabel(selectedPlace != nil ? "Place: \(selectedPlace!.name). Tap to change." : "Add a place")
 
                 // Location status
-                if locationManager.location != nil && selectedPlace == nil {
+                if locationManager.location != nil {
                     HStack(spacing: 8) {
                         Image(systemName: "location.fill")
                             .font(.caption)
                             .foregroundColor(.green)
-                        Text("Location will be attached")
+                        Text("Location detected")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -175,7 +182,7 @@ struct CreatePostView: View {
         .sheet(isPresented: $showPlacePicker) {
             PlacePickerView(selectedPlace: $selectedPlace)
         }
-        .navigationTitle("New Post")
+        .navigationTitle("Check In")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -190,26 +197,39 @@ struct CreatePostView: View {
             }
 
             ToolbarItem(placement: .confirmationAction) {
-                Button("Post") {
+                Button("Check In") {
                     Task { await submitPost() }
                 }
                 .frame(minWidth: 44, minHeight: 44)
                 .disabled(!hasContent || isSubmitting)
             }
         }
-        .alert("Discard Post?", isPresented: $showDiscardAlert) {
+        .alert("Discard Check-in?", isPresented: $showDiscardAlert) {
             Button("Discard", role: .destructive) { dismiss() }
             Button("Keep Editing", role: .cancel) {}
         } message: {
-            Text("Your post will be lost if you go back.")
+            Text("Your check-in will be lost if you go back.")
         }
         .onChange(of: selectedItems) { newItems in
             Task {
                 selectedImages = []
+                mediaItems = []
                 for item in newItems {
-                    if let data = try? await item.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        selectedImages.append(image)
+                    if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+                        // Video item
+                        if let video = try? await item.loadTransferable(type: VideoTransferable.self) {
+                            let thumbnail = await generateThumbnail(for: video.url)
+                            let thumbImage = thumbnail ?? UIImage(systemName: "video.fill")!
+                            selectedImages.append(thumbImage)
+                            mediaItems.append(.video(video.url, thumbImage))
+                        }
+                    } else {
+                        // Image item
+                        if let data = try? await item.loadTransferable(type: Data.self),
+                           let image = UIImage(data: data) {
+                            selectedImages.append(image)
+                            mediaItems.append(.image(image))
+                        }
                     }
                 }
             }
@@ -230,8 +250,8 @@ struct CreatePostView: View {
         do {
             // 1. Upload media first (if any)
             var mediaIds: [String] = []
-            if !selectedImages.isEmpty {
-                mediaIds = try await uploadService.uploadImages(selectedImages)
+            if !mediaItems.isEmpty {
+                mediaIds = try await uploadService.uploadMedia(mediaItems)
             }
 
             // 2. Create post with place info
@@ -260,6 +280,19 @@ struct CreatePostView: View {
         }
 
         isSubmitting = false
+    }
+
+    private func generateThumbnail(for url: URL) async -> UIImage? {
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 512, height: 512)
+        do {
+            let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
+            return UIImage(cgImage: cgImage)
+        } catch {
+            return nil
+        }
     }
 
     @ViewBuilder
