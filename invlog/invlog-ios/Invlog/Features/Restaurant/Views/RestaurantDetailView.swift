@@ -71,7 +71,7 @@ struct RestaurantDetailView: View {
 
     // MARK: - Cover Image
 
-    @ViewBuilder
+    @MainActor @ViewBuilder
     private func coverImageSection(_ restaurant: Restaurant) -> some View {
         LazyImage(url: restaurant.coverUrl)
             .frame(height: 200)
