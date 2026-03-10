@@ -45,7 +45,10 @@ struct RestaurantDetailView: View {
     private func restaurantContent(_ restaurant: Restaurant) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                coverImageSection(restaurant)
+                LazyImage(url: restaurant.coverUrl)
+                    .frame(height: 200)
+                    .clipped()
+                    .accessibilityLabel("\(restaurant.name) cover photo")
 
                 VStack(alignment: .leading, spacing: 12) {
                     nameAndRatingSection(restaurant)
@@ -67,23 +70,6 @@ struct RestaurantDetailView: View {
                 .padding(.horizontal)
             }
         }
-    }
-
-    // MARK: - Cover Image
-
-    @ViewBuilder
-    private func coverImageSection(_ restaurant: Restaurant) -> some View {
-        LazyImage(url: restaurant.coverUrl) { state in
-            if let image = state.image {
-                image.resizable().scaledToFill()
-            } else {
-                Rectangle()
-                    .fill(Color(.systemGray5))
-            }
-        }
-        .frame(height: 200)
-        .clipped()
-        .accessibilityLabel("\(restaurant.name) cover photo")
     }
 
     // MARK: - Name & Rating
