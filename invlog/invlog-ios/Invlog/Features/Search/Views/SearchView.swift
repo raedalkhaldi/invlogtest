@@ -2,6 +2,7 @@ import SwiftUI
 import NukeUI
 
 struct NearbyRestaurantsDestination: Hashable {}
+struct ExploreTripsDestination: Hashable {}
 
 struct SearchView: View {
     @State private var searchText = ""
@@ -12,6 +13,8 @@ struct SearchView: View {
     @StateObject private var locationManager = LocationManager()
     @State private var nearbyRestaurants: [Restaurant] = []
     @State private var isLoadingNearby = false
+    @State private var exploreTrips: [Trip] = []
+    @State private var isLoadingTrips = false
 
     enum SearchFilter: String, CaseIterable {
         case all = "All"
@@ -89,6 +92,32 @@ struct SearchView: View {
                             }
                             .frame(minHeight: 44)
                             .accessibilityLabel("View nearby places on map")
+
+                            NavigationLink(value: ExploreTripsDestination()) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "suitcase.fill")
+                                        .font(.title3)
+                                        .foregroundColor(Color.brandAccent)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Trips")
+                                            .font(InvlogTheme.body(14, weight: .bold))
+                                            .foregroundColor(Color.brandText)
+                                        Text("Food Itineraries")
+                                            .font(InvlogTheme.caption(11))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(InvlogTheme.Spacing.sm)
+                                .background(Color.brandCard)
+                                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius)
+                                        .stroke(Color.brandBorder, lineWidth: 1)
+                                )
+                            }
+                            .frame(minHeight: 44)
+                            .accessibilityLabel("Browse food trip itineraries")
                         }
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -132,6 +161,51 @@ struct SearchView: View {
                             HStack {
                                 Spacer()
                                 ProgressView("Finding nearby places...")
+                                    .font(InvlogTheme.caption(12))
+                                Spacer()
+                            }
+                            .padding()
+                        }
+
+                        // Public Trips Section
+                        if !exploreTrips.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Food Trips")
+                                        .font(InvlogTheme.heading(16, weight: .bold))
+                                        .foregroundColor(Color.brandText)
+                                        .padding(.horizontal)
+
+                                    Spacer()
+
+                                    NavigationLink(value: ExploreTripsDestination()) {
+                                        Text("See All")
+                                            .font(InvlogTheme.caption(12, weight: .semibold))
+                                            .foregroundColor(Color.brandPrimary)
+                                            .padding(.horizontal)
+                                    }
+                                    .frame(minHeight: 44)
+                                    .accessibilityLabel("See all food trips")
+                                }
+
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(exploreTrips.prefix(6)) { trip in
+                                            NavigationLink(value: trip) {
+                                                ExploreTripCard(trip: trip)
+                                            }
+                                            .frame(minWidth: 44, minHeight: 44)
+                                            .accessibilityLabel(trip.title)
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        } else if isLoadingTrips {
+                            HStack {
+                                Spacer()
+                                ProgressView("Loading trips...")
                                     .font(InvlogTheme.caption(12))
                                 Spacer()
                             }
@@ -222,6 +296,12 @@ struct SearchView: View {
         .navigationDestination(for: NearbyRestaurantsDestination.self) { _ in
             NearbyRestaurantsView()
         }
+        .navigationDestination(for: ExploreTripsDestination.self) { _ in
+            ExploreTripsView()
+        }
+        .navigationDestination(for: Trip.self) { trip in
+            TripDetailView(tripId: trip.id)
+        }
         .onAppear {
             let status = locationManager.authorizationStatus
             if status == .notDetermined {
@@ -229,6 +309,9 @@ struct SearchView: View {
             } else if status == .authorizedWhenInUse || status == .authorizedAlways {
                 locationManager.startUpdating()
             }
+        }
+        .task {
+            await loadExploreTrips()
         }
         .onChange(of: locationManager.location) { newLocation in
             guard let coord = newLocation else { return }
@@ -249,6 +332,21 @@ struct SearchView: View {
             // Handle error silently
         }
         isLoadingNearby = false
+    }
+
+    private func loadExploreTrips() async {
+        guard exploreTrips.isEmpty else { return }
+        isLoadingTrips = true
+        do {
+            let (response, _) = try await APIClient.shared.requestWrapped(
+                .exploreTrips(cursor: nil, limit: 6),
+                responseType: TripsResponse.self
+            )
+            exploreTrips = response.data
+        } catch {
+            // Handle error silently
+        }
+        isLoadingTrips = false
     }
 
     private func triggerSearch() {
@@ -441,5 +539,78 @@ struct NearbyRestaurantCard: View {
             parts.append(formattedDistance(distance) + " away")
         }
         return parts.joined(separator: ", ")
+    }
+}
+
+// MARK: - Explore Trip Card
+
+struct ExploreTripCard: View {
+    let trip: Trip
+
+    private var statusColor: Color {
+        switch trip.status {
+        case "active": return Color.brandAccent
+        case "completed": return Color.brandSecondary
+        default: return Color.brandTextSecondary
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Cover image or placeholder
+            ZStack(alignment: .bottomLeading) {
+                if let coverUrl = trip.coverImageUrl, let url = URL(string: coverUrl) {
+                    LazyImage(url: url) { state in
+                        if let image = state.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            tripPlaceholder
+                        }
+                    }
+                } else {
+                    tripPlaceholder
+                }
+            }
+            .frame(width: 160, height: 100)
+            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(trip.title)
+                    .font(InvlogTheme.caption(12, weight: .bold))
+                    .foregroundColor(Color.brandText)
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "mappin")
+                        .font(.system(size: 8))
+                    Text("\(trip.stopCount) stop\(trip.stopCount == 1 ? "" : "s")")
+                        .font(InvlogTheme.caption(10))
+                }
+                .foregroundColor(Color.brandTextSecondary)
+
+                if let owner = trip.owner {
+                    Text("by \(owner.displayName ?? owner.username ?? "")")
+                        .font(InvlogTheme.caption(10))
+                        .foregroundColor(Color.brandTextTertiary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .frame(width: 160)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(trip.title), \(trip.stopCount) stops")
+    }
+
+    private var tripPlaceholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.brandOrangeLight, Color.brandAccent.opacity(0.2)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Image(systemName: "map.fill")
+                .font(.title2)
+                .foregroundColor(Color.brandPrimary.opacity(0.5))
+        }
     }
 }

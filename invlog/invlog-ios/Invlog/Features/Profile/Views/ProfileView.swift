@@ -10,6 +10,8 @@ struct CheckInListDestination: Hashable {
     let userId: String
 }
 
+struct TripsListDestination: Hashable {}
+
 struct ProfileView: View {
     let userId: String? // nil = current user
     @EnvironmentObject private var appState: AppState
@@ -76,6 +78,12 @@ struct ProfileView: View {
         }
         .navigationDestination(for: CheckInListDestination.self) { dest in
             CheckInHistoryView(mode: .user, id: dest.userId)
+        }
+        .navigationDestination(for: TripsListDestination.self) { _ in
+            MyTripsView()
+        }
+        .navigationDestination(for: Trip.self) { trip in
+            TripDetailView(tripId: trip.id)
         }
         .navigationDestination(for: User.self) { user in
             ProfileView(userId: user.username)
@@ -282,6 +290,33 @@ struct ProfileHeaderView: View {
             .padding(.horizontal, InvlogTheme.Spacing.md)
             .padding(.top, InvlogTheme.Spacing.sm)
             .accessibilityLabel("View check-in history")
+
+            // My Trips link
+            if isCurrentUser {
+                NavigationLink(value: TripsListDestination()) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "map.fill")
+                            .foregroundColor(Color.brandAccent)
+                        Text("My Trips")
+                            .font(InvlogTheme.body(14, weight: .semibold))
+                            .foregroundColor(Color.brandText)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
+                    .padding(InvlogTheme.Spacing.sm)
+                    .background(Color.brandCard)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(Color.brandBorder, lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal, InvlogTheme.Spacing.md)
+                .padding(.top, InvlogTheme.Spacing.xxs)
+                .accessibilityLabel("View my trips")
+            }
 
             // XP progress placeholder
             VStack(alignment: .leading, spacing: 6) {
