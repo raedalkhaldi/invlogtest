@@ -14,6 +14,7 @@ struct TripDetailView: View {
     @State private var showCloneAlert = false
     @State private var stopToDelete: TripStop?
     @State private var showMapFullScreen = false
+    @State private var showInviteCollaborator = false
 
     init(tripId: String) {
         self.tripId = tripId
@@ -72,6 +73,14 @@ struct TripDetailView: View {
                             }
                         }
 
+                        if isOwner {
+                            Button {
+                                showInviteCollaborator = true
+                            } label: {
+                                Label("Invite Collaborator", systemImage: "person.badge.plus")
+                            }
+                        }
+
                         if !isOwner && trip.visibility == "public" {
                             Button {
                                 showCloneAlert = true
@@ -115,6 +124,13 @@ struct TripDetailView: View {
                     EditTripView(trip: trip) {
                         Task { await viewModel.loadTrip() }
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $showInviteCollaborator) {
+            NavigationStack {
+                InviteCollaboratorView(tripId: tripId) {
+                    Task { await viewModel.loadTrip() }
                 }
             }
         }
@@ -434,24 +450,32 @@ struct TripDetailView: View {
                         .lineLimit(2)
                 }
 
-                if let start = stop.startTime, let end = stop.endTime {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                        Text("\(start) - \(end)")
-                            .font(InvlogTheme.caption(11, weight: .semibold))
+                // Time & duration row
+                HStack(spacing: InvlogTheme.Spacing.sm) {
+                    if let start = stop.startTime {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.fill")
+                                .font(.caption2)
+                            if let end = stop.endTime {
+                                Text("\(start) → \(end)")
+                                    .font(InvlogTheme.caption(11, weight: .semibold))
+                            } else {
+                                Text(start)
+                                    .font(InvlogTheme.caption(11, weight: .semibold))
+                            }
+                        }
+                        .foregroundColor(Color.brandPrimary)
                     }
-                    .foregroundColor(Color.brandPrimary)
-                }
 
-                if let duration = stop.estimatedDuration, duration > 0 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                        Text(formatDuration(duration))
-                            .font(InvlogTheme.caption(11))
+                    if let duration = stop.estimatedDuration, duration > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hourglass")
+                                .font(.caption2)
+                            Text(formatDuration(duration))
+                                .font(InvlogTheme.caption(11))
+                        }
+                        .foregroundColor(Color.brandTextSecondary)
                     }
-                    .foregroundColor(Color.brandTextSecondary)
                 }
             }
 

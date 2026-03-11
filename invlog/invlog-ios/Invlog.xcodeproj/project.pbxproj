@@ -88,6 +88,7 @@
 		T006A006B006C006D006F001 /* TripDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T006A006B006C006D006E006 /* TripDetailView.swift */; };
 		T007A007B007C007D007F001 /* AddTripStopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T007A007B007C007D007E007 /* AddTripStopView.swift */; };
 		T008A008B008C008D008F001 /* ExploreTripsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T008A008B008C008D008E008 /* ExploreTripsView.swift */; };
+		T009A009B009C009D009F001 /* InviteCollaboratorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T009A009B009C009D009E009 /* InviteCollaboratorView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -171,6 +172,7 @@
 		T006A006B006C006D006E006 /* TripDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TripDetailView.swift"; path = "TripDetailView.swift"; sourceTree = "<group>"; };
 		T007A007B007C007D007E007 /* AddTripStopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AddTripStopView.swift"; path = "AddTripStopView.swift"; sourceTree = "<group>"; };
 		T008A008B008C008D008E008 /* ExploreTripsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ExploreTripsView.swift"; path = "ExploreTripsView.swift"; sourceTree = "<group>"; };
+		T009A009B009C009D009E009 /* InviteCollaboratorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "InviteCollaboratorView.swift"; path = "InviteCollaboratorView.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -687,6 +689,7 @@
 				T007A007B007C007D007E007 /* AddTripStopView.swift */,
 				T005A005B005C005D005E005 /* CreateTripView.swift */,
 				T008A008B008C008D008E008 /* ExploreTripsView.swift */,
+				T009A009B009C009D009E009 /* InviteCollaboratorView.swift */,
 				T004A004B004C004D004E004 /* MyTripsView.swift */,
 				T006A006B006C006D006E006 /* TripDetailView.swift */,
 			);
@@ -862,6 +865,7 @@
 				T006A006B006C006D006F001 /* TripDetailView.swift in Sources */,
 				T007A007B007C007D007F001 /* AddTripStopView.swift in Sources */,
 				T008A008B008C008D008F001 /* ExploreTripsView.swift in Sources */,
+				T009A009B009C009D009F001 /* InviteCollaboratorView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
