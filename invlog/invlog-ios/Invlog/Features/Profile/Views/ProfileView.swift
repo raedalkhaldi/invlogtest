@@ -396,13 +396,13 @@ struct ProfileHeaderView: View {
         isSendingMessage = true
         Task {
             do {
-                let conversation = try await APIClient.shared.request(
+                let (conversation, _) = try await APIClient.shared.requestWrapped(
                     .startConversation(userId: user.id),
                     responseType: Conversation.self
                 )
                 onMessageTapped?(conversation)
             } catch {
-                // Handle error silently
+                print("Failed to start conversation: \(error)")
             }
             isSendingMessage = false
         }
