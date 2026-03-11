@@ -299,11 +299,26 @@ struct AddTripStopView: View {
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
+            // Ensure we have a restaurantId — create one if the place doesn't have one
+            var restaurantId = place.restaurantId
+            if restaurantId == nil {
+                let (restaurant, _) = try await APIClient.shared.requestWrapped(
+                    .createRestaurant(data: [
+                        "name": place.name,
+                        "latitude": place.latitude,
+                        "longitude": place.longitude,
+                        "addressLine1": place.address,
+                    ]),
+                    responseType: Restaurant.self
+                )
+                restaurantId = restaurant.id
+            }
+
             try await APIClient.shared.requestVoid(
                 .addTripStop(
                     tripId: tripId,
                     name: place.name,
-                    restaurantId: place.restaurantId,
+                    restaurantId: restaurantId,
                     address: place.address.isEmpty ? nil : place.address,
                     latitude: place.latitude,
                     longitude: place.longitude,
