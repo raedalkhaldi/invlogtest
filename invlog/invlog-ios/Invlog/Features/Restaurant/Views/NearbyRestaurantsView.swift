@@ -34,7 +34,7 @@ struct NearbyRestaurantsView: View {
                 if !isLocationAuthorized {
                     locationPermissionView
                 } else if viewModel.isLoading && viewModel.restaurants.isEmpty {
-                    ProgressView("Finding nearby restaurants...")
+                    ProgressView("Finding nearby places...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = viewModel.error, viewModel.restaurants.isEmpty {
                     EmptyStateView(
@@ -49,8 +49,8 @@ struct NearbyRestaurantsView: View {
                 } else if viewModel.restaurants.isEmpty {
                     EmptyStateView(
                         systemImage: "mappin.slash",
-                        title: "No restaurants nearby",
-                        description: "We couldn't find any restaurants in your area. Try expanding your search."
+                        title: "No places nearby",
+                        description: "We couldn't find any places in your area. Try expanding your search."
                     )
                 } else {
                     switch viewMode {
@@ -129,7 +129,7 @@ struct NearbyRestaurantsView: View {
         EmptyStateView(
             systemImage: "location.slash",
             title: "Location Access Needed",
-            description: "Enable location access to discover restaurants near you.",
+            description: "Enable location access to discover places near you.",
             buttonTitle: "Enable Location",
             buttonAction: {
                 locationManager.requestPermission()

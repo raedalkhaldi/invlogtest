@@ -26,7 +26,7 @@ struct FeedView: View {
                 EmptyStateView(
                     systemImage: "fork.knife",
                     title: "No posts yet",
-                    description: "Follow people and restaurants to see their posts here"
+                    description: "Follow people and places to see their posts here"
                 )
             } else {
                 List {

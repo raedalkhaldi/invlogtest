@@ -146,7 +146,7 @@ struct CreatePostView: View {
                                 }
                             }
                         } else {
-                            Text("Select Restaurant *")
+                            Text("Select Place *")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
