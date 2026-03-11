@@ -15,6 +15,9 @@ struct AddTripStopView: View {
     @State private var notes = ""
     @State private var category = "restaurant"
     @State private var estimatedDuration: Int = 60
+    @State private var hasTimeRange = false
+    @State private var startTime = Calendar.current.date(from: DateComponents(hour: 10, minute: 0))!
+    @State private var endTime = Calendar.current.date(from: DateComponents(hour: 12, minute: 0))!
     @State private var showPlacePicker = false
     @State private var isSubmitting = false
     @State private var errorMessage: String?
@@ -185,6 +188,53 @@ struct AddTripStopView: View {
                     }
                 }
 
+                // Time Range
+                VStack(alignment: .leading, spacing: InvlogTheme.Spacing.xs) {
+                    Toggle(isOn: $hasTimeRange) {
+                        HStack(spacing: InvlogTheme.Spacing.xs) {
+                            Image(systemName: "clock")
+                                .foregroundColor(Color.brandPrimary)
+                            Text("Set time range")
+                                .font(InvlogTheme.body(14, weight: .semibold))
+                                .foregroundColor(Color.brandText)
+                        }
+                    }
+                    .tint(Color.brandPrimary)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("Set time range for this stop")
+
+                    if hasTimeRange {
+                        VStack(spacing: InvlogTheme.Spacing.xs) {
+                            DatePicker(
+                                "Start Time",
+                                selection: $startTime,
+                                displayedComponents: .hourAndMinute
+                            )
+                            .font(InvlogTheme.body(14))
+                            .tint(Color.brandPrimary)
+                            .frame(minHeight: 44)
+                            .accessibilityLabel("Start time")
+
+                            DatePicker(
+                                "End Time",
+                                selection: $endTime,
+                                displayedComponents: .hourAndMinute
+                            )
+                            .font(InvlogTheme.body(14))
+                            .tint(Color.brandPrimary)
+                            .frame(minHeight: 44)
+                            .accessibilityLabel("End time")
+                        }
+                        .padding(InvlogTheme.Spacing.sm)
+                        .background(Color.brandCard)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                .stroke(Color.brandBorder, lineWidth: 1)
+                        )
+                    }
+                }
+
                 // Notes
                 VStack(alignment: .leading, spacing: InvlogTheme.Spacing.xxs) {
                     Text("Notes")
@@ -259,7 +309,9 @@ struct AddTripStopView: View {
                     sortOrder: defaultSortOrder,
                     notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
                     category: category,
-                    estimatedDuration: estimatedDuration
+                    estimatedDuration: estimatedDuration,
+                    startTime: hasTimeRange ? Self.timeFormatter.string(from: startTime) : nil,
+                    endTime: hasTimeRange ? Self.timeFormatter.string(from: endTime) : nil
                 )
             )
             onStopAdded()
@@ -272,6 +324,12 @@ struct AddTripStopView: View {
     }
 
     // MARK: - Helpers
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
 
     private func formatDuration(_ minutes: Int) -> String {
         if minutes < 60 {

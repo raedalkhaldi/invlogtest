@@ -39,7 +39,7 @@ export class TripsController {
     return this.tripsService.create(user.sub, dto);
   }
 
-  @Get('trips')
+  @Get('trips/mine')
   @ApiOperation({ summary: 'List my trips (owned + collaborating)' })
   findAll(
     @CurrentUser() user: JwtPayload,

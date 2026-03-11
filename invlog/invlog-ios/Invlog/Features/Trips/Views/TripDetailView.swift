@@ -434,6 +434,16 @@ struct TripDetailView: View {
                         .lineLimit(2)
                 }
 
+                if let start = stop.startTime, let end = stop.endTime {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                        Text("\(start) - \(end)")
+                            .font(InvlogTheme.caption(11, weight: .semibold))
+                    }
+                    .foregroundColor(Color.brandPrimary)
+                }
+
                 if let duration = stop.estimatedDuration, duration > 0 {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")

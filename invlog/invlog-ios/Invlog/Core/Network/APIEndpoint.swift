@@ -107,8 +107,8 @@ enum APIEndpoint {
     case tripDetail(id: String)
     case updateTrip(id: String, title: String?, description: String?, visibility: String?, status: String?)
     case deleteTrip(id: String)
-    case addTripStop(tripId: String, name: String, restaurantId: String?, address: String?, latitude: Double?, longitude: Double?, dayNumber: Int, sortOrder: Int, notes: String?, category: String, estimatedDuration: Int?)
-    case updateTripStop(stopId: String, name: String?, notes: String?, dayNumber: Int?, sortOrder: Int?)
+    case addTripStop(tripId: String, name: String, restaurantId: String?, address: String?, latitude: Double?, longitude: Double?, dayNumber: Int, sortOrder: Int, notes: String?, category: String, estimatedDuration: Int?, startTime: String?, endTime: String?)
+    case updateTripStop(stopId: String, name: String?, notes: String?, dayNumber: Int?, sortOrder: Int?, startTime: String?, endTime: String?)
     case removeTripStop(stopId: String)
     case reorderTripStops(tripId: String, stopIds: [String])
     case inviteCollaborator(tripId: String, userId: String, role: String)
@@ -244,8 +244,8 @@ enum APIEndpoint {
         case .tripDetail(let id): return "/trips/\(id)"
         case .updateTrip(let id, _, _, _, _): return "/trips/\(id)"
         case .deleteTrip(let id): return "/trips/\(id)"
-        case .addTripStop(let tripId, _, _, _, _, _, _, _, _, _, _): return "/trips/\(tripId)/stops"
-        case .updateTripStop(let stopId, _, _, _, _): return "/trips/stops/\(stopId)"
+        case .addTripStop(let tripId, _, _, _, _, _, _, _, _, _, _, _, _): return "/trips/\(tripId)/stops"
+        case .updateTripStop(let stopId, _, _, _, _, _, _): return "/trips/stops/\(stopId)"
         case .removeTripStop(let stopId): return "/trips/stops/\(stopId)"
         case .reorderTripStops(let tripId, _): return "/trips/\(tripId)/stops/reorder"
         case .inviteCollaborator(let tripId, _, _): return "/trips/\(tripId)/collaborators"
@@ -372,7 +372,7 @@ enum APIEndpoint {
             if let visibility { body["visibility"] = visibility }
             if let status { body["status"] = status }
             return body
-        case .addTripStop(_, let name, let restaurantId, let address, let lat, let lng, let dayNumber, let sortOrder, let notes, let category, let estimatedDuration):
+        case .addTripStop(_, let name, let restaurantId, let address, let lat, let lng, let dayNumber, let sortOrder, let notes, let category, let estimatedDuration, let startTime, let endTime):
             var body: [String: Any] = [
                 "name": name,
                 "dayNumber": dayNumber,
@@ -385,13 +385,17 @@ enum APIEndpoint {
             if let lng { body["longitude"] = lng }
             if let notes { body["notes"] = notes }
             if let estimatedDuration { body["estimatedDuration"] = estimatedDuration }
+            if let startTime { body["startTime"] = startTime }
+            if let endTime { body["endTime"] = endTime }
             return body
-        case .updateTripStop(_, let name, let notes, let dayNumber, let sortOrder):
+        case .updateTripStop(_, let name, let notes, let dayNumber, let sortOrder, let startTime, let endTime):
             var body: [String: Any] = [:]
             if let name { body["name"] = name }
             if let notes { body["notes"] = notes }
             if let dayNumber { body["dayNumber"] = dayNumber }
             if let sortOrder { body["sortOrder"] = sortOrder }
+            if let startTime { body["startTime"] = startTime }
+            if let endTime { body["endTime"] = endTime }
             return body
         case .reorderTripStops(_, let stopIds):
             return ["stopIds": stopIds]
