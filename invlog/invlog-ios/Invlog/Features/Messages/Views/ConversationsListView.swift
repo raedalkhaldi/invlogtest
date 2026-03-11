@@ -30,6 +30,7 @@ struct ConversationsListView: View {
                         NavigationLink(value: conversation) {
                             ConversationRow(conversation: conversation)
                         }
+                        .listRowBackground(Color.clear)
                         .onAppear {
                             if conversation.id == viewModel.conversations.last?.id {
                                 Task { await viewModel.loadMore() }
@@ -38,8 +39,10 @@ struct ConversationsListView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
+        .invlogScreenBackground()
         .navigationTitle("Messages")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -48,6 +51,7 @@ struct ConversationsListView: View {
                     showNewConversation = true
                 } label: {
                     Image(systemName: "square.and.pencil")
+                        .foregroundColor(Color.brandText)
                 }
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("New message")
@@ -82,7 +86,7 @@ struct ConversationRow: View {
                 } else {
                     Image(systemName: "person.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
             }
             .frame(width: 48, height: 48)
@@ -91,33 +95,34 @@ struct ConversationRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(conversation.otherUser?.displayName ?? conversation.otherUser?.username ?? "User")
-                        .font(.subheadline.bold())
+                        .font(InvlogTheme.body(14, weight: .bold))
+                        .foregroundColor(Color.brandText)
                         .lineLimit(1)
 
                     Spacer()
 
                     if let lastAt = conversation.lastMessageAt {
                         Text(lastAt, style: .relative)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(InvlogTheme.caption(11))
+                            .foregroundColor(Color.brandTextTertiary)
                     }
                 }
 
                 HStack {
                     Text(conversation.lastMessageText ?? "No messages yet")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.body(13))
+                        .foregroundColor(Color.brandTextSecondary)
                         .lineLimit(1)
 
                     Spacer()
 
                     if let unread = conversation.unreadCount, unread > 0 {
                         Text("\(unread)")
-                            .font(.caption2.bold())
+                            .font(InvlogTheme.caption(11, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.accentColor))
+                            .background(Capsule().fill(Color.brandPrimary))
                     }
                 }
             }

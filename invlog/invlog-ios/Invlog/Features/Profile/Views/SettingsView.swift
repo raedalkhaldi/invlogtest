@@ -30,7 +30,6 @@ struct SettingsView: View {
                     .frame(minHeight: 44)
 
                     NavigationLink {
-                        // Privacy settings
                         Text("Privacy Settings")
                     } label: {
                         Label("Privacy", systemImage: "lock")
@@ -38,7 +37,6 @@ struct SettingsView: View {
                     .frame(minHeight: 44)
 
                     NavigationLink {
-                        // Notification preferences
                         Text("Notification Preferences")
                     } label: {
                         Label("Notifications", systemImage: "bell")
@@ -70,12 +68,11 @@ struct SettingsView: View {
                         showLogoutAlert = true
                     } label: {
                         Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-                            .foregroundColor(.primary)
+                            .foregroundColor(Color.brandText)
                     }
                     .frame(minHeight: 44)
                 }
 
-                // Apple App Store Requirement: Account Deletion
                 Section {
                     Button(role: .destructive) {
                         showDeleteAlert = true
@@ -85,6 +82,8 @@ struct SettingsView: View {
                     .frame(minHeight: 44)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .invlogScreenBackground()
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -93,6 +92,7 @@ struct SettingsView: View {
                         .frame(minWidth: 44, minHeight: 44)
                 }
             }
+            .tint(Color.brandPrimary)
             .alert("Sign Out?", isPresented: $showLogoutAlert) {
                 Button("Sign Out", role: .destructive) {
                     appState.signOut()

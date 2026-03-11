@@ -41,12 +41,12 @@ struct CreatePostView: View {
             VStack(alignment: .leading, spacing: 16) {
                 // Text Input
                 TextField("Share your experience...", text: $content, axis: .vertical)
-                    .font(.body)
+                    .font(InvlogTheme.body(15))
                     .lineLimit(5...10)
                     .padding()
                     .accessibilityLabel("Post content")
 
-                // Photo Picker (PHPicker — no permission needed per HIG)
+                // Photo Picker
                 PhotosPicker(
                     selection: $selectedItems,
                     maxSelectionCount: 10,
@@ -56,15 +56,21 @@ struct CreatePostView: View {
                         Image(systemName: "photo.on.rectangle.angled")
                         Text(selectedImages.isEmpty ? "Add Photos or Videos" : "\(selectedImages.count) selected")
                     }
+                    .font(InvlogTheme.body(14, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .background(Color.brandCard)
+                    .foregroundColor(Color.brandText)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(Color.brandBorder, lineWidth: 1)
+                    )
                 }
                 .padding(.horizontal)
                 .accessibilityLabel("Add photos or videos")
 
-                // Selected Images Preview with Upload Status
+                // Selected Images Preview
                 if !selectedImages.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -74,9 +80,8 @@ struct CreatePostView: View {
                                         .resizable()
                                         .scaledToFill()
                                         .frame(width: 100, height: 100)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
 
-                                    // Upload status overlay
                                     if let state = uploadService.states[index] {
                                         uploadOverlay(for: state)
                                     }
@@ -87,9 +92,9 @@ struct CreatePostView: View {
                         .padding(.horizontal)
                     }
 
-                    // Overall progress bar
                     if isSubmitting {
                         ProgressView(value: uploadService.overallProgress)
+                            .tint(Color.brandPrimary)
                             .padding(.horizontal)
                             .accessibilityLabel("Upload progress \(Int(uploadService.overallProgress * 100)) percent")
                     }
@@ -98,7 +103,7 @@ struct CreatePostView: View {
                 // Error message
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.caption)
+                        .font(InvlogTheme.caption(12))
                         .foregroundColor(.red)
                         .padding(.horizontal)
                 }
@@ -106,8 +111,8 @@ struct CreatePostView: View {
                 // Rating
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Rating (optional)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.caption(13))
+                        .foregroundColor(Color.brandTextSecondary)
 
                     HStack(spacing: 8) {
                         ForEach(1...5, id: \.self) { star in
@@ -116,7 +121,7 @@ struct CreatePostView: View {
                             } label: {
                                 Image(systemName: (rating ?? 0) >= star ? "star.fill" : "star")
                                     .font(.title2)
-                                    .foregroundColor((rating ?? 0) >= star ? .orange : .secondary)
+                                    .foregroundColor((rating ?? 0) >= star ? Color.brandSecondary : Color.brandTextTertiary)
                             }
                             .frame(minWidth: 44, minHeight: 44)
                             .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
@@ -125,41 +130,45 @@ struct CreatePostView: View {
                 }
                 .padding(.horizontal)
 
-                // Place Tag (MKLocalSearch)
+                // Place Tag
                 Button {
                     showPlacePicker = true
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "mappin.circle.fill")
-                            .foregroundColor(.red)
+                            .foregroundColor(Color.brandPrimary)
 
                         if let place = selectedPlace {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(place.name)
-                                    .font(.subheadline.bold())
-                                    .foregroundColor(.primary)
+                                    .font(InvlogTheme.body(14, weight: .bold))
+                                    .foregroundColor(Color.brandText)
                                 if !place.address.isEmpty {
                                     Text(place.address)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .font(InvlogTheme.caption(12))
+                                        .foregroundColor(Color.brandTextSecondary)
                                         .lineLimit(1)
                                 }
                             }
                         } else {
                             Text("Select Place *")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .font(InvlogTheme.body(14))
+                                .foregroundColor(Color.brandTextSecondary)
                         }
 
                         Spacer()
 
                         Image(systemName: "chevron.right")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.brandTextTertiary)
                     }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(InvlogTheme.Spacing.sm)
+                    .background(Color.brandCard)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(Color.brandBorder, lineWidth: 1)
+                    )
                 }
                 .frame(minHeight: 44)
                 .padding(.horizontal)
@@ -170,15 +179,16 @@ struct CreatePostView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "location.fill")
                             .font(.caption)
-                            .foregroundColor(.green)
+                            .foregroundColor(Color.brandAccent)
                         Text("Location detected")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(InvlogTheme.caption(12))
+                            .foregroundColor(Color.brandTextSecondary)
                     }
                     .padding(.horizontal)
                 }
             }
         }
+        .invlogScreenBackground()
         .sheet(isPresented: $showPlacePicker) {
             PlacePickerView(selectedPlace: $selectedPlace)
         }
@@ -200,6 +210,8 @@ struct CreatePostView: View {
                 Button("Check In") {
                     Task { await submitPost() }
                 }
+                .font(InvlogTheme.body(15, weight: .bold))
+                .foregroundColor(Color.brandPrimary)
                 .frame(minWidth: 44, minHeight: 44)
                 .disabled(!hasContent || isSubmitting)
             }
@@ -216,7 +228,6 @@ struct CreatePostView: View {
                 mediaItems = []
                 for item in newItems {
                     if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
-                        // Video item
                         if let video = try? await item.loadTransferable(type: VideoTransferable.self) {
                             let thumbnail = await generateThumbnail(for: video.url)
                             let thumbImage = thumbnail ?? UIImage(systemName: "video.fill")!
@@ -224,7 +235,6 @@ struct CreatePostView: View {
                             mediaItems.append(.video(video.url, thumbImage))
                         }
                     } else {
-                        // Image item
                         if let data = try? await item.loadTransferable(type: Data.self),
                            let image = UIImage(data: data) {
                             selectedImages.append(image)
@@ -248,13 +258,11 @@ struct CreatePostView: View {
         errorMessage = nil
 
         do {
-            // 1. Upload media first (if any)
             var mediaIds: [String] = []
             if !mediaItems.isEmpty {
                 mediaIds = try await uploadService.uploadMedia(mediaItems)
             }
 
-            // 2. Ensure we have a restaurantId — auto-create if place came from Apple Maps
             let lat = selectedPlace?.latitude ?? locationManager.location?.latitude
             let lng = selectedPlace?.longitude ?? locationManager.location?.longitude
             let locName = selectedPlace?.name
@@ -274,7 +282,6 @@ struct CreatePostView: View {
                 restaurantId = restaurant.id
             }
 
-            // 3. Create post
             try await APIClient.shared.requestVoid(
                 .createPost(
                     content: content.isEmpty ? nil : content,
@@ -320,14 +327,14 @@ struct CreatePostView: View {
         case .uploading(let progress):
             ZStack {
                 Color.black.opacity(0.4)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                 CircularProgressView(progress: progress)
                     .frame(width: 40, height: 40)
             }
         case .processing:
-            uploadStatusBadge(icon: "gearshape.2", color: .orange)
+            uploadStatusBadge(icon: "gearshape.2", color: Color.brandSecondary)
         case .completed:
-            uploadStatusBadge(icon: "checkmark.circle.fill", color: .green)
+            uploadStatusBadge(icon: "checkmark.circle.fill", color: Color.brandAccent)
         case .failed:
             uploadStatusBadge(icon: "exclamationmark.triangle.fill", color: .red)
         }
@@ -336,7 +343,7 @@ struct CreatePostView: View {
     private func uploadStatusBadge(icon: String, color: Color) -> some View {
         ZStack {
             Color.black.opacity(0.4)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
             Image(systemName: icon)
                 .foregroundColor(color)
                 .font(.title2)
@@ -358,8 +365,7 @@ private struct CircularProgressView: View {
                 .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             Text("\(Int(progress * 100))%")
-                .font(.caption2)
-                .fontWeight(.bold)
+                .font(InvlogTheme.caption(10, weight: .bold))
                 .foregroundColor(.white)
         }
     }

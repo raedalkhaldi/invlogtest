@@ -11,15 +11,18 @@ struct EmptyStateView: View {
         VStack(spacing: 16) {
             Image(systemName: systemImage)
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.brandTextTertiary)
             Text(title)
-                .font(.headline)
+                .font(InvlogTheme.heading(18, weight: .bold))
+                .foregroundColor(Color.brandText)
             Text(description)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(InvlogTheme.body(14))
+                .foregroundColor(Color.brandTextSecondary)
                 .multilineTextAlignment(.center)
             if let buttonTitle, let buttonAction {
                 Button(buttonTitle, action: buttonAction)
+                    .buttonStyle(InvlogAccentButtonStyle())
+                    .padding(.horizontal, 48)
                     .frame(minWidth: 44, minHeight: 44)
             }
         }

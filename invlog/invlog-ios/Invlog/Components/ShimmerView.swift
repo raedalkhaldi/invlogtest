@@ -7,9 +7,9 @@ struct ShimmerView: View {
         GeometryReader { geometry in
             LinearGradient(
                 stops: [
-                    .init(color: Color(.systemGray5), location: max(0, phase - 0.3)),
-                    .init(color: Color(.systemGray4), location: phase),
-                    .init(color: Color(.systemGray5), location: min(1, phase + 0.3)),
+                    .init(color: Color.brandBorder.opacity(0.6), location: max(0, phase - 0.3)),
+                    .init(color: Color.brandBorder, location: phase),
+                    .init(color: Color.brandBorder.opacity(0.6), location: min(1, phase + 0.3)),
                 ],
                 startPoint: .leading,
                 endPoint: .trailing

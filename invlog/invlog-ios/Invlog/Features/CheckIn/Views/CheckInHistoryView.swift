@@ -5,9 +5,7 @@ struct CheckInHistoryView: View {
     let mode: Mode
     let id: String
 
-    // Check-in data (restaurant mode)
     @State private var checkIns: [CheckIn] = []
-    // Post data (user mode — shows full post cards)
     @State private var posts: [Post] = []
     @State private var nextCursor: String?
 
@@ -38,13 +36,12 @@ struct CheckInHistoryView: View {
                     description: "No one has checked in here yet. Be the first!"
                 )
             } else if mode == .user {
-                // User mode: show full post cards with media, comments, etc.
                 userPostsList
             } else {
-                // Restaurant mode: show check-in rows
                 restaurantCheckInsList
             }
         }
+        .invlogScreenBackground()
         .navigationTitle(mode.rawValue)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Restaurant.self) { restaurant in
@@ -72,6 +69,7 @@ struct CheckInHistoryView: View {
                 }
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
                 .onAppear {
                     if post.id == posts.last?.id && nextCursor != nil {
                         Task { await loadMorePosts() }
@@ -86,9 +84,11 @@ struct CheckInHistoryView: View {
                     Spacer()
                 }
                 .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .refreshable {
             nextCursor = nil
             await loadUserPosts()
@@ -105,9 +105,11 @@ struct CheckInHistoryView: View {
                         CheckInRow(checkIn: checkIn)
                     }
                     .frame(minHeight: 44)
+                    .listRowBackground(Color.clear)
                 } else {
                     CheckInRow(checkIn: checkIn)
                         .frame(minHeight: 44)
+                        .listRowBackground(Color.clear)
                 }
             }
             .onAppear {
@@ -123,9 +125,11 @@ struct CheckInHistoryView: View {
                     Spacer()
                 }
                 .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .refreshable {
             currentPage = 1
             hasMorePages = true
@@ -203,18 +207,17 @@ struct CheckInRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Restaurant or User avatar
             if let restaurant = checkIn.restaurant {
                 LazyImage(url: restaurant.avatarUrl) { state in
                     if let image = state.image {
                         image.resizable().scaledToFill()
                     } else {
                         Image(systemName: "building.2")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.brandTextTertiary)
                     }
                 }
                 .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                 .accessibilityHidden(true)
             } else if let user = checkIn.user {
                 LazyImage(url: user.avatarUrl) { state in
@@ -222,7 +225,7 @@ struct CheckInRow: View {
                         image.resizable().scaledToFill()
                     } else {
                         Image(systemName: "person.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.brandTextTertiary)
                     }
                 }
                 .frame(width: 44, height: 44)
@@ -231,7 +234,7 @@ struct CheckInRow: View {
             } else {
                 Image(systemName: "mappin.circle.fill")
                     .font(.title2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.brandPrimary)
                     .frame(width: 44, height: 44)
                     .accessibilityHidden(true)
             }
@@ -239,25 +242,26 @@ struct CheckInRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let restaurant = checkIn.restaurant {
                     Text(restaurant.name)
-                        .font(.subheadline.bold())
+                        .font(InvlogTheme.body(14, weight: .bold))
+                        .foregroundColor(Color.brandText)
                         .lineLimit(1)
                 }
                 if let user = checkIn.user {
                     Text("@\(user.username)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.caption(12))
+                        .foregroundColor(Color.brandTextSecondary)
                         .lineLimit(1)
                 }
                 Text(checkIn.createdAt, style: .relative)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(11))
+                    .foregroundColor(Color.brandTextTertiary)
             }
 
             Spacer()
 
             Image(systemName: "mappin")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.brandPrimary)
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)

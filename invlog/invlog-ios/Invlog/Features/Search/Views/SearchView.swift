@@ -40,12 +40,16 @@ struct SearchView: View {
                             triggerSearch()
                         } label: {
                             Text(filter.displayName)
-                                .font(.subheadline)
+                                .font(InvlogTheme.caption(13, weight: .bold))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .background(selectedFilter == filter ? Color.accentColor : Color(.systemGray5))
-                                .foregroundColor(selectedFilter == filter ? .white : .primary)
+                                .background(selectedFilter == filter ? Color.brandText : Color.brandCard)
+                                .foregroundColor(selectedFilter == filter ? .white : Color.brandText)
                                 .clipShape(Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(selectedFilter == filter ? Color.clear : Color.brandBorder, lineWidth: 1)
+                                )
                         }
                         .frame(minHeight: 44)
                         .accessibilityLabel("\(filter.displayName) filter")
@@ -56,7 +60,6 @@ struct SearchView: View {
             }
 
             if searchText.isEmpty && selectedFilter == .all {
-                // Default discover view: nearby + explore feed
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         // Quick Actions
@@ -65,18 +68,24 @@ struct SearchView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "map")
                                         .font(.title3)
+                                        .foregroundColor(Color.brandPrimary)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Nearby")
-                                            .font(.subheadline.bold())
+                                            .font(InvlogTheme.body(14, weight: .bold))
+                                            .foregroundColor(Color.brandText)
                                         Text("Map & Places")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
+                                            .font(InvlogTheme.caption(11))
+                                            .foregroundColor(Color.brandTextSecondary)
                                     }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(12)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .padding(InvlogTheme.Spacing.sm)
+                                .background(Color.brandCard)
+                                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius)
+                                        .stroke(Color.brandBorder, lineWidth: 1)
+                                )
                             }
                             .frame(minHeight: 44)
                             .accessibilityLabel("View nearby places on map")
@@ -89,14 +98,16 @@ struct SearchView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
                                     Text("Nearby Places")
-                                        .font(.headline)
+                                        .font(InvlogTheme.heading(16, weight: .bold))
+                                        .foregroundColor(Color.brandText)
                                         .padding(.horizontal)
 
                                     Spacer()
 
                                     NavigationLink(value: NearbyRestaurantsDestination()) {
                                         Text("See All")
-                                            .font(.caption)
+                                            .font(InvlogTheme.caption(12, weight: .semibold))
+                                            .foregroundColor(Color.brandPrimary)
                                             .padding(.horizontal)
                                     }
                                     .frame(minHeight: 44)
@@ -121,13 +132,12 @@ struct SearchView: View {
                             HStack {
                                 Spacer()
                                 ProgressView("Finding nearby places...")
-                                    .font(.caption)
+                                    .font(InvlogTheme.caption(12))
                                 Spacer()
                             }
                             .padding()
                         }
 
-                        // Explore feed
                         ExploreFeedView()
                     }
                 }
@@ -139,48 +149,65 @@ struct SearchView: View {
                     Spacer()
                     Image(systemName: "magnifyingglass")
                         .font(.largeTitle)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                     Text(searchText.isEmpty ? "Tap a tab to browse" : "No results found")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.body(14))
+                        .foregroundColor(Color.brandTextSecondary)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
                     if !results.restaurants.isEmpty {
-                        Section("Places") {
+                        Section {
                             ForEach(results.restaurants) { restaurant in
                                 NavigationLink(value: restaurant) {
                                     RestaurantRowView(restaurant: restaurant)
                                 }
                                 .frame(minHeight: 44)
+                                .listRowBackground(Color.clear)
                             }
+                        } header: {
+                            Text("Places")
+                                .font(InvlogTheme.caption(12, weight: .bold))
+                                .foregroundColor(Color.brandTextSecondary)
                         }
                     }
 
                     if !results.users.isEmpty {
-                        Section("People") {
+                        Section {
                             ForEach(results.users) { user in
                                 FollowableUserRowView(user: user)
                                     .frame(minHeight: 44)
+                                    .listRowBackground(Color.clear)
                             }
+                        } header: {
+                            Text("People")
+                                .font(InvlogTheme.caption(12, weight: .bold))
+                                .foregroundColor(Color.brandTextSecondary)
                         }
                     }
 
                     if !results.posts.isEmpty {
-                        Section("Posts") {
+                        Section {
                             ForEach(results.posts) { post in
                                 NavigationLink(value: post) {
                                     PostCardView(post: post)
                                 }
+                                .listRowBackground(Color.clear)
                             }
+                        } header: {
+                            Text("Posts")
+                                .font(InvlogTheme.caption(12, weight: .bold))
+                                .foregroundColor(Color.brandTextSecondary)
                         }
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
+        .invlogScreenBackground()
         .navigationTitle("Discover")
         .searchable(text: $searchText, prompt: "Search food, places, people...")
         .onChange(of: searchText) { _ in
@@ -227,18 +254,15 @@ struct SearchView: View {
     private func triggerSearch() {
         searchTask?.cancel()
 
-        // If search is empty and "All" tab, show default view
         guard !searchText.isEmpty || selectedFilter != .all else {
             results = .empty
             return
         }
 
-        // Clear stale results immediately so old tab data doesn't show under new tab
         results = .empty
         isSearching = true
 
         searchTask = Task {
-            // Only debounce when user is typing; tab switches load immediately
             if !searchText.isEmpty {
                 try? await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
@@ -279,21 +303,22 @@ struct RestaurantRowView: View {
                     image.resizable().scaledToFill()
                 } else {
                     Image(systemName: "building.2")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
             }
             .frame(width: 44, height: 44)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(restaurant.name)
-                    .font(.subheadline.bold())
+                    .font(InvlogTheme.body(14, weight: .bold))
+                    .foregroundColor(Color.brandText)
 
                 if let cuisines = restaurant.cuisineType, !cuisines.isEmpty {
                     Text(cuisines.joined(separator: " · "))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.caption(12))
+                        .foregroundColor(Color.brandTextSecondary)
                 }
             }
 
@@ -303,9 +328,10 @@ struct RestaurantRowView: View {
                 HStack(spacing: 2) {
                     Image(systemName: "star.fill")
                         .font(.caption)
-                        .foregroundColor(.orange)
+                        .foregroundColor(Color.brandSecondary)
                     Text(String(format: "%.1f", restaurant.avgRating))
-                        .font(.caption.bold())
+                        .font(InvlogTheme.caption(12, weight: .bold))
+                        .foregroundColor(Color.brandText)
                 }
                 .accessibilityLabel("Rating \(String(format: "%.1f", restaurant.avgRating)) stars")
             }
@@ -323,7 +349,7 @@ struct UserRowView: View {
                     image.resizable().scaledToFill()
                 } else {
                     Image(systemName: "person.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
             }
             .frame(width: 44, height: 44)
@@ -333,7 +359,8 @@ struct UserRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(user.displayName ?? user.username)
-                        .font(.subheadline.bold())
+                        .font(InvlogTheme.body(14, weight: .bold))
+                        .foregroundColor(Color.brandText)
                     if user.isVerified {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.caption)
@@ -341,8 +368,8 @@ struct UserRowView: View {
                     }
                 }
                 Text("@\(user.username)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(12))
+                    .foregroundColor(Color.brandTextSecondary)
             }
         }
     }
@@ -359,36 +386,36 @@ struct NearbyRestaurantCard: View {
                 } else {
                     Image(systemName: "building.2")
                         .font(.title2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color(.systemGray5))
+                        .background(Color.brandBorder)
                 }
             }
             .frame(width: 100, height: 80)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
             .accessibilityHidden(true)
 
             VStack(spacing: 2) {
                 Text(restaurant.name)
-                    .font(.caption.bold())
-                    .foregroundColor(.primary)
+                    .font(InvlogTheme.caption(11, weight: .bold))
+                    .foregroundColor(Color.brandText)
                     .lineLimit(1)
 
                 if restaurant.avgRating > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 8))
-                            .foregroundColor(.orange)
+                            .foregroundColor(Color.brandSecondary)
                         Text(String(format: "%.1f", restaurant.avgRating))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .font(InvlogTheme.caption(10))
+                            .foregroundColor(Color.brandTextSecondary)
                     }
                 }
 
                 if let distance = restaurant.distance {
                     Text(formattedDistance(distance))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.caption(10))
+                        .foregroundColor(Color.brandTextSecondary)
                 }
             }
         }

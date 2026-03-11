@@ -14,55 +14,54 @@ struct CreateStoryView: View {
         NavigationStack {
             VStack(spacing: 24) {
                 if let image = selectedImage {
-                    // Preview selected image
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
                         .frame(maxHeight: 500)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.lg))
                         .padding(.horizontal)
 
                     if isUploading {
                         VStack(spacing: 8) {
                             ProgressView(value: uploadService.overallProgress)
+                                .tint(Color.brandPrimary)
                                 .padding(.horizontal)
                             Text("Uploading story...")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(InvlogTheme.caption(12))
+                                .foregroundColor(Color.brandTextSecondary)
                         }
                     }
 
                     if let errorMessage {
                         Text(errorMessage)
-                            .font(.caption)
+                            .font(InvlogTheme.caption(12))
                             .foregroundColor(.red)
                             .padding(.horizontal)
                     }
 
-                    // Change photo button
                     PhotosPicker(
                         selection: $selectedItem,
                         matching: .images
                     ) {
                         Text("Change Photo")
-                            .font(.subheadline)
-                            .foregroundColor(.accentColor)
+                            .font(InvlogTheme.body(14))
+                            .foregroundColor(Color.brandPrimary)
                     }
                 } else {
-                    // Empty state — prompt to select photo
                     Spacer()
 
                     VStack(spacing: 16) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 48))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.brandTextTertiary)
 
                         Text("Add to Your Story")
-                            .font(.title3.bold())
+                            .font(InvlogTheme.heading(20, weight: .bold))
+                            .foregroundColor(Color.brandText)
 
                         Text("Select a photo to share with your followers for 24 hours.")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .font(InvlogTheme.body(14))
+                            .foregroundColor(Color.brandTextSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
 
@@ -74,17 +73,20 @@ struct CreateStoryView: View {
                                 Image(systemName: "photo.on.rectangle")
                                 Text("Choose Photo")
                             }
-                            .font(.subheadline.bold())
+                            .font(InvlogTheme.body(14, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
+                            .background(Color.brandPrimary)
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                         }
-                        .buttonStyle(.borderedProminent)
                         .padding(.horizontal, 48)
                     }
 
                     Spacer()
                 }
             }
+            .invlogScreenBackground()
             .navigationTitle("New Story")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -97,6 +99,8 @@ struct CreateStoryView: View {
                     Button("Share") {
                         Task { await uploadStory() }
                     }
+                    .font(InvlogTheme.body(15, weight: .bold))
+                    .foregroundColor(Color.brandPrimary)
                     .frame(minWidth: 44, minHeight: 44)
                     .disabled(selectedImage == nil || isUploading)
                 }
@@ -120,7 +124,6 @@ struct CreateStoryView: View {
         errorMessage = nil
 
         do {
-            // 1. Upload image via MediaUploadService
             let mediaIds = try await uploadService.uploadMedia([.image(image)])
             guard let mediaId = mediaIds.first else {
                 errorMessage = "Upload failed — no media ID returned."
@@ -128,10 +131,8 @@ struct CreateStoryView: View {
                 return
             }
 
-            // 2. Create story via API
             try await APIClient.shared.requestVoid(.createStory(mediaId: mediaId))
 
-            // 3. Notify feed to refresh stories
             NotificationCenter.default.post(name: .didCreateStory, object: nil)
             dismiss()
         } catch {

@@ -3,7 +3,6 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject private var appState: AppState
     @State private var selectedTab: Tab = .feed
-    @State private var previousTab: Tab = .feed
     @State private var showCreatePost = false
 
     enum Tab: Int, CaseIterable {
@@ -15,59 +14,38 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // Tab 1: Feed
-            NavigationStack {
-                FeedView()
-            }
-            .tag(Tab.feed)
-            .tabItem {
-                Label("Feed", systemImage: "fork.knife")
-            }
-
-            // Tab 2: Search / Discover
-            NavigationStack {
-                SearchView()
-            }
-            .tag(Tab.search)
-            .tabItem {
-                Label("Discover", systemImage: "magnifyingglass")
-            }
-
-            // Tab 3: Create Post (placeholder, triggers sheet)
-            Color.clear
-                .tag(Tab.create)
-                .tabItem {
-                    Label("Check In", systemImage: "mappin.circle.fill")
+        ZStack(alignment: .bottom) {
+            // Content — all tabs alive via opacity for state preservation
+            ZStack {
+                NavigationStack {
+                    FeedView()
                 }
+                .opacity(selectedTab == .feed ? 1 : 0)
 
-            // Tab 4: Notifications
-            NavigationStack {
-                NotificationsListView()
-            }
-            .tag(Tab.notifications)
-            .tabItem {
-                Label("Activity", systemImage: "bell")
-            }
-            .badge(appState.unreadNotificationCount)
+                NavigationStack {
+                    SearchView()
+                }
+                .opacity(selectedTab == .search ? 1 : 0)
 
-            // Tab 5: Profile
-            NavigationStack {
-                ProfileView(userId: nil)
+                NavigationStack {
+                    NotificationsListView()
+                }
+                .opacity(selectedTab == .notifications ? 1 : 0)
+
+                NavigationStack {
+                    ProfileView(userId: nil)
+                }
+                .opacity(selectedTab == .profile ? 1 : 0)
             }
-            .tag(Tab.profile)
-            .tabItem {
-                Label("Profile", systemImage: "person.circle")
-            }
+
+            // Custom tab bar overlay
+            CustomTabBarView(
+                selectedTab: $selectedTab,
+                onCreateTapped: { showCreatePost = true },
+                unreadCount: appState.unreadNotificationCount
+            )
         }
-        .onChange(of: selectedTab) { newValue in
-            if newValue == .create {
-                showCreatePost = true
-                selectedTab = previousTab
-            } else {
-                previousTab = newValue
-            }
-        }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $showCreatePost) {
             NavigationStack {
                 CreatePostView()

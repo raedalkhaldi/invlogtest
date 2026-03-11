@@ -18,7 +18,6 @@ struct NearbyRestaurantsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Segmented Control
             Picker("View Mode", selection: $viewMode) {
                 ForEach(ViewMode.allCases, id: \.self) { mode in
                     Text(mode.rawValue).tag(mode)
@@ -29,12 +28,12 @@ struct NearbyRestaurantsView: View {
             .padding(.vertical, 8)
             .accessibilityLabel("Toggle between list and map view")
 
-            // Content
             Group {
                 if !isLocationAuthorized {
                     locationPermissionView
                 } else if viewModel.isLoading && viewModel.restaurants.isEmpty {
                     ProgressView("Finding nearby places...")
+                        .font(InvlogTheme.caption(12))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = viewModel.error, viewModel.restaurants.isEmpty {
                     EmptyStateView(
@@ -62,6 +61,7 @@ struct NearbyRestaurantsView: View {
                 }
             }
         }
+        .invlogScreenBackground()
         .navigationTitle("Nearby")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Restaurant.self) { restaurant in
@@ -89,9 +89,11 @@ struct NearbyRestaurantsView: View {
                     NearbyRestaurantRow(restaurant: restaurant)
                 }
                 .frame(minHeight: 44)
+                .listRowBackground(Color.clear)
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .refreshable {
             await refreshData()
         }
@@ -106,15 +108,14 @@ struct NearbyRestaurantsView: View {
                     VStack(spacing: 2) {
                         Image(systemName: "mappin.circle.fill")
                             .font(.title)
-                            .foregroundColor(.red)
+                            .foregroundColor(Color.brandPrimary)
                         Text(restaurant.restaurant.name)
-                            .font(.caption2)
-                            .fontWeight(.semibold)
+                            .font(InvlogTheme.caption(10, weight: .semibold))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color(.systemBackground))
+                            .background(Color.brandCard)
                             .clipShape(Capsule())
-                            .shadow(radius: 2)
+                            .shadow(color: InvlogTheme.cardShadowColor, radius: 2)
                     }
                     .frame(minWidth: 44, minHeight: 44)
                     .accessibilityLabel("\(restaurant.restaurant.name) on map")
@@ -189,17 +190,18 @@ struct NearbyRestaurantRow: View {
                     image.resizable().scaledToFill()
                 } else {
                     Image(systemName: "building.2")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
             }
             .frame(width: 44, height: 44)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(restaurant.name)
-                        .font(.subheadline.bold())
+                        .font(InvlogTheme.body(14, weight: .bold))
+                        .foregroundColor(Color.brandText)
                         .lineLimit(1)
                     if restaurant.isVerified {
                         Image(systemName: "checkmark.seal.fill")
@@ -210,8 +212,8 @@ struct NearbyRestaurantRow: View {
 
                 if let cuisines = restaurant.cuisineType, !cuisines.isEmpty {
                     Text(cuisines.joined(separator: " · "))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.caption(12))
+                        .foregroundColor(Color.brandTextSecondary)
                         .lineLimit(1)
                 }
             }
@@ -223,19 +225,20 @@ struct NearbyRestaurantRow: View {
                     HStack(spacing: 2) {
                         Image(systemName: "star.fill")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(Color.brandSecondary)
                         Text(String(format: "%.1f", restaurant.avgRating))
-                            .font(.caption.bold())
+                            .font(InvlogTheme.caption(12, weight: .bold))
+                            .foregroundColor(Color.brandText)
                     }
                 }
 
                 if let distance = restaurant.distance {
                     Text(formattedDistance(distance))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.caption(11))
+                        .foregroundColor(Color.brandTextSecondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(.systemGray6))
+                        .background(Color.brandBorder.opacity(0.5))
                         .clipShape(Capsule())
                 }
             }

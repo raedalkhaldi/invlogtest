@@ -31,7 +31,7 @@ struct FeedView: View {
                 )
             } else {
                 List {
-                    // Stories bar — always visible so users can create stories
+                    // Stories bar
                     Section {
                         StoriesBarView(
                             storyGroups: storiesViewModel.storyGroups,
@@ -40,18 +40,19 @@ struct FeedView: View {
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
 
                     ForEach(viewModel.posts) { post in
                         NavigationLink(value: post) {
                             PostCardView(post: post)
                         }
                         .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        .listRowBackground(Color.clear)
                         .onAppear {
                             if post.id == viewModel.posts.last?.id {
                                 Task { await viewModel.loadMore() }
                             }
-                            // Prefetch next 5 posts' media images
                             if let currentIndex = viewModel.posts.firstIndex(where: { $0.id == post.id }) {
                                 let nextPosts = viewModel.posts.suffix(from: min(currentIndex + 1, viewModel.posts.endIndex)).prefix(5)
                                 let urls = nextPosts.compactMap { p -> URL? in
@@ -70,19 +71,23 @@ struct FeedView: View {
                             Spacer()
                         }
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .refreshable {
                     await viewModel.refresh()
                 }
             }
         }
+        .invlogScreenBackground()
         .navigationTitle("Feed")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink(destination: ConversationsListView()) {
                     Image(systemName: "paperplane")
+                        .foregroundColor(Color.brandText)
                 }
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("Messages")

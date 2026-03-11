@@ -18,7 +18,7 @@ struct FollowableUserRowView: View {
                 } else {
                     Image(systemName: "person.circle.fill")
                         .resizable()
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
             }
             .frame(width: 44, height: 44)
@@ -27,7 +27,8 @@ struct FollowableUserRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(user.displayName ?? user.username)
-                        .font(.subheadline.bold())
+                        .font(InvlogTheme.body(14, weight: .bold))
+                        .foregroundColor(Color.brandText)
                         .lineLimit(1)
                     if user.isVerified {
                         Image(systemName: "checkmark.seal.fill")
@@ -36,8 +37,8 @@ struct FollowableUserRowView: View {
                     }
                 }
                 Text("@\(user.username)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(12))
+                    .foregroundColor(Color.brandTextSecondary)
                     .lineLimit(1)
             }
 
@@ -47,12 +48,16 @@ struct FollowableUserRowView: View {
                 toggleFollow()
             } label: {
                 Text(isFollowing ? "Following" : "Follow")
-                    .font(.caption.bold())
+                    .font(InvlogTheme.caption(13, weight: .bold))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 6)
-                    .background(isFollowing ? Color(.systemGray5) : Color.accentColor)
-                    .foregroundColor(isFollowing ? .primary : .white)
-                    .clipShape(Capsule())
+                    .background(isFollowing ? Color.brandCard : Color.brandText)
+                    .foregroundColor(isFollowing ? Color.brandText : .white)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(isFollowing ? Color.brandBorder : Color.clear, lineWidth: 1)
+                    )
             }
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel(isFollowing ? "Unfollow \(user.displayName ?? user.username)" : "Follow \(user.displayName ?? user.username)")
@@ -72,7 +77,7 @@ struct FollowableUserRowView: View {
                     try await APIClient.shared.requestVoid(.unfollowUser(id: user.id))
                 }
             } catch {
-                isFollowing = wasFollowing // revert on error
+                isFollowing = wasFollowing
             }
         }
     }

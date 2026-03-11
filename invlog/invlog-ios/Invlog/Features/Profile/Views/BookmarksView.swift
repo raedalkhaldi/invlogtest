@@ -28,6 +28,9 @@ struct BookmarksView: View {
                         NavigationLink(value: post) {
                             PostCardView(post: post)
                         }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
                         .onAppear {
                             if post.id == viewModel.posts.last?.id {
                                 Task { await viewModel.loadMore() }
@@ -36,8 +39,10 @@ struct BookmarksView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
+        .invlogScreenBackground()
         .navigationTitle("Saved Posts")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Post.self) { post in

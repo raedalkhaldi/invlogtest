@@ -22,6 +22,7 @@ struct ExploreFeedView: View {
                         }
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
                         .onAppear {
                             if post.id == viewModel.posts.last?.id {
                                 Task { await viewModel.loadMore() }
@@ -35,14 +36,17 @@ struct ExploreFeedView: View {
                             Spacer()
                         }
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .refreshable {
                     await viewModel.refresh()
                 }
             }
         }
+        .invlogScreenBackground()
         .task {
             if viewModel.posts.isEmpty {
                 await viewModel.loadFeed()
