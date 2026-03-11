@@ -36,23 +36,32 @@ struct StoryViewerView: View {
             if let story = currentStory, let group = currentGroup {
                 // Story content
                 GeometryReader { geometry in
-                    LazyImage(url: URL(string: story.url)) { state in
-                        if let image = state.image {
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
-                        } else if state.isLoading {
-                            ZStack {
-                                if let blurhash = story.blurhash {
-                                    BlurhashView(blurhash: blurhash)
+                    if story.mediaType == "video", let videoUrl = URL(string: story.url) {
+                        AutoPlayVideoView(
+                            url: videoUrl,
+                            thumbnailUrl: story.thumbnailUrl.flatMap { URL(string: $0) },
+                            blurhash: story.blurhash
+                        )
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                    } else {
+                        LazyImage(url: URL(string: story.url)) { state in
+                            if let image = state.image {
+                                image
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+                            } else if state.isLoading {
+                                ZStack {
+                                    if let blurhash = story.blurhash {
+                                        BlurhashView(blurhash: blurhash)
+                                    }
+                                    ProgressView()
+                                        .tint(.white)
                                 }
-                                ProgressView()
-                                    .tint(.white)
                             }
                         }
+                        .frame(width: geometry.size.width, height: geometry.size.height)
                     }
-                    .frame(width: geometry.size.width, height: geometry.size.height)
                 }
                 .ignoresSafeArea()
 
@@ -156,7 +165,8 @@ struct StoryViewerView: View {
     private func startTimer() {
         timer?.invalidate()
         progress = 0
-        let duration: Double = currentStory?.durationSecs ?? 5.0
+        let defaultDuration: Double = currentStory?.mediaType == "video" ? 10.0 : 5.0
+        let duration: Double = currentStory?.durationSecs ?? defaultDuration
         let interval: Double = 0.05
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             Task { @MainActor in

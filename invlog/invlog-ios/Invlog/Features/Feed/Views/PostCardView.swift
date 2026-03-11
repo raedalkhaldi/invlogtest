@@ -97,7 +97,6 @@ struct PostCardView: View {
             // Media
             if let media = post.media, !media.isEmpty {
                 MediaCarouselView(media: media)
-                    .padding(.horizontal, InvlogTheme.Card.padding)
 
                 if let firstVideo = media.first(where: { $0.mediaType == "video" }),
                    let duration = firstVideo.durationSecs {

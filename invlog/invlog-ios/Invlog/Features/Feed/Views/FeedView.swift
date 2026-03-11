@@ -82,7 +82,7 @@ struct FeedView: View {
             }
         }
         .invlogScreenBackground()
-        .navigationTitle("Feed")
+        .navigationTitle("Invlog")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink(destination: ConversationsListView()) {
