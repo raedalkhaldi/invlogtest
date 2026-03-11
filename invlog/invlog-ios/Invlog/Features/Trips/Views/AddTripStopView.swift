@@ -15,9 +15,8 @@ struct AddTripStopView: View {
     @State private var notes = ""
     @State private var category = "restaurant"
     @State private var estimatedDuration: Int = 60
-    @State private var hasTimeRange = false
+    @State private var hasStartTime = false
     @State private var startTime = Calendar.current.date(from: DateComponents(hour: 10, minute: 0))!
-    @State private var endTime = Calendar.current.date(from: DateComponents(hour: 12, minute: 0))!
     @State private var showPlacePicker = false
     @State private var isSubmitting = false
     @State private var errorMessage: String?
@@ -188,22 +187,22 @@ struct AddTripStopView: View {
                     }
                 }
 
-                // Time Range
+                // Start Time
                 VStack(alignment: .leading, spacing: InvlogTheme.Spacing.xs) {
-                    Toggle(isOn: $hasTimeRange) {
+                    Toggle(isOn: $hasStartTime) {
                         HStack(spacing: InvlogTheme.Spacing.xs) {
                             Image(systemName: "clock")
                                 .foregroundColor(Color.brandPrimary)
-                            Text("Set time range")
+                            Text("Set start time")
                                 .font(InvlogTheme.body(14, weight: .semibold))
                                 .foregroundColor(Color.brandText)
                         }
                     }
                     .tint(Color.brandPrimary)
                     .frame(minHeight: 44)
-                    .accessibilityLabel("Set time range for this stop")
+                    .accessibilityLabel("Set start time for this stop")
 
-                    if hasTimeRange {
+                    if hasStartTime {
                         VStack(spacing: InvlogTheme.Spacing.xs) {
                             DatePicker(
                                 "Start Time",
@@ -215,15 +214,18 @@ struct AddTripStopView: View {
                             .frame(minHeight: 44)
                             .accessibilityLabel("Start time")
 
-                            DatePicker(
-                                "End Time",
-                                selection: $endTime,
-                                displayedComponents: .hourAndMinute
-                            )
-                            .font(InvlogTheme.body(14))
-                            .tint(Color.brandPrimary)
+                            // Show computed end time
+                            HStack {
+                                Text("End Time")
+                                    .font(InvlogTheme.body(14))
+                                    .foregroundColor(Color.brandTextSecondary)
+                                Spacer()
+                                Text(computedEndTimeString)
+                                    .font(InvlogTheme.body(14, weight: .semibold))
+                                    .foregroundColor(Color.brandPrimary)
+                            }
                             .frame(minHeight: 44)
-                            .accessibilityLabel("End time")
+                            .accessibilityLabel("Computed end time: \(computedEndTimeString)")
                         }
                         .padding(InvlogTheme.Spacing.sm)
                         .background(Color.brandCard)
@@ -310,8 +312,8 @@ struct AddTripStopView: View {
                     notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
                     category: category,
                     estimatedDuration: estimatedDuration,
-                    startTime: hasTimeRange ? Self.timeFormatter.string(from: startTime) : nil,
-                    endTime: hasTimeRange ? Self.timeFormatter.string(from: endTime) : nil
+                    startTime: hasStartTime ? Self.timeFormatter.string(from: startTime) : nil,
+                    endTime: hasStartTime ? computedEndTimeString : nil
                 )
             )
             onStopAdded()
@@ -330,6 +332,11 @@ struct AddTripStopView: View {
         f.dateFormat = "HH:mm"
         return f
     }()
+
+    private var computedEndTimeString: String {
+        let endDate = startTime.addingTimeInterval(TimeInterval(estimatedDuration * 60))
+        return Self.timeFormatter.string(from: endDate)
+    }
 
     private func formatDuration(_ minutes: Int) -> String {
         if minutes < 60 {
