@@ -11,4 +11,7 @@ extension Date {
 extension Notification.Name {
     static let didCreatePost = Notification.Name("didCreatePost")
     static let didCreateStory = Notification.Name("didCreateStory")
+    static let didCreateTrip = Notification.Name("didCreateTrip")
+    static let didUpdateTrip = Notification.Name("didUpdateTrip")
+    static let didDeleteTrip = Notification.Name("didDeleteTrip")
 }

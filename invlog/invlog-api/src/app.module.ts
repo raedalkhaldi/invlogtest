@@ -24,6 +24,7 @@ import { SearchModule } from './modules/search/search.module';
 import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { StoriesModule } from './modules/stories/stories.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { TripsModule } from './modules/trips/trips.module';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 @Module({
@@ -74,6 +75,7 @@ import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
     BookmarksModule,
     StoriesModule,
     MessagesModule,
+    TripsModule,
   ],
   providers: [
     {
