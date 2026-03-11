@@ -74,6 +74,7 @@
 		A012B012C012D012E012F001 /* ConversationsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A012B012C012D012E012F002 /* ConversationsListView.swift */; };
 		A013B013C013D013E013F001 /* MessageThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A013B013C013D013E013F002 /* MessageThreadView.swift */; };
 		A014B014C014D014E014F001 /* NewConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A014B014C014D014E014F002 /* NewConversationView.swift */; };
+		A015B015C015D015E015F001 /* CreateStoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A015B015C015D015E015F002 /* CreateStoryView.swift */; };
 		NUKE000400040004NUKE0004 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000200020002NUKE0002 /* Nuke */; };
 		NUKE000500050005NUKE0005 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE000300030003NUKE0003 /* NukeUI */; };
 /* End PBXBuildFile section */
@@ -147,6 +148,7 @@
 		A012B012C012D012E012F002 /* ConversationsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ConversationsListView.swift"; path = "ConversationsListView.swift"; sourceTree = "<group>"; };
 		A013B013C013D013E013F002 /* MessageThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "MessageThreadView.swift"; path = "MessageThreadView.swift"; sourceTree = "<group>"; };
 		A014B014C014D014E014F002 /* NewConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "NewConversationView.swift"; path = "NewConversationView.swift"; sourceTree = "<group>"; };
+		A015B015C015D015E015F002 /* CreateStoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CreateStoryView.swift"; path = "CreateStoryView.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -314,6 +316,7 @@
 			children = (
 				A006B006C006D006E006F002 /* StoriesBarView.swift */,
 				A007B007C007D007E007F002 /* StoryViewerView.swift */,
+				A015B015C015D015E015F002 /* CreateStoryView.swift */,
 			);
 			name = "Views";
 			path = "Views";
@@ -778,6 +781,7 @@
 				A012B012C012D012E012F001 /* ConversationsListView.swift in Sources */,
 				A013B013C013D013E013F001 /* MessageThreadView.swift in Sources */,
 				A014B014C014D014E014F001 /* NewConversationView.swift in Sources */,
+				A015B015C015D015E015F001 /* CreateStoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
