@@ -21,7 +21,6 @@ struct ProfileView: View {
     @State private var showSettings = false
     @State private var error: String?
     @State private var messageConversation: Conversation?
-    @State private var navigateToMessages = false
 
     private var isCurrentUser: Bool { userId == nil }
 
@@ -34,7 +33,6 @@ struct ProfileView: View {
                         isCurrentUser: isCurrentUser,
                         onMessageTapped: { conversation in
                             messageConversation = conversation
-                            navigateToMessages = true
                         }
                     )
 
@@ -88,8 +86,8 @@ struct ProfileView: View {
         .navigationDestination(for: User.self) { user in
             ProfileView(userId: user.username)
         }
-        .sheet(isPresented: $navigateToMessages) {
-            if let conversation = messageConversation, let user {
+        .sheet(item: $messageConversation) { conversation in
+            if let user {
                 NavigationStack {
                     MessageThreadView(
                         conversationId: conversation.id,
@@ -103,7 +101,7 @@ struct ProfileView: View {
                     )
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") { navigateToMessages = false }
+                            Button("Done") { messageConversation = nil }
                                 .frame(minWidth: 44, minHeight: 44)
                         }
                     }
