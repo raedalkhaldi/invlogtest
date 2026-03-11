@@ -82,18 +82,27 @@ struct ProfileView: View {
         .navigationDestination(for: User.self) { user in
             ProfileView(userId: user.username)
         }
-        .navigationDestination(isPresented: $navigateToMessages) {
+        .sheet(isPresented: $navigateToMessages) {
             if let conversation = messageConversation, let user {
-                MessageThreadView(
-                    conversationId: conversation.id,
-                    otherUser: ConversationUser(
-                        id: user.id,
-                        username: user.username,
-                        displayName: user.displayName,
-                        avatarUrl: user.avatarUrl,
-                        isVerified: user.isVerified
+                NavigationStack {
+                    MessageThreadView(
+                        conversationId: conversation.id,
+                        otherUser: ConversationUser(
+                            id: user.id,
+                            username: user.username,
+                            displayName: user.displayName,
+                            avatarUrl: user.avatarUrl,
+                            isVerified: user.isVerified
+                        )
                     )
-                )
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { navigateToMessages = false }
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                    }
+                }
+                .environmentObject(appState)
             }
         }
         .toolbar {

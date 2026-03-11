@@ -5,6 +5,7 @@ import NukeUI
 struct FeedView: View {
     @StateObject private var viewModel = FeedViewModel()
     @StateObject private var storiesViewModel = StoriesViewModel()
+    @EnvironmentObject private var appState: AppState
     private let prefetcher = ImagePrefetcher()
 
     var body: some View {
@@ -30,14 +31,15 @@ struct FeedView: View {
                 )
             } else {
                 List {
-                    // Stories bar
-                    if !storiesViewModel.storyGroups.isEmpty {
-                        Section {
-                            StoriesBarView(storyGroups: storiesViewModel.storyGroups)
-                        }
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
+                    // Stories bar — always visible so users can create stories
+                    Section {
+                        StoriesBarView(
+                            storyGroups: storiesViewModel.storyGroups,
+                            currentUser: appState.currentUser
+                        )
                     }
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
 
                     ForEach(viewModel.posts) { post in
                         NavigationLink(value: post) {
@@ -100,6 +102,9 @@ struct FeedView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .didCreatePost)) { _ in
             Task { await viewModel.refresh() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .didCreateStory)) { _ in
+            Task { await storiesViewModel.loadStories() }
         }
     }
 }
