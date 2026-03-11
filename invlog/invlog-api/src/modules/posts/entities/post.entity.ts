@@ -69,6 +69,7 @@ export class Post {
   // Populated dynamically
   isLikedByMe?: boolean;
   isBookmarkedByMe?: boolean;
+  recentComments?: any[];
 }
 
 @Entity('post_media')

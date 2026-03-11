@@ -3,15 +3,20 @@ import NukeUI
 
 struct PostCardView: View {
     let post: Post
+    var onCommentAdded: (() -> Void)?
     @State private var isLiked: Bool
     @State private var likeCount: Int
+    @State private var commentCount: Int
     @State private var isBookmarked: Bool
     @State private var showShareSheet = false
+    @State private var showComments = false
 
-    init(post: Post) {
+    init(post: Post, onCommentAdded: (() -> Void)? = nil) {
         self.post = post
+        self.onCommentAdded = onCommentAdded
         _isLiked = State(initialValue: post.isLikedByMe ?? false)
         _likeCount = State(initialValue: post.likeCount)
+        _commentCount = State(initialValue: post.commentCount)
         _isBookmarked = State(initialValue: post.isBookmarkedByMe ?? false)
     }
 
@@ -24,11 +29,12 @@ struct PostCardView: View {
                         image.resizable().scaledToFill()
                     } else {
                         Image(systemName: "person.circle.fill")
+                            .font(.system(size: 28))
                             .foregroundColor(Color.brandTextTertiary)
                     }
                 }
-                .frame(width: InvlogTheme.Avatar.medium, height: InvlogTheme.Avatar.medium)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .frame(width: InvlogTheme.Avatar.large, height: InvlogTheme.Avatar.large)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
                 .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -129,15 +135,20 @@ struct PostCardView: View {
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel(isLiked ? "Unlike post, \(likeCount) likes" : "Like post, \(likeCount) likes")
 
-                HStack(spacing: 4) {
-                    Image(systemName: "bubble.right")
-                    Text(post.commentCount > 0 ? "\(post.commentCount)" : "")
-                        .font(InvlogTheme.caption(13, weight: .semibold))
+                Button {
+                    showComments = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bubble.right")
+                        Text(commentCount > 0 ? "\(commentCount)" : "")
+                            .font(InvlogTheme.caption(13, weight: .semibold))
+                    }
+                    .foregroundColor(Color.brandTextSecondary)
+                    .frame(maxWidth: .infinity)
                 }
-                .foregroundColor(Color.brandTextSecondary)
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.borderless)
                 .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel(post.commentCount > 0 ? "\(post.commentCount) comments" : "Add a comment")
+                .accessibilityLabel(commentCount > 0 ? "\(commentCount) comments" : "Add a comment")
 
                 Button {
                     showShareSheet = true
@@ -165,10 +176,56 @@ struct PostCardView: View {
             .overlay(alignment: .top) {
                 Rectangle().fill(Color.brandBorder).frame(height: 0.5)
             }
+
+            // Inline Comments (first 2)
+            if let recentComments = post.recentComments, !recentComments.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(recentComments) { comment in
+                        HStack(alignment: .top, spacing: 6) {
+                            Text(comment.author?.username ?? "user")
+                                .font(InvlogTheme.caption(13, weight: .bold))
+                                .foregroundColor(Color.brandText)
+                            Text(comment.content)
+                                .font(InvlogTheme.caption(13))
+                                .foregroundColor(Color.brandText)
+                                .lineLimit(2)
+                        }
+                    }
+
+                    if commentCount > 2 {
+                        Button {
+                            showComments = true
+                        } label: {
+                            Text("View all \(commentCount) comments")
+                                .font(InvlogTheme.caption(13))
+                                .foregroundColor(Color.brandTextSecondary)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                .padding(.horizontal, InvlogTheme.Card.padding)
+                .padding(.top, InvlogTheme.Spacing.xs)
+                .padding(.bottom, InvlogTheme.Spacing.xs)
+            } else if commentCount > 0 {
+                Button {
+                    showComments = true
+                } label: {
+                    Text("View \(commentCount == 1 ? "1 comment" : "all \(commentCount) comments")")
+                        .font(InvlogTheme.caption(13))
+                        .foregroundColor(Color.brandTextSecondary)
+                }
+                .buttonStyle(.borderless)
+                .padding(.horizontal, InvlogTheme.Card.padding)
+                .padding(.top, InvlogTheme.Spacing.xs)
+                .padding(.bottom, InvlogTheme.Spacing.xs)
+            }
         }
         .invlogCard()
         .sheet(isPresented: $showShareSheet) {
             ShareSheetView(items: [shareText])
+        }
+        .sheet(isPresented: $showComments) {
+            CommentsSheetView(postId: post.id, commentCount: $commentCount, onCommentAdded: onCommentAdded)
         }
     }
 
@@ -214,6 +271,125 @@ struct PostCardView: View {
                 isLiked = wasLiked
                 likeCount = post.likeCount
             }
+        }
+    }
+}
+
+// MARK: - Comments Sheet
+
+struct CommentsSheetView: View {
+    let postId: String
+    @Binding var commentCount: Int
+    var onCommentAdded: (() -> Void)?
+    @Environment(\.dismiss) private var dismiss
+    @State private var comments: [Comment] = []
+    @State private var newComment = ""
+    @State private var isLoading = true
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if comments.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "bubble.right")
+                            .font(.system(size: 32))
+                            .foregroundColor(Color.brandTextTertiary)
+                        Text("No comments yet")
+                            .font(InvlogTheme.body(14))
+                            .foregroundColor(Color.brandTextSecondary)
+                        Text("Be the first to comment")
+                            .font(InvlogTheme.caption(12))
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(comments) { comment in
+                                CommentRowView(comment: comment)
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 8)
+                                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                                    .padding(.horizontal)
+                            }
+                        }
+                    }
+                }
+            }
+            .invlogScreenBackground()
+            .navigationTitle("Comments")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                HStack(spacing: 8) {
+                    TextField("Add a comment...", text: $newComment)
+                        .font(InvlogTheme.body(15))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.brandBorder.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .accessibilityLabel("Write a comment")
+
+                    Button {
+                        Task { await submitComment() }
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.brandTextTertiary : Color.brandPrimary)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel("Send comment")
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.brandCard)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                }
+            }
+            .task {
+                await loadComments()
+            }
+        }
+    }
+
+    private func loadComments() async {
+        do {
+            let (data, _) = try await APIClient.shared.requestWrapped(
+                .comments(postId: postId, page: 1, perPage: 50),
+                responseType: [Comment].self
+            )
+            comments = data
+        } catch {
+            // Non-blocking
+        }
+        isLoading = false
+    }
+
+    private func submitComment() async {
+        let content = newComment.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else { return }
+        newComment = ""
+
+        do {
+            let (comment, _) = try await APIClient.shared.requestWrapped(
+                .createComment(postId: postId, content: content, parentId: nil),
+                responseType: Comment.self
+            )
+            comments.append(comment)
+            commentCount += 1
+            onCommentAdded?()
+        } catch {
+            newComment = content
         }
     }
 }

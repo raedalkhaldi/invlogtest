@@ -5,9 +5,10 @@ import { UsersService } from './users.service.js';
 import { UsersController } from './users.controller.js';
 import { FollowsModule } from '../follows/follows.module';
 import { PostsModule } from '../posts/posts.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), FollowsModule, forwardRef(() => PostsModule)],
+  imports: [TypeOrmModule.forFeature([User]), FollowsModule, forwardRef(() => PostsModule), MediaModule],
   controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService],

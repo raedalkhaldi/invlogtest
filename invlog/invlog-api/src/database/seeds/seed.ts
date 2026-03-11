@@ -31,7 +31,7 @@ async function seed() {
 
   const passwordHash = await bcrypt.hash('demo1234', 10);
 
-  // Demo users
+  // Demo users (with avatar URLs from ui-avatars.com)
   const users = [
     {
       username: 'foodie_sara',
@@ -39,6 +39,7 @@ async function seed() {
       displayName: 'Sara',
       bio: 'Riyadh food explorer',
       isVerified: true,
+      avatarUrl: 'https://ui-avatars.com/api/?name=Sara&background=E8590C&color=fff&size=256&bold=true&format=png',
     },
     {
       username: 'chef_ahmed',
@@ -46,6 +47,7 @@ async function seed() {
       displayName: 'Ahmed',
       bio: 'Chef & restaurant reviewer',
       isVerified: false,
+      avatarUrl: 'https://ui-avatars.com/api/?name=Ahmed&background=12B886&color=fff&size=256&bold=true&format=png',
     },
     {
       username: 'riyad_eats',
@@ -53,6 +55,7 @@ async function seed() {
       displayName: 'Riyad Eats',
       bio: 'Discovering the best food in Riyadh',
       isVerified: true,
+      avatarUrl: 'https://ui-avatars.com/api/?name=Riyad+Eats&background=F59F00&color=fff&size=256&bold=true&format=png',
     },
     {
       username: 'nora_bites',
@@ -60,6 +63,7 @@ async function seed() {
       displayName: 'Nora',
       bio: 'Coffee & dessert lover',
       isVerified: false,
+      avatarUrl: 'https://ui-avatars.com/api/?name=Nora&background=7048E8&color=fff&size=256&bold=true&format=png',
     },
     {
       username: 'faisal_gourmet',
@@ -67,6 +71,7 @@ async function seed() {
       displayName: 'Faisal',
       bio: 'Fine dining enthusiast',
       isVerified: false,
+      avatarUrl: 'https://ui-avatars.com/api/?name=Faisal&background=1A1A1A&color=fff&size=256&bold=true&format=png',
     },
   ];
 
@@ -79,15 +84,20 @@ async function seed() {
     );
     if (existing.length > 0) {
       userIds.push(existing[0].id);
-      console.log(`User ${u.username} already exists`);
+      // Update avatar for existing users
+      await qr.query(
+        `UPDATE users SET avatar_url = $1 WHERE id = $2`,
+        [u.avatarUrl, existing[0].id],
+      );
+      console.log(`User ${u.username} already exists — updated avatar`);
       continue;
     }
 
     const result = await qr.query(
-      `INSERT INTO users (username, email, display_name, bio, password_hash, is_verified, is_private, follower_count, following_count, post_count)
-       VALUES ($1, $2, $3, $4, $5, $6, false, 0, 0, 0)
+      `INSERT INTO users (username, email, display_name, bio, password_hash, is_verified, is_private, follower_count, following_count, post_count, avatar_url)
+       VALUES ($1, $2, $3, $4, $5, $6, false, 0, 0, 0, $7)
        RETURNING id`,
-      [u.username, u.email, u.displayName, u.bio, passwordHash, u.isVerified],
+      [u.username, u.email, u.displayName, u.bio, passwordHash, u.isVerified, u.avatarUrl],
     );
     userIds.push(result[0].id);
     console.log(`Created user: ${u.username}`);
@@ -277,6 +287,64 @@ async function seed() {
   }
 
   console.log(`Created ${postIndex} posts across ${userIds.length} users`);
+
+  // Seed comments on posts
+  const commentTemplates = [
+    'Looks amazing! 🔥',
+    'Need to try this place!',
+    'Was just there last week, so good',
+    'The best in Riyadh hands down',
+    'Adding this to my list',
+    'How was the service?',
+    'Great recommendation!',
+    'I go here every weekend',
+    'Their desserts are even better',
+    'Did you try the special menu?',
+    'Underrated gem honestly',
+    'Bringing the whole family next time',
+  ];
+
+  // Get all post IDs
+  const allPosts = await qr.query(
+    `SELECT id FROM posts WHERE author_id = ANY($1) ORDER BY created_at DESC`,
+    [userIds],
+  );
+
+  // Delete existing seed comments
+  for (const uid of userIds) {
+    await qr.query(`DELETE FROM comments WHERE author_id = $1`, [uid]);
+  }
+
+  let commentIndex = 0;
+  for (const postRow of allPosts) {
+    // Add 2-4 comments per post from random users
+    const numComments = 2 + Math.floor(Math.random() * 3);
+    for (let c = 0; c < numComments; c++) {
+      const commentAuthor = userIds[(commentIndex + c) % userIds.length];
+      const commentContent = commentTemplates[(commentIndex + c) % commentTemplates.length];
+      try {
+        await qr.query(
+          `INSERT INTO comments (post_id, author_id, content, like_count)
+           VALUES ($1, $2, $3, $4)`,
+          [postRow.id, commentAuthor, commentContent, Math.floor(Math.random() * 5)],
+        );
+        commentIndex++;
+      } catch {
+        // skip duplicates
+      }
+    }
+    // Update comment count on post
+    const countResult = await qr.query(
+      `SELECT COUNT(*) as count FROM comments WHERE post_id = $1 AND deleted_at IS NULL`,
+      [postRow.id],
+    );
+    await qr.query(
+      `UPDATE posts SET comment_count = $1 WHERE id = $2`,
+      [parseInt(countResult[0].count), postRow.id],
+    );
+  }
+
+  console.log(`Created ${commentIndex} comments across ${allPosts.length} posts`);
 
   // Create some follows between demo users
   for (let i = 0; i < userIds.length; i++) {
