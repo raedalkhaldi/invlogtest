@@ -124,11 +124,27 @@ struct NewConversationView: View {
     // MARK: - Data Loading
 
     private func loadFollowedUsers() async {
-        guard let currentUser = appState.currentUser else { return }
+        var currentUserId: String?
+        if let user = appState.currentUser {
+            currentUserId = user.id
+        } else {
+            // Fetch current user if not loaded yet
+            do {
+                let (user, _) = try await APIClient.shared.requestWrapped(
+                    .currentUser,
+                    responseType: User.self
+                )
+                appState.currentUser = user
+                currentUserId = user.id
+            } catch {
+                return
+            }
+        }
+        guard let userId = currentUserId else { return }
         isLoadingFollowed = true
         do {
             let (data, _) = try await APIClient.shared.requestWrapped(
-                .following(userId: currentUser.id, page: 1, perPage: 50),
+                .following(userId: userId, page: 1, perPage: 50),
                 responseType: [User].self
             )
             followedUsers = data
