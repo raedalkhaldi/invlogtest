@@ -13,9 +13,10 @@ struct Post: Codable, Identifiable, Hashable {
     let locationName: String?
     let locationAddress: String?
     let likeCount: Int
-    let commentCount: Int
+    var commentCount: Int
     let isPublic: Bool
     let media: [PostMedia]?
+    let recentComments: [Comment]?
     let createdAt: Date
     var isLikedByMe: Bool?
     var isBookmarkedByMe: Bool?

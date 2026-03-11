@@ -48,7 +48,8 @@ enum APIEndpoint {
 
     // Users
     case currentUser
-    case updateProfile(displayName: String?, bio: String?, isPrivate: Bool?)
+    case updateProfile(displayName: String?, bio: String?, isPrivate: Bool?, avatarUrl: String?)
+    case avatarPresign(contentType: String, fileSize: Int)
     case userProfile(username: String)
     case userPosts(userId: String, cursor: String?, limit: Int)
 
@@ -126,7 +127,8 @@ enum APIEndpoint {
              .bookmarkPost, .createStory, .viewStory,
              .startConversation, .sendMessage,
              .createTrip, .addTripStop, .reorderTripStops,
-             .inviteCollaborator, .cloneTrip:
+             .inviteCollaborator, .cloneTrip,
+             .avatarPresign:
             return .post
         case .updateProfile, .updatePost, .updateComment, .updateRestaurant,
              .markNotificationRead, .markAllNotificationsRead,
@@ -186,6 +188,7 @@ enum APIEndpoint {
         // Users
         case .currentUser: return "/users/me"
         case .updateProfile: return "/users/me"
+        case .avatarPresign: return "/users/me/avatar/presign"
         case .userProfile(let username): return "/users/\(username)"
         case .userPosts(let userId, _, _): return "/users/\(userId)/posts"
 
@@ -333,12 +336,15 @@ enum APIEndpoint {
             if let content { body["content"] = content }
             if let rating { body["rating"] = rating }
             return body
-        case .updateProfile(let displayName, let bio, let isPrivate):
+        case .updateProfile(let displayName, let bio, let isPrivate, let avatarUrl):
             var body: [String: Any] = [:]
             if let displayName { body["displayName"] = displayName }
             if let bio { body["bio"] = bio }
             if let isPrivate { body["isPrivate"] = isPrivate }
+            if let avatarUrl { body["avatarUrl"] = avatarUrl }
             return body
+        case .avatarPresign(let contentType, let fileSize):
+            return ["contentType": contentType, "fileSize": fileSize]
         case .createCheckIn(let restaurantId, let lat, let lng, let postId):
             var body: [String: Any] = ["restaurantId": restaurantId]
             if let lat { body["latitude"] = lat }

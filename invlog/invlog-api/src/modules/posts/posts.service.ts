@@ -10,6 +10,7 @@ import { Post, PostMedia } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { CheckIn } from '../checkins/entities/checkin.entity';
+import { Comment } from '../comments/entities/comment.entity';
 import { CreatePostDto, UpdatePostDto } from './dto/create-post.dto';
 
 @Injectable()
@@ -25,6 +26,8 @@ export class PostsService {
     private readonly restaurantRepo: Repository<Restaurant>,
     @InjectRepository(CheckIn)
     private readonly checkinRepo: Repository<CheckIn>,
+    @InjectRepository(Comment)
+    private readonly commentRepo: Repository<Comment>,
   ) {}
 
   /**
@@ -76,6 +79,49 @@ export class PostsService {
         if (post.restaurantId) {
           post.restaurant = restMap.get(post.restaurantId);
         }
+      }
+    }
+
+    // Batch-fetch recent comments (top 2 per post)
+    try {
+      const allComments = await this.commentRepo
+        .createQueryBuilder('c')
+        .where('c.post_id IN (:...postIds)', { postIds })
+        .andWhere('c.parent_id IS NULL')
+        .andWhere('c.deleted_at IS NULL')
+        .orderBy('c.created_at', 'ASC')
+        .getMany();
+
+      const commentMap = new Map<string, Comment[]>();
+      for (const c of allComments) {
+        const list = commentMap.get(c.postId) ?? [];
+        if (list.length < 2) {
+          list.push(c);
+          commentMap.set(c.postId, list);
+        }
+      }
+
+      const commentAuthorIds = [...new Set(allComments.map((c) => c.authorId).filter(Boolean))];
+      let commentAuthorMap = new Map<string, User>();
+      if (commentAuthorIds.length) {
+        const commentAuthors = await this.userRepo
+          .createQueryBuilder('u')
+          .select(['u.id', 'u.username', 'u.displayName', 'u.avatarUrl', 'u.isVerified'])
+          .where('u.id IN (:...ids)', { ids: commentAuthorIds })
+          .getMany();
+        commentAuthorMap = new Map(commentAuthors.map((a) => [a.id, a]));
+      }
+
+      for (const post of posts) {
+        const comments = commentMap.get(post.id) ?? [];
+        post.recentComments = comments.map((c) => ({
+          ...c,
+          author: commentAuthorMap.get(c.authorId) ?? null,
+        }));
+      }
+    } catch {
+      for (const post of posts) {
+        post.recentComments = [];
       }
     }
 

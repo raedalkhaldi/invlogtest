@@ -43,9 +43,7 @@ struct FeedView: View {
                     .listRowBackground(Color.clear)
 
                     ForEach(viewModel.posts) { post in
-                        NavigationLink(value: post) {
-                            PostCardView(post: post)
-                        }
+                        PostCardView(post: post)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         .listRowBackground(Color.clear)
@@ -92,9 +90,6 @@ struct FeedView: View {
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("Messages")
             }
-        }
-        .navigationDestination(for: Post.self) { post in
-            PostDetailView(postId: post.id)
         }
         .navigationDestination(for: Restaurant.self) { restaurant in
             RestaurantDetailView(restaurantSlug: restaurant.slug)

@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Param,
   Body,
@@ -12,9 +13,11 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service.js';
 import { FollowsService } from '../follows/follows.service';
 import { PostsService } from '../posts/posts.service';
+import { StorageService } from '../media/storage.service';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { CurrentUser, type JwtPayload } from '../../common/decorators/current-user.decorator.js';
 import { CursorQueryDto } from '../../common/dto/pagination.dto';
+import { v4 as uuidv4 } from 'uuid';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -24,6 +27,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly followsService: FollowsService,
     private readonly postsService: PostsService,
+    private readonly storageService: StorageService,
   ) {}
 
   @Get('me')
@@ -46,6 +50,22 @@ export class UsersController {
     const updated = await this.usersService.updateProfile(user.sub, dto);
     const { passwordHash, ...profile } = updated;
     return profile;
+  }
+
+  @Post('me/avatar/presign')
+  async avatarPresign(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { contentType: string; fileSize: number },
+  ) {
+    const ext = body.contentType === 'image/png' ? 'png' : 'jpg';
+    const key = `avatars/${user.sub}/${uuidv4()}.${ext}`;
+    const uploadUrl = await this.storageService.generatePresignedPutUrl(
+      key,
+      body.contentType,
+      body.fileSize,
+    );
+    const publicUrl = this.storageService.getPublicUrl(key);
+    return { uploadUrl, publicUrl, key };
   }
 
   @Get(':username/posts')
