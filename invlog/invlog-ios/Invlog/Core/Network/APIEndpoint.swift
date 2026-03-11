@@ -105,7 +105,7 @@ enum APIEndpoint {
     case myTrips(cursor: String?, limit: Int)
     case exploreTrips(cursor: String?, limit: Int)
     case tripDetail(id: String)
-    case updateTrip(id: String, title: String?, description: String?, visibility: String?, status: String?)
+    case updateTrip(id: String, title: String?, description: String?, visibility: String?, status: String?, startDate: String?, endDate: String?)
     case deleteTrip(id: String)
     case addTripStop(tripId: String, name: String, restaurantId: String?, address: String?, latitude: Double?, longitude: Double?, dayNumber: Int, sortOrder: Int, notes: String?, category: String, estimatedDuration: Int?, startTime: String?, endTime: String?)
     case updateTripStop(stopId: String, name: String?, notes: String?, dayNumber: Int?, sortOrder: Int?, startTime: String?, endTime: String?)
@@ -242,7 +242,7 @@ enum APIEndpoint {
         case .myTrips: return "/trips/mine"
         case .exploreTrips: return "/trips/explore"
         case .tripDetail(let id): return "/trips/\(id)"
-        case .updateTrip(let id, _, _, _, _): return "/trips/\(id)"
+        case .updateTrip(let id, _, _, _, _, _, _): return "/trips/\(id)"
         case .deleteTrip(let id): return "/trips/\(id)"
         case .addTripStop(let tripId, _, _, _, _, _, _, _, _, _, _, _, _): return "/trips/\(tripId)/stops"
         case .updateTripStop(let stopId, _, _, _, _, _, _): return "/trips/stops/\(stopId)"
@@ -365,12 +365,14 @@ enum APIEndpoint {
             if let startDate { body["startDate"] = startDate }
             if let endDate { body["endDate"] = endDate }
             return body
-        case .updateTrip(_, let title, let description, let visibility, let status):
+        case .updateTrip(_, let title, let description, let visibility, let status, let startDate, let endDate):
             var body: [String: Any] = [:]
             if let title { body["title"] = title }
             if let description { body["description"] = description }
             if let visibility { body["visibility"] = visibility }
             if let status { body["status"] = status }
+            if let startDate { body["startDate"] = startDate }
+            if let endDate { body["endDate"] = endDate }
             return body
         case .addTripStop(_, let name, let restaurantId, let address, let lat, let lng, let dayNumber, let sortOrder, let notes, let category, let estimatedDuration, let startTime, let endTime):
             var body: [String: Any] = [

@@ -41,12 +41,14 @@ final class TripDetailViewModel: ObservableObject {
         title: String? = nil,
         description: String? = nil,
         visibility: String? = nil,
-        status: String? = nil
+        status: String? = nil,
+        startDate: String? = nil,
+        endDate: String? = nil
     ) async -> Bool {
         actionError = nil
         do {
             let (updated, _) = try await apiClient.requestWrapped(
-                .updateTrip(id: tripId, title: title, description: description, visibility: visibility, status: status),
+                .updateTrip(id: tripId, title: title, description: description, visibility: visibility, status: status, startDate: startDate, endDate: endDate),
                 responseType: Trip.self
             )
             self.trip = updated

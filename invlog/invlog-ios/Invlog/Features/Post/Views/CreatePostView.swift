@@ -19,6 +19,10 @@ struct VideoTransferable: Transferable {
 
 struct CreatePostView: View {
     @Environment(\.dismiss) private var dismiss
+
+    /// When set, the place is pre-selected. Used when checking in from a restaurant/place profile.
+    let preselectedRestaurant: Restaurant?
+
     @State private var content = ""
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var selectedImages: [UIImage] = []
@@ -31,6 +35,19 @@ struct CreatePostView: View {
     @StateObject private var uploadService = MediaUploadService()
     @StateObject private var locationManager = LocationManager()
     @State private var errorMessage: String?
+
+    init(preselectedRestaurant: Restaurant? = nil) {
+        self.preselectedRestaurant = preselectedRestaurant
+        if let r = preselectedRestaurant {
+            _selectedPlace = State(initialValue: SelectedPlace(
+                name: r.name,
+                address: r.addressLine1 ?? "",
+                latitude: r.latitude ?? 0,
+                longitude: r.longitude ?? 0,
+                restaurantId: r.id
+            ))
+        }
+    }
 
     private var hasContent: Bool {
         selectedPlace != nil && (!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !selectedImages.isEmpty)
@@ -131,48 +148,79 @@ struct CreatePostView: View {
                 .padding(.horizontal)
 
                 // Place Tag
-                Button {
-                    showPlacePicker = true
-                } label: {
+                if preselectedRestaurant != nil, let place = selectedPlace {
+                    // Preselected restaurant — show as static card
                     HStack(spacing: 12) {
                         Image(systemName: "mappin.circle.fill")
                             .foregroundColor(Color.brandPrimary)
-
-                        if let place = selectedPlace {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(place.name)
-                                    .font(InvlogTheme.body(14, weight: .bold))
-                                    .foregroundColor(Color.brandText)
-                                if !place.address.isEmpty {
-                                    Text(place.address)
-                                        .font(InvlogTheme.caption(12))
-                                        .foregroundColor(Color.brandTextSecondary)
-                                        .lineLimit(1)
-                                }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(place.name)
+                                .font(InvlogTheme.body(14, weight: .bold))
+                                .foregroundColor(Color.brandText)
+                            if !place.address.isEmpty {
+                                Text(place.address)
+                                    .font(InvlogTheme.caption(12))
+                                    .foregroundColor(Color.brandTextSecondary)
+                                    .lineLimit(1)
                             }
-                        } else {
-                            Text("Select Place *")
-                                .font(InvlogTheme.body(14))
-                                .foregroundColor(Color.brandTextSecondary)
                         }
-
                         Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(Color.brandTextTertiary)
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(Color.brandAccent)
                     }
                     .padding(InvlogTheme.Spacing.sm)
-                    .background(Color.brandCard)
+                    .background(Color.brandOrangeLight)
                     .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                     .overlay(
                         RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                            .stroke(Color.brandBorder, lineWidth: 1)
+                            .stroke(Color.brandPrimary, lineWidth: 1)
                     )
+                    .padding(.horizontal)
+                    .accessibilityLabel("Checking in at \(place.name)")
+                } else {
+                    Button {
+                        showPlacePicker = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(Color.brandPrimary)
+
+                            if let place = selectedPlace {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(place.name)
+                                        .font(InvlogTheme.body(14, weight: .bold))
+                                        .foregroundColor(Color.brandText)
+                                    if !place.address.isEmpty {
+                                        Text(place.address)
+                                            .font(InvlogTheme.caption(12))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            } else {
+                                Text("Select Place *")
+                                    .font(InvlogTheme.body(14))
+                                    .foregroundColor(Color.brandTextSecondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+                        .padding(InvlogTheme.Spacing.sm)
+                        .background(Color.brandCard)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                .stroke(Color.brandBorder, lineWidth: 1)
+                        )
+                    }
+                    .frame(minHeight: 44)
+                    .padding(.horizontal)
+                    .accessibilityLabel(selectedPlace != nil ? "Place: \(selectedPlace!.name). Tap to change." : "Add a place")
                 }
-                .frame(minHeight: 44)
-                .padding(.horizontal)
-                .accessibilityLabel(selectedPlace != nil ? "Place: \(selectedPlace!.name). Tap to change." : "Add a place")
 
                 // Location status
                 if locationManager.location != nil {

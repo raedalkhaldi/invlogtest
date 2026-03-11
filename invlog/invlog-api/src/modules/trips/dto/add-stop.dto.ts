@@ -59,8 +59,8 @@ export class AddStopDto {
   notes?: string;
 
   @IsOptional()
-  @IsIn(['restaurant', 'cafe', 'attraction', 'hotel', 'other'])
-  category?: 'restaurant' | 'cafe' | 'attraction' | 'hotel' | 'other';
+  @IsIn(['restaurant', 'cafe', 'bar', 'bakery', 'market', 'attraction', 'hotel', 'shopping', 'activity', 'transport', 'other'])
+  category?: string;
 
   @IsOptional()
   @IsInt()

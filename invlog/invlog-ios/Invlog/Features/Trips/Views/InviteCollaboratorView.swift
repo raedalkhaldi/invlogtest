@@ -314,7 +314,7 @@ struct InviteCollaboratorView: View {
 
             do {
                 let (data, _) = try await APIClient.shared.requestWrapped(
-                    .search(query: searchText, type: "users", lat: nil, lng: nil),
+                    .search(query: searchText, type: "people", lat: nil, lng: nil),
                     responseType: SearchResults.self
                 )
                 if !Task.isCancelled {

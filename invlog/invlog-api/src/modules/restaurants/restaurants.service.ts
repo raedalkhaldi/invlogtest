@@ -80,8 +80,13 @@ export class RestaurantsService {
     return restaurant;
   }
 
-  async findBySlug(slug: string): Promise<Restaurant> {
-    const restaurant = await this.restaurantRepo.findOne({ where: { slug } });
+  async findBySlug(slugOrId: string): Promise<Restaurant> {
+    // Try by slug first
+    let restaurant = await this.restaurantRepo.findOne({ where: { slug: slugOrId } });
+    if (!restaurant) {
+      // Try by UUID id
+      restaurant = await this.restaurantRepo.findOne({ where: { id: slugOrId } });
+    }
     if (!restaurant) {
       throw new NotFoundException('Restaurant not found');
     }
