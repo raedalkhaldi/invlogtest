@@ -3,11 +3,14 @@ import NukeUI
 
 struct NewConversationView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
     @State private var searchText = ""
     @State private var searchResults: [User] = []
     @State private var isSearching = false
     @State private var selectedConversation: Conversation?
     @State private var navigateToThread = false
+    @State private var followedUsers: [User] = []
+    @State private var isLoadingFollowed = false
 
     var body: some View {
         NavigationStack {
@@ -22,36 +25,34 @@ struct NewConversationView: View {
                         title: "No Users Found",
                         description: "Try a different search term."
                     )
-                } else {
-                    List(searchResults) { user in
-                        Button {
-                            startConversation(with: user)
-                        } label: {
-                            HStack(spacing: 12) {
-                                LazyImage(url: user.avatarUrl) { state in
-                                    if let image = state.image {
-                                        image.resizable().scaledToFill()
-                                    } else {
-                                        Image(systemName: "person.circle.fill")
-                                            .font(.system(size: 24))
-                                            .foregroundColor(.secondary)
-                                    }
+                } else if !searchText.isEmpty {
+                    // Search results
+                    userList(users: searchResults)
+                } else if isLoadingFollowed {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                } else if !followedUsers.isEmpty {
+                    // Followed users (default view)
+                    List {
+                        Section("Suggested") {
+                            ForEach(followedUsers) { user in
+                                Button {
+                                    startConversation(with: user)
+                                } label: {
+                                    userRow(user: user)
                                 }
-                                .frame(width: 44, height: 44)
-                                .clipShape(Circle())
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(user.displayName ?? user.username)
-                                        .font(.subheadline.bold())
-                                    Text("@\(user.username)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                                .frame(minHeight: 44)
                             }
                         }
-                        .frame(minHeight: 44)
                     }
                     .listStyle(.plain)
+                } else {
+                    EmptyStateView(
+                        systemImage: "person.2",
+                        title: "No Suggestions",
+                        description: "Follow people to see them here, or search for users above."
+                    )
                 }
             }
             .navigationTitle("New Message")
@@ -74,7 +75,67 @@ struct NewConversationView: View {
                     )
                 }
             }
+            .task {
+                await loadFollowedUsers()
+            }
         }
+    }
+
+    // MARK: - Subviews
+
+    @ViewBuilder
+    private func userList(users: [User]) -> some View {
+        List(users) { user in
+            Button {
+                startConversation(with: user)
+            } label: {
+                userRow(user: user)
+            }
+            .frame(minHeight: 44)
+        }
+        .listStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func userRow(user: User) -> some View {
+        HStack(spacing: 12) {
+            LazyImage(url: user.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(width: 44, height: 44)
+            .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(user.displayName ?? user.username)
+                    .font(.subheadline.bold())
+                Text("@\(user.username)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Data Loading
+
+    private func loadFollowedUsers() async {
+        guard let currentUser = appState.currentUser else { return }
+        isLoadingFollowed = true
+        do {
+            let (data, _) = try await APIClient.shared.requestWrapped(
+                .following(userId: currentUser.id, page: 1, perPage: 50),
+                responseType: [User].self
+            )
+            followedUsers = data
+        } catch {
+            // Handle error silently
+        }
+        isLoadingFollowed = false
     }
 
     private func search(query: String) async {

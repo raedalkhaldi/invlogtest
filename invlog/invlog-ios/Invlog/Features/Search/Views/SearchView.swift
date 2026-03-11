@@ -18,6 +18,15 @@ struct SearchView: View {
         case restaurants = "Restaurants"
         case users = "People"
         case posts = "Posts"
+
+        var displayName: String {
+            switch self {
+            case .all: return "All"
+            case .restaurants: return "Places"
+            case .users: return "People"
+            case .posts: return "Posts"
+            }
+        }
     }
 
     var body: some View {
@@ -30,7 +39,7 @@ struct SearchView: View {
                             selectedFilter = filter
                             triggerSearch()
                         } label: {
-                            Text(filter.rawValue)
+                            Text(filter.displayName)
                                 .font(.subheadline)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
@@ -39,7 +48,7 @@ struct SearchView: View {
                                 .clipShape(Capsule())
                         }
                         .frame(minHeight: 44)
-                        .accessibilityLabel("\(filter.rawValue) filter")
+                        .accessibilityLabel("\(filter.displayName) filter")
                     }
                 }
                 .padding(.horizontal)
@@ -59,7 +68,7 @@ struct SearchView: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Nearby")
                                             .font(.subheadline.bold())
-                                        Text("Map & Restaurants")
+                                        Text("Map & Places")
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
                                     }
@@ -70,7 +79,7 @@ struct SearchView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                             }
                             .frame(minHeight: 44)
-                            .accessibilityLabel("View nearby restaurants on map")
+                            .accessibilityLabel("View nearby places on map")
                         }
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -79,7 +88,7 @@ struct SearchView: View {
                         if !nearbyRestaurants.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
-                                    Text("Nearby Restaurants")
+                                    Text("Nearby Places")
                                         .font(.headline)
                                         .padding(.horizontal)
 
@@ -91,7 +100,7 @@ struct SearchView: View {
                                             .padding(.horizontal)
                                     }
                                     .frame(minHeight: 44)
-                                    .accessibilityLabel("See all nearby restaurants")
+                                    .accessibilityLabel("See all nearby places")
                                 }
 
                                 ScrollView(.horizontal, showsIndicators: false) {
@@ -111,7 +120,7 @@ struct SearchView: View {
                         } else if isLoadingNearby {
                             HStack {
                                 Spacer()
-                                ProgressView("Finding nearby restaurants...")
+                                ProgressView("Finding nearby places...")
                                     .font(.caption)
                                 Spacer()
                             }
@@ -140,7 +149,7 @@ struct SearchView: View {
             } else {
                 List {
                     if !results.restaurants.isEmpty {
-                        Section("Restaurants") {
+                        Section("Places") {
                             ForEach(results.restaurants) { restaurant in
                                 NavigationLink(value: restaurant) {
                                     RestaurantRowView(restaurant: restaurant)
@@ -173,7 +182,7 @@ struct SearchView: View {
             }
         }
         .navigationTitle("Discover")
-        .searchable(text: $searchText, prompt: "Search food, restaurants, people...")
+        .searchable(text: $searchText, prompt: "Search food, places, people...")
         .onChange(of: searchText) { _ in
             triggerSearch()
         }

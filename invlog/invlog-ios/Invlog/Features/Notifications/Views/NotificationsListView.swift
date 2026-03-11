@@ -152,7 +152,7 @@ struct NotificationRowView: View {
         case "follow":
             text.append(AttributedString(" started following you"))
         case "checkin":
-            text.append(AttributedString(" checked in at your restaurant"))
+            text.append(AttributedString(" checked in at your place"))
         default:
             if let message = notification.message {
                 text.append(AttributedString(" \(message)"))

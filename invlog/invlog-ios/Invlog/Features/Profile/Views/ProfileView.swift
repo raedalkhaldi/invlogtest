@@ -133,6 +133,8 @@ struct ProfileHeaderView: View {
     let user: User
     let isCurrentUser: Bool
     @State private var isFollowing: Bool
+    @State private var selectedConversation: Conversation?
+    @State private var navigateToMessages = false
 
     init(user: User, isCurrentUser: Bool) {
         self.user = user
@@ -239,10 +241,40 @@ struct ProfileHeaderView: View {
 
             // Action Buttons
             if !isCurrentUser {
-                profileFollowButton
+                HStack(spacing: 12) {
+                    profileFollowButton
+
+                    Button {
+                        startConversation()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "envelope")
+                            Text("Message")
+                        }
+                        .font(.subheadline.bold())
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Message \(user.username)")
+                }
             }
         }
         .padding()
+        .navigationDestination(isPresented: $navigateToMessages) {
+            if let conversation = selectedConversation {
+                MessageThreadView(
+                    conversationId: conversation.id,
+                    otherUser: ConversationUser(
+                        id: user.id,
+                        username: user.username,
+                        displayName: user.displayName,
+                        avatarUrl: user.avatarUrl,
+                        isVerified: user.isVerified
+                    )
+                )
+            }
+        }
     }
 
     @ViewBuilder
@@ -275,6 +307,21 @@ struct ProfileHeaderView: View {
                 }
             } catch {
                 isFollowing.toggle() // Revert
+            }
+        }
+    }
+
+    private func startConversation() {
+        Task {
+            do {
+                let conversation = try await APIClient.shared.request(
+                    .startConversation(userId: user.id),
+                    responseType: Conversation.self
+                )
+                selectedConversation = conversation
+                navigateToMessages = true
+            } catch {
+                // Handle error silently
             }
         }
     }

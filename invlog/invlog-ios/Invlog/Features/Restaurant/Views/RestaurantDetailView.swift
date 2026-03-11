@@ -24,7 +24,7 @@ struct RestaurantDetailView: View {
                 restaurantContent(restaurant)
             }
         }
-        .navigationTitle(restaurant?.name ?? "Restaurant")
+        .navigationTitle(restaurant?.name ?? "Place")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: CheckInHistoryDestination.self) { dest in
             CheckInHistoryView(mode: .restaurant, id: dest.restaurantId)
@@ -162,7 +162,7 @@ struct RestaurantDetailView: View {
             .frame(height: 44)
         }
         .buttonStyle(.bordered)
-        .accessibilityLabel("Check in at this restaurant")
+        .accessibilityLabel("Check in at this place")
     }
 
     @ViewBuilder
@@ -171,7 +171,7 @@ struct RestaurantDetailView: View {
             .font(.subheadline.bold())
             .frame(maxWidth: .infinity)
             .frame(height: 44)
-        let accessLabel = isFollowing ? "Unfollow restaurant" : "Follow restaurant"
+        let accessLabel = isFollowing ? "Unfollow place" : "Follow place"
 
         if isFollowing {
             Button { toggleFollow() } label: { label }

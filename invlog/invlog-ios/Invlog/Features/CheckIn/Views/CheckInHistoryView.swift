@@ -11,7 +11,7 @@ struct CheckInHistoryView: View {
     @State private var hasMorePages = true
 
     enum Mode: String {
-        case restaurant = "Restaurant Check-ins"
+        case restaurant = "Place Check-ins"
         case user = "Check-ins"
     }
 

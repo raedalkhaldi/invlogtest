@@ -28,7 +28,7 @@ struct RestaurantPickerView: View {
                                     .foregroundColor(.secondary)
                             }
                             .frame(minWidth: 44, minHeight: 44)
-                            .accessibilityLabel("Remove selected restaurant")
+                            .accessibilityLabel("Remove selected place")
                         }
                         .frame(minHeight: 44)
                     } header: {
@@ -83,7 +83,7 @@ struct RestaurantPickerView: View {
                         EmptyStateView(
                             systemImage: "magnifyingglass",
                             title: "No results",
-                            description: "No restaurants found for \"\(searchText)\""
+                            description: "No places found for \"\(searchText)\""
                         )
                     } else {
                         Section {
@@ -115,11 +115,11 @@ struct RestaurantPickerView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .searchable(text: $searchText, prompt: "Search restaurants...")
+            .searchable(text: $searchText, prompt: "Search places...")
             .onChange(of: searchText) { _ in
                 triggerSearch()
             }
-            .navigationTitle("Tag a Restaurant")
+            .navigationTitle("Tag a Place")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -127,7 +127,7 @@ struct RestaurantPickerView: View {
                         dismiss()
                     }
                     .frame(minWidth: 44, minHeight: 44)
-                    .accessibilityLabel("Cancel restaurant selection")
+                    .accessibilityLabel("Cancel place selection")
                 }
             }
             .onAppear {
