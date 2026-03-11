@@ -30,9 +30,13 @@ struct RestaurantDetailView: View {
         .navigationDestination(for: CheckInHistoryDestination.self) { dest in
             CheckInHistoryView(mode: .restaurant, id: dest.restaurantId)
         }
-        .sheet(isPresented: $showCheckIn) {
+        .sheet(isPresented: $showCheckIn, onDismiss: {
+            Task { await loadRestaurant() }
+        }) {
             if let restaurant {
-                CheckInView(restaurant: restaurant)
+                NavigationStack {
+                    CreatePostView(preselectedRestaurant: restaurant)
+                }
             }
         }
         .task {
@@ -158,7 +162,7 @@ struct RestaurantDetailView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "mappin.and.ellipse")
-                Text("Check In")
+                Text("Check In & Review")
                     .font(InvlogTheme.body(14, weight: .bold))
             }
             .frame(maxWidth: .infinity)
@@ -167,7 +171,7 @@ struct RestaurantDetailView: View {
             .foregroundColor(.white)
             .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
         }
-        .accessibilityLabel("Check in at this place")
+        .accessibilityLabel("Check in and review this place")
     }
 
     @ViewBuilder

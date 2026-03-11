@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Trip } from './entities/trip.entity';
-import { TripStop } from './entities/trip-stop.entity';
+import { TripStop, type StopCategory } from './entities/trip-stop.entity';
 import { TripCollaborator } from './entities/trip-collaborator.entity';
 import { User } from '../users/entities/user.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
@@ -341,8 +341,10 @@ export class TripsService {
       dayNumber: dto.dayNumber,
       sortOrder,
       notes: dto.notes,
-      category: dto.category ?? 'restaurant',
+      category: (dto.category ?? 'restaurant') as StopCategory,
       estimatedDuration: dto.estimatedDuration,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
     });
 
     const saved = await this.stopRepo.save(stop);

@@ -173,6 +173,9 @@ struct TripDetailView: View {
         } message: {
             Text("A copy of this trip will be added to your trips.")
         }
+        .navigationDestination(for: StopRestaurantDestination.self) { dest in
+            RestaurantDetailView(restaurantSlug: dest.restaurantId)
+        }
         .task {
             await viewModel.loadTrip()
         }
@@ -409,8 +412,16 @@ struct TripDetailView: View {
                     // Stops for this day
                     let dayStops = (grouped[day] ?? []).sorted { $0.sortOrder < $1.sortOrder }
                     ForEach(dayStops) { stop in
-                        stopCard(stop)
+                        if let restaurantId = stop.restaurantId {
+                            NavigationLink(value: StopRestaurantDestination(restaurantId: restaurantId)) {
+                                stopCard(stop)
+                            }
+                            .buttonStyle(.plain)
                             .padding(.horizontal, InvlogTheme.Spacing.md)
+                        } else {
+                            stopCard(stop)
+                                .padding(.horizontal, InvlogTheme.Spacing.md)
+                        }
                     }
                 }
             }
@@ -477,26 +488,45 @@ struct TripDetailView: View {
                         .foregroundColor(Color.brandTextSecondary)
                     }
                 }
+
+                // View place hint
+                if stop.restaurantId != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.caption2)
+                        Text("View Place & Check In")
+                            .font(InvlogTheme.caption(11, weight: .semibold))
+                    }
+                    .foregroundColor(Color.brandAccent)
+                }
             }
 
             Spacer()
 
-            if canEdit {
-                Button(role: .destructive) {
-                    stopToDelete = stop
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.body)
+            VStack(spacing: InvlogTheme.Spacing.xs) {
+                if canEdit {
+                    Button(role: .destructive) {
+                        stopToDelete = stop
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.body)
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("Remove \(stop.name)")
+                }
+
+                if stop.restaurantId != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
                         .foregroundColor(Color.brandTextTertiary)
                 }
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel("Remove \(stop.name)")
             }
         }
         .padding(InvlogTheme.Card.padding)
         .invlogCard()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(stop.name), \(stop.category)")
+        .accessibilityLabel("\(stop.name), \(stop.category)\(stop.restaurantId != nil ? ". Tap to view place." : "")")
     }
 
     // MARK: - Collaborators Section
@@ -645,6 +675,12 @@ struct TripDetailView: View {
     }
 }
 
+// MARK: - Stop Restaurant Destination
+
+struct StopRestaurantDestination: Hashable {
+    let restaurantId: String
+}
+
 // MARK: - Stop Annotation
 
 private struct StopAnnotation: Identifiable {
@@ -694,8 +730,17 @@ struct EditTripView: View {
     @State private var description: String
     @State private var visibility: String
     @State private var status: String
+    @State private var hasDateRange: Bool
+    @State private var startDate: Date
+    @State private var endDate: Date
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+
+    private static let dateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 
     init(trip: Trip, onSave: @escaping () -> Void) {
         self.trip = trip
@@ -704,6 +749,9 @@ struct EditTripView: View {
         _description = State(initialValue: trip.description ?? "")
         _visibility = State(initialValue: trip.visibility)
         _status = State(initialValue: trip.status)
+        _hasDateRange = State(initialValue: trip.startDate != nil)
+        _startDate = State(initialValue: trip.startDate ?? Date())
+        _endDate = State(initialValue: trip.endDate ?? Date().addingTimeInterval(86400 * 3))
     }
 
     var body: some View {
@@ -773,6 +821,54 @@ struct EditTripView: View {
                     .accessibilityLabel("Trip status")
                 }
 
+                // Travel Dates
+                VStack(alignment: .leading, spacing: InvlogTheme.Spacing.xs) {
+                    Toggle(isOn: $hasDateRange) {
+                        HStack(spacing: InvlogTheme.Spacing.xs) {
+                            Image(systemName: "calendar")
+                                .foregroundColor(Color.brandPrimary)
+                            Text("Travel dates")
+                                .font(InvlogTheme.body(14, weight: .semibold))
+                                .foregroundColor(Color.brandText)
+                        }
+                    }
+                    .tint(Color.brandPrimary)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("Set travel dates")
+
+                    if hasDateRange {
+                        VStack(spacing: InvlogTheme.Spacing.xs) {
+                            DatePicker(
+                                "Start Date",
+                                selection: $startDate,
+                                displayedComponents: .date
+                            )
+                            .font(InvlogTheme.body(14))
+                            .tint(Color.brandPrimary)
+                            .frame(minHeight: 44)
+                            .accessibilityLabel("Start date")
+
+                            DatePicker(
+                                "End Date",
+                                selection: $endDate,
+                                in: startDate...,
+                                displayedComponents: .date
+                            )
+                            .font(InvlogTheme.body(14))
+                            .tint(Color.brandPrimary)
+                            .frame(minHeight: 44)
+                            .accessibilityLabel("End date")
+                        }
+                        .padding(InvlogTheme.Spacing.sm)
+                        .background(Color.brandCard)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                .stroke(Color.brandBorder, lineWidth: 1)
+                        )
+                    }
+                }
+
                 if let errorMessage {
                     Text(errorMessage)
                         .font(InvlogTheme.caption(12))
@@ -807,6 +903,8 @@ struct EditTripView: View {
 
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedDesc = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let startDateStr = hasDateRange ? Self.dateFormatter.string(from: startDate) : nil
+        let endDateStr = hasDateRange ? Self.dateFormatter.string(from: endDate) : nil
 
         do {
             try await APIClient.shared.requestVoid(
@@ -815,7 +913,9 @@ struct EditTripView: View {
                     title: trimmedTitle,
                     description: trimmedDesc.isEmpty ? nil : trimmedDesc,
                     visibility: visibility,
-                    status: status
+                    status: status,
+                    startDate: startDateStr,
+                    endDate: endDateStr
                 )
             )
             NotificationCenter.default.post(name: .didUpdateTrip, object: nil)

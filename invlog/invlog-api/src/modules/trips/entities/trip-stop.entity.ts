@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import type { Restaurant } from '../../restaurants/entities/restaurant.entity';
 
-export type StopCategory = 'restaurant' | 'cafe' | 'attraction' | 'hotel' | 'other';
+export type StopCategory = 'restaurant' | 'cafe' | 'bar' | 'bakery' | 'market' | 'attraction' | 'hotel' | 'shopping' | 'activity' | 'transport' | 'other';
 
 @Entity('trip_stops')
 export class TripStop {
