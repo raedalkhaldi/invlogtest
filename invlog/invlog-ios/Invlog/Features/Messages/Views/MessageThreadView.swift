@@ -38,16 +38,15 @@ struct MessageThreadView: View {
                 }
             }
 
-            Divider()
-
             // Input bar
             HStack(spacing: 12) {
                 TextField("Message...", text: $messageText, axis: .vertical)
+                    .font(InvlogTheme.body(15))
                     .textFieldStyle(.plain)
                     .lineLimit(1...4)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color(.systemGray6))
+                    .background(Color.brandBorder.opacity(0.5))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
 
                 Button {
@@ -55,7 +54,7 @@ struct MessageThreadView: View {
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title2)
-                        .foregroundColor(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : .accentColor)
+                        .foregroundColor(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.brandTextTertiary : Color.brandPrimary)
                 }
                 .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .frame(minWidth: 44, minHeight: 44)
@@ -63,7 +62,12 @@ struct MessageThreadView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
+            .background(Color.brandCard)
+            .overlay(alignment: .top) {
+                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+            }
         }
+        .invlogScreenBackground()
         .navigationTitle(otherUser?.displayName ?? otherUser?.username ?? "Chat")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -97,16 +101,20 @@ struct MessageBubble: View {
 
             VStack(alignment: isFromMe ? .trailing : .leading, spacing: 2) {
                 Text(message.content)
-                    .font(.body)
+                    .font(InvlogTheme.body(15))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(isFromMe ? Color.accentColor : Color(.systemGray5))
-                    .foregroundColor(isFromMe ? .white : .primary)
+                    .background(isFromMe ? Color.brandText : Color.brandCard)
+                    .foregroundColor(isFromMe ? .white : Color.brandText)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        isFromMe ? nil : RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.brandBorder, lineWidth: 0.5)
+                    )
 
                 Text(message.createdAt, style: .time)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(10))
+                    .foregroundColor(Color.brandTextTertiary)
             }
 
             if !isFromMe { Spacer(minLength: 60) }

@@ -16,7 +16,7 @@ struct MediaCarouselView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(maxWidth: .infinity)
             .frame(height: 300)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius))
 
             // Page dots (only for 2+ items)
             if media.count > 1 {
@@ -61,7 +61,7 @@ struct MediaCarouselView: View {
                     }
                 } else {
                     Rectangle()
-                        .fill(Color(.systemGray5))
+                        .fill(Color.brandBorder)
                 }
             }
         }

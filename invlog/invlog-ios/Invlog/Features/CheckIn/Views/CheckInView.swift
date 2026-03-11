@@ -23,21 +23,22 @@ struct CheckInView: View {
                         } else {
                             Image(systemName: "building.2")
                                 .font(.system(size: 40))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.brandTextTertiary)
                         }
                     }
                     .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius))
                     .accessibilityHidden(true)
 
                     Text(restaurant.name)
-                        .font(.title2.bold())
+                        .font(InvlogTheme.heading(22, weight: .bold))
+                        .foregroundColor(Color.brandText)
                         .multilineTextAlignment(.center)
 
                     if let cuisines = restaurant.cuisineType, !cuisines.isEmpty {
                         Text(cuisines.joined(separator: " · "))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .font(InvlogTheme.body(14))
+                            .foregroundColor(Color.brandTextSecondary)
                     }
                 }
 
@@ -46,10 +47,10 @@ struct CheckInView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "location.fill")
                             .font(.caption)
-                            .foregroundColor(.green)
+                            .foregroundColor(Color.brandAccent)
                         Text("Location detected")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(InvlogTheme.caption(12))
+                            .foregroundColor(Color.brandTextSecondary)
                     }
                     .accessibilityLabel("Your location has been detected")
                 } else if locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways {
@@ -57,8 +58,8 @@ struct CheckInView: View {
                         ProgressView()
                             .scaleEffect(0.7)
                         Text("Getting your location...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(InvlogTheme.caption(12))
+                            .foregroundColor(Color.brandTextSecondary)
                     }
                 }
 
@@ -66,10 +67,10 @@ struct CheckInView: View {
                 if showSuccess {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(Color.brandAccent)
                         Text("Checked in successfully!")
-                            .font(.subheadline.bold())
-                            .foregroundColor(.green)
+                            .font(InvlogTheme.body(14, weight: .bold))
+                            .foregroundColor(Color.brandAccent)
                     }
                     .transition(.scale.combined(with: .opacity))
                 }
@@ -77,7 +78,7 @@ struct CheckInView: View {
                 // Error message
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.caption)
+                        .font(InvlogTheme.caption(12))
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
@@ -96,13 +97,13 @@ struct CheckInView: View {
                         }
                         Image(systemName: "mappin.and.ellipse")
                         Text("Check In")
-                            .fontWeight(.semibold)
+                            .font(InvlogTheme.body(16, weight: .bold))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(showSuccess ? Color.green : Color.accentColor)
+                    .background(showSuccess ? Color.brandAccent : Color.brandPrimary)
                     .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius))
                 }
                 .frame(minHeight: 44)
                 .disabled(isSubmitting || showSuccess)
@@ -110,6 +111,7 @@ struct CheckInView: View {
                 .accessibilityLabel("Check in at \(restaurant.name)")
             }
             .padding()
+            .invlogScreenBackground()
             .navigationTitle("Check In")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -153,7 +155,6 @@ struct CheckInView: View {
                 showSuccess = true
             }
 
-            // Dismiss after brief delay
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             dismiss()
         } catch {

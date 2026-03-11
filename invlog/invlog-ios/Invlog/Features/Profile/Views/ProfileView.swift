@@ -27,7 +27,6 @@ struct ProfileView: View {
         ScrollView {
             if let user {
                 VStack(spacing: 0) {
-                    // Profile Header
                     ProfileHeaderView(
                         user: user,
                         isCurrentUser: isCurrentUser,
@@ -37,18 +36,16 @@ struct ProfileView: View {
                         }
                     )
 
-                    Divider()
-
-                    // Posts Grid
-                    LazyVStack(spacing: 1) {
+                    // Posts
+                    LazyVStack(spacing: InvlogTheme.Spacing.sm) {
                         ForEach(posts) { post in
                             NavigationLink(value: post) {
                                 PostCardView(post: post)
-                                    .padding()
                             }
-                            Divider()
                         }
                     }
+                    .padding(.horizontal, InvlogTheme.Spacing.md)
+                    .padding(.top, InvlogTheme.Spacing.md)
                 }
             } else if isLoading {
                 ProgressView()
@@ -65,6 +62,7 @@ struct ProfileView: View {
                 .padding(.top, 60)
             }
         }
+        .invlogScreenBackground()
         .refreshable {
             await loadProfile()
         }
@@ -112,6 +110,7 @@ struct ProfileView: View {
                         showSettings = true
                     } label: {
                         Image(systemName: "gearshape")
+                            .foregroundColor(Color.brandText)
                     }
                     .frame(minWidth: 44, minHeight: 44)
                     .accessibilityLabel("Settings")
@@ -176,26 +175,39 @@ struct ProfileHeaderView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Avatar
-            LazyImage(url: user.avatarUrl) { state in
-                if let image = state.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    Image(systemName: "person.circle.fill")
-                        .font(.system(size: 80))
-                        .foregroundColor(.secondary)
+        VStack(spacing: 0) {
+            // Dark header background
+            ZStack {
+                Color.brandText
+                    .frame(height: 100)
+
+                VStack(spacing: 0) {
+                    Spacer()
+                    LazyImage(url: user.avatarUrl) { state in
+                        if let image = state.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 80))
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+                    }
+                    .frame(width: InvlogTheme.Avatar.profile, height: InvlogTheme.Avatar.profile)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.brandCard, lineWidth: 3))
+                    .offset(y: InvlogTheme.Avatar.profile / 2)
                 }
             }
-            .frame(width: 80, height: 80)
-            .clipShape(Circle())
+            .frame(height: 100)
+            .padding(.bottom, InvlogTheme.Avatar.profile / 2 + InvlogTheme.Spacing.sm)
             .accessibilityLabel("\(user.displayName ?? user.username)'s profile picture")
 
-            // Name
-            VStack(spacing: 4) {
+            // Name & Info
+            VStack(spacing: 6) {
                 HStack(spacing: 4) {
                     Text(user.displayName ?? user.username)
-                        .font(.title2.bold())
+                        .font(InvlogTheme.heading(22, weight: .bold))
+                        .foregroundColor(Color.brandText)
                     if user.isVerified {
                         Image(systemName: "checkmark.seal.fill")
                             .foregroundColor(.blue)
@@ -204,16 +216,31 @@ struct ProfileHeaderView: View {
                 }
 
                 Text("@\(user.username)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(13))
+                    .foregroundColor(Color.brandTextSecondary)
+
+                // Level chip placeholder
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .font(.caption2)
+                    Text("Lvl 5 Foodie")
+                        .font(InvlogTheme.caption(11, weight: .bold))
+                }
+                .foregroundColor(Color.brandSecondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color.brandYellowLight)
+                .clipShape(Capsule())
 
                 if let bio = user.bio, !bio.isEmpty {
                     Text(bio)
-                        .font(.subheadline)
+                        .font(InvlogTheme.body(14))
+                        .foregroundColor(Color.brandText)
                         .multilineTextAlignment(.center)
                         .padding(.top, 4)
                 }
             }
+            .padding(.horizontal, InvlogTheme.Spacing.md)
 
             // Stats
             HStack(spacing: 32) {
@@ -229,26 +256,70 @@ struct ProfileHeaderView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .padding(.top, InvlogTheme.Spacing.md)
 
             // Check-ins link
             NavigationLink(value: CheckInListDestination(userId: user.id)) {
                 HStack(spacing: 8) {
                     Image(systemName: "mappin.and.ellipse")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandPrimary)
                     Text("Check-in History")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
+                        .font(InvlogTheme.body(14, weight: .semibold))
+                        .foregroundColor(Color.brandText)
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
-                .padding(.horizontal, 16)
-                .frame(minHeight: 44)
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(InvlogTheme.Spacing.sm)
+                .background(Color.brandCard)
+                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                        .stroke(Color.brandBorder, lineWidth: 1)
+                )
             }
+            .padding(.horizontal, InvlogTheme.Spacing.md)
+            .padding(.top, InvlogTheme.Spacing.sm)
             .accessibilityLabel("View check-in history")
+
+            // XP progress placeholder
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("XP Progress")
+                        .font(InvlogTheme.caption(11, weight: .bold))
+                        .foregroundColor(Color.brandTextSecondary)
+                    Spacer()
+                    Text("750 / 1000 XP")
+                        .font(InvlogTheme.caption(11))
+                        .foregroundColor(Color.brandTextTertiary)
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.brandBorder)
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.brandPrimary, Color.brandSecondary],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geo.size.width * 0.75)
+                    }
+                }
+                .frame(height: 6)
+            }
+            .padding(InvlogTheme.Spacing.sm)
+            .background(Color.brandCard)
+            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+            .overlay(
+                RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                    .stroke(Color.brandBorder, lineWidth: 1)
+            )
+            .padding(.horizontal, InvlogTheme.Spacing.md)
+            .padding(.top, InvlogTheme.Spacing.xs)
 
             // Action Buttons
             if !isCurrentUser {
@@ -267,36 +338,43 @@ struct ProfileHeaderView: View {
                             }
                             Text("Message")
                         }
-                        .font(.subheadline.bold())
+                        .font(InvlogTheme.body(14, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
+                        .background(Color.brandCard)
+                        .foregroundColor(Color.brandText)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                .stroke(Color.brandBorder, lineWidth: 1)
+                        )
                     }
-                    .buttonStyle(.bordered)
                     .disabled(isSendingMessage)
                     .accessibilityLabel("Message \(user.username)")
                 }
+                .padding(.horizontal, InvlogTheme.Spacing.md)
+                .padding(.top, InvlogTheme.Spacing.md)
             }
         }
-        .padding()
+        .padding(.bottom, InvlogTheme.Spacing.md)
     }
 
     @ViewBuilder
     private var profileFollowButton: some View {
-        let label = Text(isFollowing ? "Following" : "Follow")
-            .font(.subheadline.bold())
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-        let accessLabel = isFollowing ? "Unfollow \(user.username)" : "Follow \(user.username)"
-
-        if isFollowing {
-            Button { toggleFollow() } label: { label }
-                .buttonStyle(.bordered)
-                .accessibilityLabel(accessLabel)
-        } else {
-            Button { toggleFollow() } label: { label }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel(accessLabel)
+        Button { toggleFollow() } label: {
+            Text(isFollowing ? "Following" : "Follow")
+                .font(InvlogTheme.body(14, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(isFollowing ? Color.brandCard : Color.brandText)
+                .foregroundColor(isFollowing ? Color.brandText : .white)
+                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                        .stroke(isFollowing ? Color.brandBorder : Color.clear, lineWidth: 1)
+                )
         }
+        .accessibilityLabel(isFollowing ? "Unfollow \(user.username)" : "Follow \(user.username)")
     }
 
     private func toggleFollow() {
@@ -309,7 +387,7 @@ struct ProfileHeaderView: View {
                     try await APIClient.shared.requestVoid(.unfollowUser(id: user.id))
                 }
             } catch {
-                isFollowing.toggle() // Revert
+                isFollowing.toggle()
             }
         }
     }
@@ -338,10 +416,11 @@ struct StatView: View {
     var body: some View {
         VStack(spacing: 2) {
             Text("\(count)")
-                .font(.headline)
+                .font(InvlogTheme.heading(18, weight: .bold))
+                .foregroundColor(Color.brandText)
             Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(InvlogTheme.caption(11))
+                .foregroundColor(Color.brandTextSecondary)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(count) \(label)")

@@ -26,16 +26,14 @@ struct NewConversationView: View {
                         description: "Try a different search term."
                     )
                 } else if !searchText.isEmpty {
-                    // Search results
                     userList(users: searchResults)
                 } else if isLoadingFollowed {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding()
                 } else if !followedUsers.isEmpty {
-                    // Followed users (default view)
                     List {
-                        Section("Suggested") {
+                        Section {
                             ForEach(followedUsers) { user in
                                 Button {
                                     startConversation(with: user)
@@ -43,10 +41,16 @@ struct NewConversationView: View {
                                     userRow(user: user)
                                 }
                                 .frame(minHeight: 44)
+                                .listRowBackground(Color.clear)
                             }
+                        } header: {
+                            Text("Suggested")
+                                .font(InvlogTheme.caption(12, weight: .bold))
+                                .foregroundColor(Color.brandTextSecondary)
                         }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 } else {
                     EmptyStateView(
                         systemImage: "person.2",
@@ -55,6 +59,7 @@ struct NewConversationView: View {
                     )
                 }
             }
+            .invlogScreenBackground()
             .navigationTitle("New Message")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -92,8 +97,10 @@ struct NewConversationView: View {
                 userRow(user: user)
             }
             .frame(minHeight: 44)
+            .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     @ViewBuilder
@@ -105,7 +112,7 @@ struct NewConversationView: View {
                 } else {
                     Image(systemName: "person.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
             }
             .frame(width: 44, height: 44)
@@ -113,10 +120,11 @@ struct NewConversationView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.displayName ?? user.username)
-                    .font(.subheadline.bold())
+                    .font(InvlogTheme.body(14, weight: .bold))
+                    .foregroundColor(Color.brandText)
                 Text("@\(user.username)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(12))
+                    .foregroundColor(Color.brandTextSecondary)
             }
         }
     }
@@ -128,7 +136,6 @@ struct NewConversationView: View {
         if let user = appState.currentUser {
             currentUserId = user.id
         } else {
-            // Fetch current user if not loaded yet
             do {
                 let (user, _) = try await APIClient.shared.requestWrapped(
                     .currentUser,

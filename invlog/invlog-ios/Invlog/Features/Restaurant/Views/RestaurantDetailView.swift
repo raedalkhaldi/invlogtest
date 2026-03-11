@@ -24,6 +24,7 @@ struct RestaurantDetailView: View {
                 restaurantContent(restaurant)
             }
         }
+        .invlogScreenBackground()
         .navigationTitle(restaurant?.name ?? "Place")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: CheckInHistoryDestination.self) { dest in
@@ -51,7 +52,7 @@ struct RestaurantDetailView: View {
                     } else if state.isLoading {
                         ShimmerView()
                     } else {
-                        Rectangle().fill(Color(.systemGray5))
+                        Rectangle().fill(Color.brandBorder)
                     }
                 }
                 .frame(height: 200)
@@ -66,12 +67,12 @@ struct RestaurantDetailView: View {
                     addressSection(restaurant)
                     contactSection(restaurant)
 
-                    Divider()
+                    Rectangle().fill(Color.brandBorder).frame(height: 0.5)
 
                     Group {
                         menuSection(restaurant)
                         checkInsSection(restaurant)
-                        Divider()
+                        Rectangle().fill(Color.brandBorder).frame(height: 0.5)
                         postsSection
                     }
                 }
@@ -88,7 +89,8 @@ struct RestaurantDetailView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
                     Text(restaurant.name)
-                        .font(.title2.bold())
+                        .font(InvlogTheme.heading(22, weight: .bold))
+                        .foregroundColor(Color.brandText)
                     if restaurant.isVerified {
                         Image(systemName: "checkmark.seal.fill")
                             .foregroundColor(.blue)
@@ -97,8 +99,8 @@ struct RestaurantDetailView: View {
 
                 if let cuisines = restaurant.cuisineType, !cuisines.isEmpty {
                     Text(cuisines.joined(separator: " · "))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.body(14))
+                        .foregroundColor(Color.brandTextSecondary)
                 }
             }
 
@@ -114,13 +116,14 @@ struct RestaurantDetailView: View {
             VStack(spacing: 2) {
                 HStack(spacing: 2) {
                     Image(systemName: "star.fill")
-                        .foregroundColor(.orange)
+                        .foregroundColor(Color.brandSecondary)
                     Text(String(format: "%.1f", restaurant.avgRating))
-                        .font(.headline)
+                        .font(InvlogTheme.heading(16, weight: .bold))
+                        .foregroundColor(Color.brandText)
                 }
                 Text("\(restaurant.reviewCount) reviews")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(11))
+                    .foregroundColor(Color.brandTextSecondary)
             }
             .accessibilityLabel("\(String(format: "%.1f", restaurant.avgRating)) stars, \(restaurant.reviewCount) reviews")
         }
@@ -132,18 +135,18 @@ struct RestaurantDetailView: View {
     private func statsSection(_ restaurant: Restaurant) -> some View {
         HStack(spacing: 24) {
             Label("\(restaurant.followerCount)", systemImage: "person.2")
-                .font(.subheadline)
+                .font(InvlogTheme.body(14))
                 .accessibilityLabel("\(restaurant.followerCount) followers")
             Label("\(restaurant.checkinCount)", systemImage: "mappin")
-                .font(.subheadline)
+                .font(InvlogTheme.body(14))
                 .accessibilityLabel("\(restaurant.checkinCount) check-ins")
             if let priceRange = restaurant.priceRange {
                 Text(String(repeating: "$", count: priceRange))
-                    .font(.subheadline.bold())
+                    .font(InvlogTheme.body(14, weight: .bold))
                     .accessibilityLabel("Price range \(priceRange) out of 4")
             }
         }
-        .foregroundColor(.secondary)
+        .foregroundColor(Color.brandTextSecondary)
     }
 
     // MARK: - Buttons
@@ -156,32 +159,33 @@ struct RestaurantDetailView: View {
             HStack(spacing: 8) {
                 Image(systemName: "mappin.and.ellipse")
                 Text("Check In")
-                    .font(.subheadline.bold())
+                    .font(InvlogTheme.body(14, weight: .bold))
             }
             .frame(maxWidth: .infinity)
             .frame(height: 44)
+            .background(Color.brandPrimary)
+            .foregroundColor(.white)
+            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
         }
-        .buttonStyle(.bordered)
         .accessibilityLabel("Check in at this place")
     }
 
     @ViewBuilder
     private var followButton: some View {
-        let label = Text(isFollowing ? "Following" : "Follow")
-            .font(.subheadline.bold())
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-        let accessLabel = isFollowing ? "Unfollow place" : "Follow place"
-
-        if isFollowing {
-            Button { toggleFollow() } label: { label }
-                .buttonStyle(.bordered)
-                .accessibilityLabel(accessLabel)
-        } else {
-            Button { toggleFollow() } label: { label }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel(accessLabel)
+        Button { toggleFollow() } label: {
+            Text(isFollowing ? "Following" : "Follow")
+                .font(InvlogTheme.body(14, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(isFollowing ? Color.brandCard : Color.brandText)
+                .foregroundColor(isFollowing ? Color.brandText : .white)
+                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                        .stroke(isFollowing ? Color.brandBorder : Color.clear, lineWidth: 1)
+                )
         }
+        .accessibilityLabel(isFollowing ? "Unfollow place" : "Follow place")
     }
 
     // MARK: - Address
@@ -191,9 +195,10 @@ struct RestaurantDetailView: View {
         if let address = restaurant.addressLine1 {
             HStack(spacing: 8) {
                 Image(systemName: "mappin.and.ellipse")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.brandPrimary)
                 Text(address)
-                    .font(.subheadline)
+                    .font(InvlogTheme.body(14))
+                    .foregroundColor(Color.brandText)
             }
             .frame(minHeight: 44)
         }
@@ -217,7 +222,8 @@ struct RestaurantDetailView: View {
                 .frame(minHeight: 44)
             }
         }
-        .font(.subheadline)
+        .font(InvlogTheme.body(14))
+        .foregroundColor(Color.brandPrimary)
     }
 
     // MARK: - Menu
@@ -227,7 +233,8 @@ struct RestaurantDetailView: View {
         if let menuItems = restaurant.menuItems, !menuItems.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Menu")
-                    .font(.headline)
+                    .font(InvlogTheme.heading(16, weight: .bold))
+                    .foregroundColor(Color.brandText)
 
                 ForEach(menuItems) { item in
                     MenuItemRow(item: item)
@@ -241,16 +248,18 @@ struct RestaurantDetailView: View {
     @ViewBuilder
     private func checkInsSection(_ restaurant: Restaurant) -> some View {
         if !recentCheckIns.isEmpty {
-            Divider()
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Recent Check-ins")
-                        .font(.headline)
+                        .font(InvlogTheme.heading(16, weight: .bold))
+                        .foregroundColor(Color.brandText)
                     Spacer()
                     NavigationLink(value: CheckInHistoryDestination(restaurantId: restaurant.id)) {
                         Text("See All")
-                            .font(.caption)
+                            .font(InvlogTheme.caption(12, weight: .semibold))
+                            .foregroundColor(Color.brandPrimary)
                     }
                     .frame(minHeight: 44)
                     .accessibilityLabel("See all check-ins")
@@ -270,11 +279,11 @@ struct RestaurantDetailView: View {
         if !posts.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Recent Posts")
-                    .font(.headline)
+                    .font(InvlogTheme.heading(16, weight: .bold))
+                    .foregroundColor(Color.brandText)
 
                 ForEach(posts) { post in
                     PostCardView(post: post)
-                    Divider()
                 }
             }
         }
@@ -291,7 +300,6 @@ struct RestaurantDetailView: View {
             restaurant = data
             isFollowing = data.isFollowedByMe ?? false
 
-            // Load recent check-ins
             let (checkInData, _) = try await APIClient.shared.requestWrapped(
                 .restaurantCheckins(restaurantId: data.id, page: 1, perPage: 5),
                 responseType: [CheckIn].self
@@ -338,21 +346,23 @@ struct MenuItemRow: View {
     private var menuItemContent: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(item.name)
-                .font(.subheadline.bold())
+                .font(InvlogTheme.body(14, weight: .bold))
+                .foregroundColor(Color.brandText)
             if let description = item.description {
                 Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(12))
+                    .foregroundColor(Color.brandTextSecondary)
                     .lineLimit(2)
             }
             if let tags = item.dietaryTags, !tags.isEmpty {
                 HStack(spacing: 4) {
                     ForEach(tags, id: \.self) { tag in
                         Text(tag)
-                            .font(.caption2)
+                            .font(InvlogTheme.caption(10))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color(.systemGray5))
+                            .background(Color.brandTealLight)
+                            .foregroundColor(Color.brandAccent)
                             .clipShape(Capsule())
                     }
                 }
@@ -364,7 +374,8 @@ struct MenuItemRow: View {
     private var menuItemPrice: some View {
         if let price = item.price {
             Text(String(format: "%@ %.2f", item.currency, price))
-                .font(.subheadline.bold())
+                .font(InvlogTheme.body(14, weight: .bold))
+                .foregroundColor(Color.brandText)
         }
     }
 }

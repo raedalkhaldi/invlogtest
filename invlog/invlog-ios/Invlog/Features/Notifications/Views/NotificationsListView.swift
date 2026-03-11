@@ -21,16 +21,18 @@ struct NotificationsListView: View {
                 List {
                     ForEach(notifications) { notification in
                         NotificationRowView(notification: notification)
-                            .listRowBackground(notification.isRead ? Color.clear : Color.accentColor.opacity(0.05))
+                            .listRowBackground(notification.isRead ? Color.clear : Color.brandOrangeLight.opacity(0.5))
                             .frame(minHeight: 44)
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .refreshable {
                     await loadNotifications()
                 }
             }
         }
+        .invlogScreenBackground()
         .navigationTitle("Activity")
         .toolbar {
             if !notifications.isEmpty {
@@ -39,7 +41,8 @@ struct NotificationsListView: View {
                         Task { await markAllRead() }
                     } label: {
                         Text("Read All")
-                            .font(.subheadline)
+                            .font(InvlogTheme.caption(13, weight: .semibold))
+                            .foregroundColor(Color.brandPrimary)
                     }
                     .frame(minWidth: 44, minHeight: 44)
                     .accessibilityLabel("Mark all notifications as read")
@@ -99,7 +102,7 @@ struct NotificationRowView: View {
                     image.resizable().scaledToFill()
                 } else {
                     Image(systemName: iconForType)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
             }
             .frame(width: 40, height: 40)
@@ -108,19 +111,19 @@ struct NotificationRowView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(notificationText)
-                    .font(.subheadline)
+                    .font(InvlogTheme.body(14))
                     .lineLimit(2)
 
                 Text(notification.createdAt, style: .relative)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(InvlogTheme.caption(11))
+                    .foregroundColor(Color.brandTextTertiary)
             }
 
             Spacer()
 
             if !notification.isRead {
                 Circle()
-                    .fill(Color.blue)
+                    .fill(Color.brandPrimary)
                     .frame(width: 8, height: 8)
                     .accessibilityLabel("Unread")
             }
@@ -140,7 +143,7 @@ struct NotificationRowView: View {
     private var notificationText: AttributedString {
         let actorName = notification.actor?.displayName ?? notification.actor?.username ?? "Someone"
         var text = AttributedString(actorName)
-        text.font = .subheadline.bold()
+        text.font = InvlogTheme.body(14, weight: .bold)
 
         switch notification.type {
         case "like_post":

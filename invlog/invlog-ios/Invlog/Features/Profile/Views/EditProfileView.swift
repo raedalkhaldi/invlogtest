@@ -12,22 +12,28 @@ struct EditProfileView: View {
         Form {
             Section("Display Name") {
                 TextField("Display Name", text: $displayName)
+                    .font(InvlogTheme.body(15))
                     .accessibilityLabel("Display name")
             }
 
             Section("Bio") {
                 TextField("Tell people about yourself", text: $bio, axis: .vertical)
+                    .font(InvlogTheme.body(15))
                     .lineLimit(3...6)
                     .accessibilityLabel("Bio")
             }
 
             Section("Privacy") {
                 Toggle("Private Account", isOn: $isPrivate)
+                    .font(InvlogTheme.body(15))
                     .frame(minHeight: 44)
+                    .tint(Color.brandPrimary)
                     .accessibilityLabel("Private account")
                     .accessibilityHint("When enabled, only approved followers can see your posts")
             }
         }
+        .scrollContentBackground(.hidden)
+        .invlogScreenBackground()
         .navigationTitle("Edit Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -35,6 +41,8 @@ struct EditProfileView: View {
                 Button("Save") {
                     Task { await save() }
                 }
+                .font(InvlogTheme.body(15, weight: .bold))
+                .foregroundColor(Color.brandPrimary)
                 .frame(minWidth: 44, minHeight: 44)
                 .disabled(isSaving)
             }

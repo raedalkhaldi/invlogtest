@@ -10,6 +10,21 @@ struct InvlogApp: App {
 
     init() {
         ImagePipelineConfig.setup()
+        Self.configureAppearance()
+    }
+
+    private static func configureAppearance() {
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithDefaultBackground()
+        navAppearance.titleTextAttributes = [
+            .foregroundColor: UIColor(Color.brandText)
+        ]
+        navAppearance.largeTitleTextAttributes = [
+            .foregroundColor: UIColor(Color.brandText)
+        ]
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+        UINavigationBar.appearance().tintColor = UIColor(Color.brandPrimary)
     }
 
     var body: some Scene {

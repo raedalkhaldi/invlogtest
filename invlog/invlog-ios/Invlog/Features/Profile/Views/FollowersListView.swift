@@ -34,6 +34,7 @@ struct FollowersListView: View {
                             FollowableUserRowView(user: user)
                         }
                         .frame(minHeight: 44)
+                        .listRowBackground(Color.clear)
                         .onAppear {
                             if user.id == users.last?.id && hasMorePages {
                                 Task { await loadMore() }
@@ -42,8 +43,10 @@ struct FollowersListView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
+        .invlogScreenBackground()
         .navigationTitle(mode.rawValue)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: User.self) { user in

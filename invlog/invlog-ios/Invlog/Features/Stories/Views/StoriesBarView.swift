@@ -9,8 +9,7 @@ struct StoriesBarView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
-                // "Your Story" / Add button — always visible
+            HStack(spacing: 14) {
                 addStoryButton
 
                 ForEach(storyGroups) { group in
@@ -23,8 +22,8 @@ struct StoriesBarView: View {
                     .accessibilityLabel("\(group.user.displayName ?? group.user.username ?? "")'s story\(group.hasUnviewed ? ", new" : "")")
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.horizontal, InvlogTheme.Spacing.md)
+            .padding(.vertical, InvlogTheme.Spacing.xs)
         }
         .fullScreenCover(item: $selectedGroup) { group in
             StoryViewerView(
@@ -50,40 +49,42 @@ struct StoriesBarView: View {
                             if let image = state.image {
                                 image.resizable().scaledToFill()
                             } else {
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.secondary)
+                                placeholderAvatar
                             }
                         }
-                        .frame(width: 56, height: 56)
+                        .frame(width: InvlogTheme.Avatar.storyInner, height: InvlogTheme.Avatar.storyInner)
                         .clipShape(Circle())
                         .overlay(
                             Circle()
-                                .strokeBorder(Color(.systemGray4), lineWidth: 2)
-                                .frame(width: 64, height: 64)
+                                .strokeBorder(
+                                    style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                                )
+                                .foregroundColor(Color.brandBorder)
+                                .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
                         )
                     } else {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 30))
-                            .foregroundColor(.secondary)
-                            .frame(width: 56, height: 56)
+                        placeholderAvatar
                             .overlay(
                                 Circle()
-                                    .strokeBorder(Color(.systemGray4), lineWidth: 2)
-                                    .frame(width: 64, height: 64)
+                                    .strokeBorder(
+                                        style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                                    )
+                                    .foregroundColor(Color.brandBorder)
+                                    .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
                             )
                     }
 
                     // Plus badge
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.accentColor)
-                        .background(Circle().fill(Color(.systemBackground)).frame(width: 18, height: 18))
+                        .foregroundColor(Color.brandPrimary)
+                        .background(Circle().fill(Color.brandCard).frame(width: 18, height: 18))
                 }
-                .frame(width: 64, height: 64)
+                .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
 
-                Text("Your Story")
-                    .font(.caption2)
+                Text("Add Story")
+                    .font(InvlogTheme.caption(10, weight: .medium))
+                    .foregroundColor(Color.brandTextSecondary)
                     .lineLimit(1)
                     .frame(width: 68)
             }
@@ -92,45 +93,51 @@ struct StoriesBarView: View {
         .accessibilityLabel("Add to your story")
     }
 
+    private var placeholderAvatar: some View {
+        Image(systemName: "person.circle.fill")
+            .font(.system(size: 30))
+            .foregroundColor(Color.brandTextTertiary)
+            .frame(width: InvlogTheme.Avatar.storyInner, height: InvlogTheme.Avatar.storyInner)
+    }
+
     // MARK: - Story Avatar
 
     private func storyAvatarView(for group: StoryGroup) -> some View {
         VStack(spacing: 4) {
             ZStack {
-                // Ring
                 Circle()
                     .strokeBorder(
                         group.hasUnviewed
                             ? LinearGradient(
-                                colors: [.orange, .pink, .purple],
+                                colors: [Color.brandPrimary, Color.brandSecondary],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                             : LinearGradient(
-                                colors: [Color(.systemGray4)],
+                                colors: [Color.brandBorder],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
                         lineWidth: 2.5
                     )
-                    .frame(width: 64, height: 64)
+                    .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
 
-                // Avatar
                 LazyImage(url: group.user.avatarUrl) { state in
                     if let image = state.image {
                         image.resizable().scaledToFill()
                     } else {
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: 30))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.brandTextTertiary)
                     }
                 }
-                .frame(width: 56, height: 56)
+                .frame(width: InvlogTheme.Avatar.storyInner, height: InvlogTheme.Avatar.storyInner)
                 .clipShape(Circle())
             }
 
             Text(group.user.displayName ?? group.user.username ?? "")
-                .font(.caption2)
+                .font(InvlogTheme.caption(10, weight: .medium))
+                .foregroundColor(Color.brandTextSecondary)
                 .lineLimit(1)
                 .frame(width: 68)
         }

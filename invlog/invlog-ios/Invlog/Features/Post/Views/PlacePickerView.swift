@@ -23,7 +23,6 @@ struct PlacePickerView: View {
         NavigationView {
             List {
                 if searchText.isEmpty && searchResults.isEmpty {
-                    // Show nearby places when no search
                     Section {
                         if locationManager.location != nil {
                             Button {
@@ -31,9 +30,10 @@ struct PlacePickerView: View {
                             } label: {
                                 HStack(spacing: 12) {
                                     Image(systemName: "location.fill")
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(Color.brandPrimary)
                                     Text("Search nearby restaurants")
-                                        .foregroundColor(.primary)
+                                        .font(InvlogTheme.body(14))
+                                        .foregroundColor(Color.brandText)
                                 }
                             }
                             .frame(minHeight: 44)
@@ -43,9 +43,10 @@ struct PlacePickerView: View {
                             } label: {
                                 HStack(spacing: 12) {
                                     Image(systemName: "location")
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(Color.brandTextSecondary)
                                     Text("Enable location for nearby places")
-                                        .foregroundColor(.primary)
+                                        .font(InvlogTheme.body(14))
+                                        .foregroundColor(Color.brandText)
                                 }
                             }
                             .frame(minHeight: 44)
@@ -59,7 +60,6 @@ struct PlacePickerView: View {
                     }
                     .listRowSeparator(.hidden)
                 } else if searchResults.isEmpty && !searchText.isEmpty {
-                    // Custom place option
                     Section {
                         Button {
                             let place = SelectedPlace(
@@ -74,14 +74,14 @@ struct PlacePickerView: View {
                         } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(.accentColor)
+                                    .foregroundColor(Color.brandPrimary)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Add \"\(searchText)\"")
-                                        .font(.subheadline.bold())
-                                        .foregroundColor(.primary)
+                                        .font(InvlogTheme.body(14, weight: .bold))
+                                        .foregroundColor(Color.brandText)
                                     Text("as a new place")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .font(InvlogTheme.caption(12))
+                                        .foregroundColor(Color.brandTextSecondary)
                                 }
                             }
                         }
@@ -90,7 +90,7 @@ struct PlacePickerView: View {
                 }
 
                 if !searchResults.isEmpty {
-                    Section("Results") {
+                    Section {
                         ForEach(searchResults, id: \.self) { item in
                             Button {
                                 selectMapItem(item)
@@ -98,24 +98,24 @@ struct PlacePickerView: View {
                                 HStack(spacing: 12) {
                                     Image(systemName: "mappin.circle.fill")
                                         .font(.title2)
-                                        .foregroundColor(.red)
+                                        .foregroundColor(Color.brandPrimary)
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.name ?? "Unknown Place")
-                                            .font(.subheadline.bold())
-                                            .foregroundColor(.primary)
+                                            .font(InvlogTheme.body(14, weight: .bold))
+                                            .foregroundColor(Color.brandText)
 
                                         if let address = formatAddress(item.placemark) {
                                             Text(address)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
+                                                .font(InvlogTheme.caption(12))
+                                                .foregroundColor(Color.brandTextSecondary)
                                                 .lineLimit(2)
                                         }
 
                                         if let category = item.pointOfInterestCategory?.rawValue {
                                             Text(formatCategory(category))
-                                                .font(.caption2)
-                                                .foregroundColor(.accentColor)
+                                                .font(InvlogTheme.caption(10))
+                                                .foregroundColor(Color.brandPrimary)
                                         }
                                     }
 
@@ -124,10 +124,16 @@ struct PlacePickerView: View {
                             }
                             .frame(minHeight: 44)
                         }
+                    } header: {
+                        Text("Results")
+                            .font(InvlogTheme.caption(12, weight: .bold))
+                            .foregroundColor(Color.brandTextSecondary)
                     }
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .invlogScreenBackground()
             .navigationTitle("Add Place")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "Search restaurants, cafes, places...")
@@ -154,7 +160,6 @@ struct PlacePickerView: View {
                 let status = locationManager.authorizationStatus
                 if status == .authorizedWhenInUse || status == .authorizedAlways {
                     locationManager.startUpdating()
-                    // Auto-search nearby on appear
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         searchNearby()
                     }
@@ -235,10 +240,8 @@ struct PlacePickerView: View {
     }
 
     private func formatCategory(_ raw: String) -> String {
-        // Convert "MKPOICategoryRestaurant" → "Restaurant"
         let cleaned = raw
             .replacingOccurrences(of: "MKPOICategory", with: "")
-        // Insert spaces before capitals
         var result = ""
         for char in cleaned {
             if char.isUppercase && !result.isEmpty {

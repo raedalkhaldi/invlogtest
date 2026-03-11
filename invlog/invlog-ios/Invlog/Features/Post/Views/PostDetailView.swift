@@ -18,14 +18,14 @@ struct PostDetailView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                     Text("Couldn't load post")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.body(14))
+                        .foregroundColor(Color.brandTextSecondary)
                     Button("Try Again") {
                         Task { await loadPost(); await loadComments() }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(InvlogAccentButtonStyle())
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let post {
@@ -34,24 +34,26 @@ struct PostDetailView: View {
                         PostCardView(post: post)
                             .padding(.horizontal)
 
-                        Divider()
+                        Rectangle().fill(Color.brandBorder).frame(height: 0.5)
 
                         // Comments Section
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Comments")
-                                .font(.headline)
+                                .font(InvlogTheme.heading(16, weight: .bold))
+                                .foregroundColor(Color.brandText)
                                 .padding(.horizontal)
 
                             if comments.isEmpty {
                                 Text("No comments yet")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .font(InvlogTheme.body(14))
+                                    .foregroundColor(Color.brandTextSecondary)
                                     .padding(.horizontal)
                             } else {
                                 ForEach(comments) { comment in
                                     CommentRowView(comment: comment)
                                         .padding(.horizontal)
-                                    Divider()
+                                    Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                                        .padding(.horizontal)
                                 }
                             }
                         }
@@ -62,7 +64,11 @@ struct PostDetailView: View {
                 // Comment Input
                 HStack(spacing: 8) {
                     TextField("Add a comment...", text: $newComment)
-                        .textFieldStyle(.roundedBorder)
+                        .font(InvlogTheme.body(15))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.brandBorder.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
                         .accessibilityLabel("Write a comment")
 
                     Button {
@@ -70,14 +76,20 @@ struct PostDetailView: View {
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.title2)
+                            .foregroundColor(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.brandTextTertiary : Color.brandPrimary)
                     }
                     .frame(minWidth: 44, minHeight: 44)
                     .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityLabel("Send comment")
                 }
                 .padding()
+                .background(Color.brandCard)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                }
             }
         }
+        .invlogScreenBackground()
         .navigationTitle("Post")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Restaurant.self) { restaurant in
@@ -126,7 +138,7 @@ struct PostDetailView: View {
             )
             comments.insert(comment, at: 0)
         } catch {
-            newComment = content // Restore on failure
+            newComment = content
         }
     }
 }
@@ -141,7 +153,7 @@ struct CommentRowView: View {
                     image.resizable().scaledToFill()
                 } else {
                     Image(systemName: "person.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.brandTextTertiary)
                 }
             }
             .frame(width: 32, height: 32)
@@ -151,15 +163,17 @@ struct CommentRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(comment.author?.username ?? "Unknown")
-                        .font(.subheadline.bold())
+                        .font(InvlogTheme.body(13, weight: .bold))
+                        .foregroundColor(Color.brandText)
                     Spacer()
                     Text(comment.createdAt, style: .relative)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .font(InvlogTheme.caption(10))
+                        .foregroundColor(Color.brandTextTertiary)
                 }
 
                 Text(comment.content)
-                    .font(.subheadline)
+                    .font(InvlogTheme.body(14))
+                    .foregroundColor(Color.brandText)
             }
         }
     }
