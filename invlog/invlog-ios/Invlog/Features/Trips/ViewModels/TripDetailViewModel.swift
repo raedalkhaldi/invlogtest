@@ -70,7 +70,9 @@ final class TripDetailViewModel: ObservableObject {
         sortOrder: Int,
         notes: String?,
         category: String,
-        estimatedDuration: Int?
+        estimatedDuration: Int?,
+        startTime: String?,
+        endTime: String?
     ) async -> Bool {
         actionError = nil
         do {
@@ -86,7 +88,9 @@ final class TripDetailViewModel: ObservableObject {
                     sortOrder: sortOrder,
                     notes: notes,
                     category: category,
-                    estimatedDuration: estimatedDuration
+                    estimatedDuration: estimatedDuration,
+                    startTime: startTime,
+                    endTime: endTime
                 ),
                 responseType: Trip.self
             )

@@ -60,6 +60,12 @@ export class TripStop {
   @Column({ name: 'sort_order', type: 'int', default: 0 })
   sortOrder: number;
 
+  @Column({ name: 'start_time', type: 'varchar', length: 5, nullable: true })
+  startTime: string;
+
+  @Column({ name: 'end_time', type: 'varchar', length: 5, nullable: true })
+  endTime: string;
+
   @Column({ type: 'text', nullable: true })
   notes: string;
 

@@ -45,6 +45,16 @@ export class AddStopDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(5)
+  startTime?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  endTime?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(5000)
   notes?: string;
 

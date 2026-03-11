@@ -30,6 +30,8 @@ struct TripStop: Codable, Identifiable, Hashable {
     let longitude: Double?
     let dayNumber: Int
     let sortOrder: Int
+    let startTime: String?
+    let endTime: String?
     let notes: String?
     let category: String
     let estimatedDuration: Int?
