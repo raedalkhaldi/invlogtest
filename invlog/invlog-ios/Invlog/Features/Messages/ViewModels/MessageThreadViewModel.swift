@@ -47,7 +47,7 @@ final class MessageThreadViewModel: ObservableObject {
 
     func sendMessage(_ content: String) async {
         do {
-            let message = try await APIClient.shared.request(
+            let (message, _) = try await APIClient.shared.requestWrapped(
                 .sendMessage(conversationId: conversationId, content: content),
                 responseType: Message.self
             )

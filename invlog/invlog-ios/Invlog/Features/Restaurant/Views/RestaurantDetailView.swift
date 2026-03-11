@@ -14,12 +14,40 @@ struct RestaurantDetailView: View {
     @State private var isLoading = true
     @State private var isFollowing = false
     @State private var showCheckIn = false
+    @State private var error: String?
 
     var body: some View {
         Group {
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundColor(Color.brandSecondary)
+                    Text("Could not load place")
+                        .font(InvlogTheme.heading(18, weight: .bold))
+                        .foregroundColor(Color.brandText)
+                    Text(error)
+                        .font(InvlogTheme.body(14))
+                        .foregroundColor(Color.brandTextSecondary)
+                        .multilineTextAlignment(.center)
+                    Button {
+                        self.error = nil
+                        isLoading = true
+                        Task { await loadRestaurant() }
+                    } label: {
+                        Text("Try Again")
+                            .font(InvlogTheme.body(14, weight: .bold))
+                            .frame(width: 140, height: 44)
+                            .background(Color.brandPrimary)
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
             } else if let restaurant {
                 restaurantContent(restaurant)
             }
@@ -310,7 +338,7 @@ struct RestaurantDetailView: View {
             )
             recentCheckIns = checkInData
         } catch {
-            // Handle error
+            self.error = error.localizedDescription
         }
         isLoading = false
     }
