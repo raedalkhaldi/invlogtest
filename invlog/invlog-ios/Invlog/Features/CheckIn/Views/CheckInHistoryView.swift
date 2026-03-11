@@ -5,7 +5,12 @@ struct CheckInHistoryView: View {
     let mode: Mode
     let id: String
 
+    // Check-in data (restaurant mode)
     @State private var checkIns: [CheckIn] = []
+    // Post data (user mode — shows full post cards)
+    @State private var posts: [Post] = []
+    @State private var nextCursor: String?
+
     @State private var isLoading = true
     @State private var currentPage = 1
     @State private var hasMorePages = true
@@ -17,51 +22,27 @@ struct CheckInHistoryView: View {
 
     var body: some View {
         Group {
-            if isLoading && checkIns.isEmpty {
+            if isLoading && posts.isEmpty && checkIns.isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if checkIns.isEmpty {
+            } else if mode == .user && posts.isEmpty {
                 EmptyStateView(
                     systemImage: "mappin.slash",
                     title: "No check-ins yet",
-                    description: mode == .restaurant
-                        ? "No one has checked in here yet. Be the first!"
-                        : "No check-ins recorded yet."
+                    description: "No check-ins recorded yet."
                 )
+            } else if mode == .restaurant && checkIns.isEmpty {
+                EmptyStateView(
+                    systemImage: "mappin.slash",
+                    title: "No check-ins yet",
+                    description: "No one has checked in here yet. Be the first!"
+                )
+            } else if mode == .user {
+                // User mode: show full post cards with media, comments, etc.
+                userPostsList
             } else {
-                List {
-                    ForEach(checkIns) { checkIn in
-                        if let restaurant = checkIn.restaurant {
-                            NavigationLink(value: restaurant) {
-                                CheckInRow(checkIn: checkIn)
-                            }
-                            .frame(minHeight: 44)
-                        } else {
-                            CheckInRow(checkIn: checkIn)
-                                .frame(minHeight: 44)
-                        }
-                    }
-                    .onAppear {
-                        if let last = checkIns.last, last.id == checkIns.last?.id, hasMorePages {
-                            Task { await loadMore() }
-                        }
-                    }
-
-                    if hasMorePages && !checkIns.isEmpty {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .listRowSeparator(.hidden)
-                    }
-                }
-                .listStyle(.plain)
-                .refreshable {
-                    currentPage = 1
-                    hasMorePages = true
-                    await loadCheckIns()
-                }
+                // Restaurant mode: show check-in rows
+                restaurantCheckInsList
             }
         }
         .navigationTitle(mode.rawValue)
@@ -69,19 +50,127 @@ struct CheckInHistoryView: View {
         .navigationDestination(for: Restaurant.self) { restaurant in
             RestaurantDetailView(restaurantSlug: restaurant.slug)
         }
+        .navigationDestination(for: Post.self) { post in
+            PostDetailView(postId: post.id)
+        }
         .task {
+            if mode == .user {
+                await loadUserPosts()
+            } else {
+                await loadCheckIns()
+            }
+        }
+    }
+
+    // MARK: - User Mode (Full Post Cards)
+
+    private var userPostsList: some View {
+        List {
+            ForEach(posts) { post in
+                NavigationLink(value: post) {
+                    PostCardView(post: post)
+                }
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .onAppear {
+                    if post.id == posts.last?.id && nextCursor != nil {
+                        Task { await loadMorePosts() }
+                    }
+                }
+            }
+
+            if nextCursor != nil {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .listRowSeparator(.hidden)
+            }
+        }
+        .listStyle(.plain)
+        .refreshable {
+            nextCursor = nil
+            await loadUserPosts()
+        }
+    }
+
+    // MARK: - Restaurant Mode (Check-in Rows)
+
+    private var restaurantCheckInsList: some View {
+        List {
+            ForEach(checkIns) { checkIn in
+                if let restaurant = checkIn.restaurant {
+                    NavigationLink(value: restaurant) {
+                        CheckInRow(checkIn: checkIn)
+                    }
+                    .frame(minHeight: 44)
+                } else {
+                    CheckInRow(checkIn: checkIn)
+                        .frame(minHeight: 44)
+                }
+            }
+            .onAppear {
+                if let last = checkIns.last, last.id == checkIns.last?.id, hasMorePages {
+                    Task { await loadMoreCheckIns() }
+                }
+            }
+
+            if hasMorePages && !checkIns.isEmpty {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .listRowSeparator(.hidden)
+            }
+        }
+        .listStyle(.plain)
+        .refreshable {
+            currentPage = 1
+            hasMorePages = true
             await loadCheckIns()
         }
     }
 
+    // MARK: - Data Loading (User Posts)
+
+    private func loadUserPosts() async {
+        isLoading = true
+        do {
+            let (feedResponse, _) = try await APIClient.shared.requestWrapped(
+                .userPosts(userId: id, cursor: nil, limit: 20),
+                responseType: FeedResponse.self
+            )
+            posts = feedResponse.data
+            nextCursor = feedResponse.nextCursor
+        } catch {
+            // silent fail for now
+        }
+        isLoading = false
+    }
+
+    private func loadMorePosts() async {
+        guard let cursor = nextCursor else { return }
+        do {
+            let (feedResponse, _) = try await APIClient.shared.requestWrapped(
+                .userPosts(userId: id, cursor: cursor, limit: 20),
+                responseType: FeedResponse.self
+            )
+            posts.append(contentsOf: feedResponse.data)
+            nextCursor = feedResponse.nextCursor
+        } catch {
+            // silent fail
+        }
+    }
+
+    // MARK: - Data Loading (Restaurant Check-ins)
+
     private func loadCheckIns() async {
         isLoading = true
         do {
-            let endpoint: APIEndpoint = mode == .restaurant
-                ? .restaurantCheckins(restaurantId: id, page: 1, perPage: 20)
-                : .userCheckins(userId: id, page: 1, perPage: 20)
             let (data, _) = try await APIClient.shared.requestWrapped(
-                endpoint,
+                .restaurantCheckins(restaurantId: id, page: 1, perPage: 20),
                 responseType: [CheckIn].self
             )
             checkIns = data
@@ -92,14 +181,11 @@ struct CheckInHistoryView: View {
         isLoading = false
     }
 
-    private func loadMore() async {
+    private func loadMoreCheckIns() async {
         currentPage += 1
         do {
-            let endpoint: APIEndpoint = mode == .restaurant
-                ? .restaurantCheckins(restaurantId: id, page: currentPage, perPage: 20)
-                : .userCheckins(userId: id, page: currentPage, perPage: 20)
             let (data, _) = try await APIClient.shared.requestWrapped(
-                endpoint,
+                .restaurantCheckins(restaurantId: id, page: currentPage, perPage: 20),
                 responseType: [CheckIn].self
             )
             checkIns.append(contentsOf: data)
