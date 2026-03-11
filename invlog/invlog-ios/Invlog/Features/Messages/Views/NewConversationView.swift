@@ -170,8 +170,8 @@ struct NewConversationView: View {
 
         isSearching = true
         do {
-            let results = try await APIClient.shared.request(
-                .search(query: trimmed, type: "users", lat: nil, lng: nil),
+            let (results, _) = try await APIClient.shared.requestWrapped(
+                .search(query: trimmed, type: "people", lat: nil, lng: nil),
                 responseType: SearchResponse.self
             )
             searchResults = results.users ?? []
@@ -184,7 +184,7 @@ struct NewConversationView: View {
     private func startConversation(with user: User) {
         Task {
             do {
-                let conversation = try await APIClient.shared.request(
+                let (conversation, _) = try await APIClient.shared.requestWrapped(
                     .startConversation(userId: user.id),
                     responseType: Conversation.self
                 )
