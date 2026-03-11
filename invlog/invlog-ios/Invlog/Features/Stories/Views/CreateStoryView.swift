@@ -200,25 +200,8 @@ struct CreateStoryView: View {
     }
 }
 
-// MARK: - Video Transferable
-
-struct VideoTransferable: Transferable {
-    let url: URL
-
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(contentType: .movie) { movie in
-            SentTransferredFile(movie.url)
-        } importing: { received in
-            let tempDir = FileManager.default.temporaryDirectory
-            let fileName = "story_video_\(UUID().uuidString).mp4"
-            let destination = tempDir.appendingPathComponent(fileName)
-            try FileManager.default.copyItem(at: received.file, to: destination)
-            return Self(url: destination)
-        }
-    }
-}
-
 // MARK: - Video Preview
+// Note: VideoTransferable is defined in CreatePostView.swift and reused here
 
 private struct StoryVideoPreview: UIViewRepresentable {
     let url: URL
