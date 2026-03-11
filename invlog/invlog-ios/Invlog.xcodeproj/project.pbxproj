@@ -80,6 +80,13 @@
 		B016A016B016C016D016E001 /* InvlogTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B016A016B016C016D016E002 /* InvlogTheme.swift */; };
 		B016A016B016C016D016E003 /* InvlogViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B016A016B016C016D016E004 /* InvlogViewModifiers.swift */; };
 		B017A017B017C017D017E001 /* CustomTabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B017A017B017C017D017E002 /* CustomTabBarView.swift */; };
+		T001A001B001C001D001F001 /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = T001A001B001C001D001E001 /* Trip.swift */; };
+		T002A002B002C002D002F001 /* TripsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = T002A002B002C002D002E002 /* TripsViewModel.swift */; };
+		T003A003B003C003D003F001 /* TripDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = T003A003B003C003D003E003 /* TripDetailViewModel.swift */; };
+		T004A004B004C004D004F001 /* MyTripsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T004A004B004C004D004E004 /* MyTripsView.swift */; };
+		T005A005B005C005D005F001 /* CreateTripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T005A005B005C005D005E005 /* CreateTripView.swift */; };
+		T006A006B006C006D006F001 /* TripDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T006A006B006C006D006E006 /* TripDetailView.swift */; };
+		T007A007B007C007D007F001 /* AddTripStopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T007A007B007C007D007E007 /* AddTripStopView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -155,6 +162,13 @@
 		B016A016B016C016D016E002 /* InvlogTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "InvlogTheme.swift"; path = "InvlogTheme.swift"; sourceTree = "<group>"; };
 		B016A016B016C016D016E004 /* InvlogViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "InvlogViewModifiers.swift"; path = "InvlogViewModifiers.swift"; sourceTree = "<group>"; };
 		B017A017B017C017D017E002 /* CustomTabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CustomTabBarView.swift"; path = "CustomTabBarView.swift"; sourceTree = "<group>"; };
+		T001A001B001C001D001E001 /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Trip.swift"; path = "Trip.swift"; sourceTree = "<group>"; };
+		T002A002B002C002D002E002 /* TripsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TripsViewModel.swift"; path = "TripsViewModel.swift"; sourceTree = "<group>"; };
+		T003A003B003C003D003E003 /* TripDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TripDetailViewModel.swift"; path = "TripDetailViewModel.swift"; sourceTree = "<group>"; };
+		T004A004B004C004D004E004 /* MyTripsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "MyTripsView.swift"; path = "MyTripsView.swift"; sourceTree = "<group>"; };
+		T005A005B005C005D005E005 /* CreateTripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CreateTripView.swift"; path = "CreateTripView.swift"; sourceTree = "<group>"; };
+		T006A006B006C006D006E006 /* TripDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TripDetailView.swift"; path = "TripDetailView.swift"; sourceTree = "<group>"; };
+		T007A007B007C007D007E007 /* AddTripStopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AddTripStopView.swift"; path = "AddTripStopView.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -372,6 +386,7 @@
 				2326843F33DAA61C2A8AB00C /* Restaurant */,
 				9F71A39F365B4AE935CD2D14 /* Search */,
 				A100B100C100D100E100F100 /* Stories */,
+				T100A100B100C100D100E100 /* Trips */,
 			);
 			name = "Features";
 			path = "Features";
@@ -388,6 +403,7 @@
 				7BA3C15947947A9C979B30A7 /* Post.swift */,
 				ABCC08AE9A5E43650B116532 /* Restaurant.swift */,
 				A004B004C004D004E004F002 /* Story.swift */,
+				T001A001B001C001D001E001 /* Trip.swift */,
 				79310E69862619086120C7AB /* User.swift */,
 			);
 			name = "Models";
@@ -643,6 +659,38 @@
 			path = "Network";
 			sourceTree = "<group>";
 		};
+		T100A100B100C100D100E100 /* Trips */ = {
+			isa = PBXGroup;
+			children = (
+				T101A101B101C101D101E101 /* ViewModels */,
+				T102A102B102C102D102E102 /* Views */,
+			);
+			name = "Trips";
+			path = "Trips";
+			sourceTree = "<group>";
+		};
+		T101A101B101C101D101E101 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				T003A003B003C003D003E003 /* TripDetailViewModel.swift */,
+				T002A002B002C002D002E002 /* TripsViewModel.swift */,
+			);
+			name = "ViewModels";
+			path = "ViewModels";
+			sourceTree = "<group>";
+		};
+		T102A102B102C102D102E102 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				T007A007B007C007D007E007 /* AddTripStopView.swift */,
+				T005A005B005C005D005E005 /* CreateTripView.swift */,
+				T004A004B004C004D004E004 /* MyTripsView.swift */,
+				T006A006B006C006D006E006 /* TripDetailView.swift */,
+			);
+			name = "Views";
+			path = "Views";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -803,6 +851,13 @@
 				B016A016B016C016D016E001 /* InvlogTheme.swift in Sources */,
 				B016A016B016C016D016E003 /* InvlogViewModifiers.swift in Sources */,
 				B017A017B017C017D017E001 /* CustomTabBarView.swift in Sources */,
+				T001A001B001C001D001F001 /* Trip.swift in Sources */,
+				T002A002B002C002D002F001 /* TripsViewModel.swift in Sources */,
+				T003A003B003C003D003F001 /* TripDetailViewModel.swift in Sources */,
+				T004A004B004C004D004F001 /* MyTripsView.swift in Sources */,
+				T005A005B005C005D005F001 /* CreateTripView.swift in Sources */,
+				T006A006B006C006D006F001 /* TripDetailView.swift in Sources */,
+				T007A007B007C007D007F001 /* AddTripStopView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

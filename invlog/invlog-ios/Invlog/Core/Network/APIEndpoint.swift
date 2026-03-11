@@ -100,6 +100,22 @@ enum APIEndpoint {
     case sendMessage(conversationId: String, content: String)
     case markConversationRead(conversationId: String)
 
+    // Trips
+    case createTrip(title: String, description: String?, startDate: String?, endDate: String?, visibility: String)
+    case myTrips(cursor: String?, limit: Int)
+    case exploreTrips(cursor: String?, limit: Int)
+    case tripDetail(id: String)
+    case updateTrip(id: String, title: String?, description: String?, visibility: String?, status: String?)
+    case deleteTrip(id: String)
+    case addTripStop(tripId: String, name: String, restaurantId: String?, address: String?, latitude: Double?, longitude: Double?, dayNumber: Int, sortOrder: Int, notes: String?, category: String, estimatedDuration: Int?)
+    case updateTripStop(stopId: String, name: String?, notes: String?, dayNumber: Int?, sortOrder: Int?)
+    case removeTripStop(stopId: String)
+    case reorderTripStops(tripId: String, stopIds: [String])
+    case inviteCollaborator(tripId: String, userId: String, role: String)
+    case removeCollaborator(tripId: String, userId: String)
+    case cloneTrip(id: String)
+    case userTrips(username: String, cursor: String?, limit: Int)
+
     var method: HTTPMethod {
         switch self {
         case .register, .login, .socialLogin, .refreshToken, .logout,
@@ -108,15 +124,19 @@ enum APIEndpoint {
              .createCheckIn, .addMenuItem, .registerDeviceToken,
              .presignUpload, .completeUpload,
              .bookmarkPost, .createStory, .viewStory,
-             .startConversation, .sendMessage:
+             .startConversation, .sendMessage,
+             .createTrip, .addTripStop, .reorderTripStops,
+             .inviteCollaborator, .cloneTrip:
             return .post
         case .updateProfile, .updatePost, .updateComment, .updateRestaurant,
              .markNotificationRead, .markAllNotificationsRead,
-             .markConversationRead:
+             .markConversationRead,
+             .updateTrip, .updateTripStop:
             return .patch
         case .deleteAccount, .deletePost, .deleteComment,
              .unlikePost, .unlikeComment, .unfollowUser, .unfollowRestaurant,
-             .removeBookmark, .deleteStory:
+             .removeBookmark, .deleteStory,
+             .deleteTrip, .removeTripStop, .removeCollaborator:
             return .delete
         default:
             return .get
@@ -216,6 +236,22 @@ enum APIEndpoint {
         case .messages(let conversationId, _, _): return "/conversations/\(conversationId)/messages"
         case .sendMessage(let conversationId, _): return "/conversations/\(conversationId)/messages"
         case .markConversationRead(let conversationId): return "/conversations/\(conversationId)/read"
+
+        // Trips
+        case .createTrip: return "/trips"
+        case .myTrips: return "/trips/mine"
+        case .exploreTrips: return "/trips/explore"
+        case .tripDetail(let id): return "/trips/\(id)"
+        case .updateTrip(let id, _, _, _, _): return "/trips/\(id)"
+        case .deleteTrip(let id): return "/trips/\(id)"
+        case .addTripStop(let tripId, _, _, _, _, _, _, _, _, _, _): return "/trips/\(tripId)/stops"
+        case .updateTripStop(let stopId, _, _, _, _): return "/trips/stops/\(stopId)"
+        case .removeTripStop(let stopId): return "/trips/stops/\(stopId)"
+        case .reorderTripStops(let tripId, _): return "/trips/\(tripId)/stops/reorder"
+        case .inviteCollaborator(let tripId, _, _): return "/trips/\(tripId)/collaborators"
+        case .removeCollaborator(let tripId, let userId): return "/trips/\(tripId)/collaborators/\(userId)"
+        case .cloneTrip(let id): return "/trips/\(id)/clone"
+        case .userTrips(let username, _, _): return "/users/\(username)/trips"
         }
     }
 
@@ -223,12 +259,14 @@ enum APIEndpoint {
         switch self {
         case .feed(let cursor, let limit), .exploreFeed(let cursor, let limit),
              .recentCheckIns(let cursor, let limit), .notifications(let cursor, let limit),
-             .bookmarks(let cursor, let limit), .conversations(let cursor, let limit):
+             .bookmarks(let cursor, let limit), .conversations(let cursor, let limit),
+             .myTrips(let cursor, let limit), .exploreTrips(let cursor, let limit):
             var items: [URLQueryItem] = [URLQueryItem(name: "limit", value: "\(limit)")]
             if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
             return items
         case .userPosts(_, let cursor, let limit),
-             .messages(_, let cursor, let limit):
+             .messages(_, let cursor, let limit),
+             .userTrips(_, let cursor, let limit):
             var items: [URLQueryItem] = [URLQueryItem(name: "limit", value: "\(limit)")]
             if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
             return items
@@ -321,6 +359,44 @@ enum APIEndpoint {
             return ["userId": userId]
         case .sendMessage(_, let content):
             return ["content": content]
+        case .createTrip(let title, let description, let startDate, let endDate, let visibility):
+            var body: [String: Any] = ["title": title, "visibility": visibility]
+            if let description { body["description"] = description }
+            if let startDate { body["startDate"] = startDate }
+            if let endDate { body["endDate"] = endDate }
+            return body
+        case .updateTrip(_, let title, let description, let visibility, let status):
+            var body: [String: Any] = [:]
+            if let title { body["title"] = title }
+            if let description { body["description"] = description }
+            if let visibility { body["visibility"] = visibility }
+            if let status { body["status"] = status }
+            return body
+        case .addTripStop(_, let name, let restaurantId, let address, let lat, let lng, let dayNumber, let sortOrder, let notes, let category, let estimatedDuration):
+            var body: [String: Any] = [
+                "name": name,
+                "dayNumber": dayNumber,
+                "sortOrder": sortOrder,
+                "category": category
+            ]
+            if let restaurantId { body["restaurantId"] = restaurantId }
+            if let address { body["address"] = address }
+            if let lat { body["latitude"] = lat }
+            if let lng { body["longitude"] = lng }
+            if let notes { body["notes"] = notes }
+            if let estimatedDuration { body["estimatedDuration"] = estimatedDuration }
+            return body
+        case .updateTripStop(_, let name, let notes, let dayNumber, let sortOrder):
+            var body: [String: Any] = [:]
+            if let name { body["name"] = name }
+            if let notes { body["notes"] = notes }
+            if let dayNumber { body["dayNumber"] = dayNumber }
+            if let sortOrder { body["sortOrder"] = sortOrder }
+            return body
+        case .reorderTripStops(_, let stopIds):
+            return ["stopIds": stopIds]
+        case .inviteCollaborator(_, let userId, let role):
+            return ["userId": userId, "role": role]
         default:
             return nil
         }
