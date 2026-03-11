@@ -18,6 +18,8 @@ struct ProfileView: View {
     @State private var isLoading = true
     @State private var showSettings = false
     @State private var error: String?
+    @State private var messageConversation: Conversation?
+    @State private var navigateToMessages = false
 
     private var isCurrentUser: Bool { userId == nil }
 
@@ -26,7 +28,14 @@ struct ProfileView: View {
             if let user {
                 VStack(spacing: 0) {
                     // Profile Header
-                    ProfileHeaderView(user: user, isCurrentUser: isCurrentUser)
+                    ProfileHeaderView(
+                        user: user,
+                        isCurrentUser: isCurrentUser,
+                        onMessageTapped: { conversation in
+                            messageConversation = conversation
+                            navigateToMessages = true
+                        }
+                    )
 
                     Divider()
 
@@ -72,6 +81,20 @@ struct ProfileView: View {
         }
         .navigationDestination(for: User.self) { user in
             ProfileView(userId: user.username)
+        }
+        .navigationDestination(isPresented: $navigateToMessages) {
+            if let conversation = messageConversation, let user {
+                MessageThreadView(
+                    conversationId: conversation.id,
+                    otherUser: ConversationUser(
+                        id: user.id,
+                        username: user.username,
+                        displayName: user.displayName,
+                        avatarUrl: user.avatarUrl,
+                        isVerified: user.isVerified
+                    )
+                )
+            }
         }
         .toolbar {
             if isCurrentUser {
@@ -132,13 +155,14 @@ struct ProfileView: View {
 struct ProfileHeaderView: View {
     let user: User
     let isCurrentUser: Bool
+    var onMessageTapped: ((Conversation) -> Void)?
     @State private var isFollowing: Bool
-    @State private var selectedConversation: Conversation?
-    @State private var navigateToMessages = false
+    @State private var isSendingMessage = false
 
-    init(user: User, isCurrentUser: Bool) {
+    init(user: User, isCurrentUser: Bool, onMessageTapped: ((Conversation) -> Void)? = nil) {
         self.user = user
         self.isCurrentUser = isCurrentUser
+        self.onMessageTapped = onMessageTapped
         _isFollowing = State(initialValue: user.isFollowedByMe ?? false)
     }
 
@@ -217,28 +241,6 @@ struct ProfileHeaderView: View {
             }
             .accessibilityLabel("View check-in history")
 
-            // Saved Posts link (current user only)
-            if isCurrentUser {
-                NavigationLink(destination: BookmarksView()) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bookmark")
-                            .foregroundColor(.secondary)
-                        Text("Saved Posts")
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 44)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-                .accessibilityLabel("View saved posts")
-            }
-
             // Action Buttons
             if !isCurrentUser {
                 HStack(spacing: 12) {
@@ -248,7 +250,12 @@ struct ProfileHeaderView: View {
                         startConversation()
                     } label: {
                         HStack(spacing: 6) {
-                            Image(systemName: "envelope")
+                            if isSendingMessage {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "envelope")
+                            }
                             Text("Message")
                         }
                         .font(.subheadline.bold())
@@ -256,25 +263,12 @@ struct ProfileHeaderView: View {
                         .frame(height: 44)
                     }
                     .buttonStyle(.bordered)
+                    .disabled(isSendingMessage)
                     .accessibilityLabel("Message \(user.username)")
                 }
             }
         }
         .padding()
-        .navigationDestination(isPresented: $navigateToMessages) {
-            if let conversation = selectedConversation {
-                MessageThreadView(
-                    conversationId: conversation.id,
-                    otherUser: ConversationUser(
-                        id: user.id,
-                        username: user.username,
-                        displayName: user.displayName,
-                        avatarUrl: user.avatarUrl,
-                        isVerified: user.isVerified
-                    )
-                )
-            }
-        }
     }
 
     @ViewBuilder
@@ -312,17 +306,18 @@ struct ProfileHeaderView: View {
     }
 
     private func startConversation() {
+        isSendingMessage = true
         Task {
             do {
                 let conversation = try await APIClient.shared.request(
                     .startConversation(userId: user.id),
                     responseType: Conversation.self
                 )
-                selectedConversation = conversation
-                navigateToMessages = true
+                onMessageTapped?(conversation)
             } catch {
                 // Handle error silently
             }
+            isSendingMessage = false
         }
     }
 }
