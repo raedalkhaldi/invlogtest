@@ -35,6 +35,10 @@ struct CreatePostView: View {
     @StateObject private var uploadService = MediaUploadService()
     @StateObject private var locationManager = LocationManager()
     @State private var errorMessage: String?
+    @State private var showVineRecorder = false
+    @State private var showVideoFilter = false
+    @State private var recordedVideoURL: URL?
+    @State private var recordedVideoThumbnail: UIImage?
 
     init(preselectedRestaurant: Restaurant? = nil) {
         self.preselectedRestaurant = preselectedRestaurant
@@ -86,6 +90,24 @@ struct CreatePostView: View {
                 }
                 .padding(.horizontal)
                 .accessibilityLabel("Add photos or videos")
+
+                // Record a Clip (Vine-style)
+                Button {
+                    showVineRecorder = true
+                } label: {
+                    HStack {
+                        Image(systemName: "video.fill")
+                        Text("Record a Clip")
+                    }
+                    .font(InvlogTheme.body(14, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.brandPrimary)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                }
+                .padding(.horizontal)
+                .accessibilityLabel("Record a short video clip")
 
                 // Selected Images Preview
                 if !selectedImages.isEmpty {
@@ -288,6 +310,32 @@ struct CreatePostView: View {
                             selectedImages.append(image)
                             mediaItems.append(.image(image))
                         }
+                    }
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showVineRecorder) {
+            NavigationStack {
+                VineRecorderView { videoURL, thumbnail in
+                    recordedVideoURL = videoURL
+                    recordedVideoThumbnail = thumbnail
+                    showVineRecorder = false
+                    // Show filter view after a brief delay to allow dismiss
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showVideoFilter = true
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showVideoFilter) {
+            if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
+                NavigationStack {
+                    VideoFilterView(videoURL: videoURL, thumbnail: thumb) { filteredURL, filteredThumb in
+                        mediaItems.append(.video(filteredURL, filteredThumb))
+                        selectedImages.append(filteredThumb)
+                        showVideoFilter = false
+                        recordedVideoURL = nil
+                        recordedVideoThumbnail = nil
                     }
                 }
             }
