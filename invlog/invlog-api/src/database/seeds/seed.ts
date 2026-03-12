@@ -288,6 +288,68 @@ async function seed() {
 
   console.log(`Created ${postIndex} posts across ${userIds.length} users`);
 
+  // Seed post images using Unsplash food photos
+  const foodImages = [
+    '1504674900247-0877df9cc836', // kabsa/rice platter
+    '1495474472287-4d71bcdd2085', // coffee latte art
+    '1529006557810-274b9b2fc783', // shawarma wrap
+    '1504754524776-8f4f37790ca0', // brunch spread
+    '1414235077428-338989a2e8c0', // restaurant dining view
+    '1544025162-d76694265947', // lamb chops plated
+    '1555939594-58d7cb561ad1', // classic dinner plate
+    '1488477181946-6428a0291777', // dessert assortment
+    '1517248135467-4c7edcad34c4', // cozy cafe interior
+    '1579871494447-9811cf80d66c', // sushi platter
+    '1550547660-d9450f859349', // burger close-up
+    '1476224203421-9ac39bcb3327', // colorful food spread
+    '1540189549336-e6e99c3679fe', // weekend brunch
+    '1568901346375-23c9450c58cd', // gourmet burger
+    '1467003909585-2f8a72700288', // beautifully plated dish
+  ];
+
+  // Delete existing seed post_media
+  for (const uid of userIds) {
+    await qr.query(`DELETE FROM post_media WHERE uploader_id = $1`, [uid]);
+  }
+
+  // Get all seed post IDs with their author IDs
+  const seedPosts = await qr.query(
+    `SELECT id, author_id FROM posts WHERE author_id = ANY($1) ORDER BY created_at ASC`,
+    [userIds],
+  );
+
+  let mediaCount = 0;
+  for (let i = 0; i < seedPosts.length; i++) {
+    const post = seedPosts[i];
+    const imgId = foodImages[i % foodImages.length];
+    const baseUrl = `https://images.unsplash.com/photo-${imgId}`;
+
+    // Determine how many images: every 5th → 3, every 3rd → 2, rest → 1
+    const numImages = (i % 5 === 0) ? 3 : (i % 3 === 0) ? 2 : 1;
+
+    for (let j = 0; j < numImages; j++) {
+      const photoIdx = (i + j) % foodImages.length;
+      const photoId = foodImages[photoIdx];
+      const photoBase = `https://images.unsplash.com/photo-${photoId}`;
+
+      await qr.query(
+        `INSERT INTO post_media (post_id, uploader_id, media_type, url, medium_url, thumbnail_url, width, height, sort_order, processing_status)
+         VALUES ($1, $2, 'image', $3, $4, $5, 1080, 1350, $6, 'ready')`,
+        [
+          post.id,
+          post.author_id,
+          `${photoBase}?w=1080&h=1350&fit=crop&auto=format`,
+          `${photoBase}?w=720&h=900&fit=crop&auto=format`,
+          `${photoBase}?w=200&h=250&fit=crop&auto=format`,
+          j,
+        ],
+      );
+      mediaCount++;
+    }
+  }
+
+  console.log(`Created ${mediaCount} post media across ${seedPosts.length} posts`);
+
   // Seed comments on posts
   const commentTemplates = [
     'Looks amazing! 🔥',

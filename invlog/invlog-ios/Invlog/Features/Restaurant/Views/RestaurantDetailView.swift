@@ -12,6 +12,7 @@ struct RestaurantDetailView: View {
     @State private var posts: [Post] = []
     @State private var recentCheckIns: [CheckIn] = []
     @State private var isLoading = true
+    @State private var restaurantMedia: [PostMedia] = []
     @State private var isFollowing = false
     @State private var showCheckIn = false
     @State private var error: String?
@@ -78,13 +79,23 @@ struct RestaurantDetailView: View {
     private func restaurantContent(_ restaurant: Restaurant) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                LazyImage(url: restaurant.coverUrl) { state in
+                LazyImage(url: restaurant.coverUrl ?? restaurantMedia.first.flatMap { URL(string: $0.mediumUrl ?? $0.url) }) { state in
                     if let image = state.image {
                         image.resizable().scaledToFill()
                     } else if state.isLoading {
                         ShimmerView()
                     } else {
-                        Rectangle().fill(Color.brandBorder)
+                        ZStack {
+                            Rectangle().fill(Color.brandBorder)
+                            VStack(spacing: 8) {
+                                Image(systemName: "fork.knife")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(Color.brandTextTertiary)
+                                Text(restaurant.name)
+                                    .font(InvlogTheme.body(14, weight: .semibold))
+                                    .foregroundColor(Color.brandTextSecondary)
+                            }
+                        }
                     }
                 }
                 .frame(height: 200)
@@ -101,10 +112,12 @@ struct RestaurantDetailView: View {
 
                     Rectangle().fill(Color.brandBorder).frame(height: 0.5)
 
+                    mapSection(restaurant)
+
                     Group {
                         menuSection(restaurant)
                         checkInsSection(restaurant)
-                        Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                        photoGallerySection
                         postsSection
                     }
                 }
@@ -304,11 +317,82 @@ struct RestaurantDetailView: View {
         }
     }
 
+    // MARK: - Map
+
+    @ViewBuilder
+    private func mapSection(_ restaurant: Restaurant) -> some View {
+        if let lat = restaurant.latitude, let lng = restaurant.longitude {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Location")
+                    .font(InvlogTheme.heading(16, weight: .bold))
+                    .foregroundColor(Color.brandText)
+
+                Map(coordinateRegion: .constant(MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: lat, longitude: lng),
+                    span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                )), annotationItems: [RestaurantMapPin(id: restaurant.id, lat: lat, lng: lng, name: restaurant.name)]) { pin in
+                    MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: pin.lat, longitude: pin.lng)) {
+                        VStack(spacing: 2) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.title)
+                                .foregroundColor(Color.brandPrimary)
+                            Text(pin.name)
+                                .font(InvlogTheme.caption(10, weight: .semibold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.brandCard)
+                                .clipShape(Capsule())
+                                .shadow(color: .black.opacity(0.1), radius: 2)
+                        }
+                    }
+                }
+                .frame(height: 180)
+                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
+                .allowsHitTesting(false)
+            }
+        }
+    }
+
+    // MARK: - Photo Gallery
+
+    @ViewBuilder
+    private var photoGallerySection: some View {
+        if !restaurantMedia.isEmpty {
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Photos")
+                    .font(InvlogTheme.heading(16, weight: .bold))
+                    .foregroundColor(Color.brandText)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 4) {
+                        ForEach(restaurantMedia.prefix(12)) { media in
+                            LazyImage(url: URL(string: media.thumbnailUrl ?? media.mediumUrl ?? media.url)) { state in
+                                if let image = state.image {
+                                    image.resizable().scaledToFill()
+                                } else if state.isLoading {
+                                    ShimmerView()
+                                } else {
+                                    Rectangle().fill(Color.brandBorder)
+                                }
+                            }
+                            .frame(width: 100, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.xs))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Posts
 
     @ViewBuilder
     private var postsSection: some View {
         if !posts.isEmpty {
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("Recent Posts")
                     .font(InvlogTheme.heading(16, weight: .bold))
@@ -337,6 +421,15 @@ struct RestaurantDetailView: View {
                 responseType: [CheckIn].self
             )
             recentCheckIns = checkInData
+
+            // Fetch restaurant posts
+            if let (postsResponse, _) = try? await APIClient.shared.requestWrapped(
+                .restaurantPosts(restaurantId: data.id, page: 1, perPage: 10),
+                responseType: RestaurantPostsResponse.self
+            ) {
+                posts = postsResponse.data
+                restaurantMedia = postsResponse.data.flatMap { $0.media ?? [] }
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -358,6 +451,18 @@ struct RestaurantDetailView: View {
             }
         }
     }
+}
+
+private struct RestaurantMapPin: Identifiable {
+    let id: String
+    let lat: Double
+    let lng: Double
+    let name: String
+}
+
+struct RestaurantPostsResponse: Codable {
+    let data: [Post]
+    let total: Int
 }
 
 struct MenuItemRow: View {

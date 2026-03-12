@@ -59,6 +59,7 @@ enum APIEndpoint {
     case updateRestaurant(id: String, data: [String: Any])
     case nearbyRestaurants(lat: Double, lng: Double, radiusKm: Double, limit: Int)
     case restaurantMenu(id: String)
+    case restaurantPosts(restaurantId: String, page: Int, perPage: Int)
     case addMenuItem(restaurantId: String, data: [String: Any])
 
     // Check-ins
@@ -198,6 +199,7 @@ enum APIEndpoint {
         case .updateRestaurant(let id, _): return "/restaurants/\(id)"
         case .nearbyRestaurants: return "/restaurants/nearby"
         case .restaurantMenu(let id): return "/restaurants/\(id)/menu"
+        case .restaurantPosts(let restaurantId, _, _): return "/restaurants/\(restaurantId)/posts"
         case .addMenuItem(let restaurantId, _): return "/restaurants/\(restaurantId)/menu"
 
         // Check-ins
@@ -275,7 +277,7 @@ enum APIEndpoint {
             return items
         case .comments(_, let page, let perPage),
              .followers(_, let page, let perPage), .following(_, let page, let perPage),
-             .restaurantCheckins(_, let page, let perPage), .userCheckins(_, let page, let perPage):
+             .restaurantCheckins(_, let page, let perPage), .restaurantPosts(_, let page, let perPage), .userCheckins(_, let page, let perPage):
             return [
                 URLQueryItem(name: "page", value: "\(page)"),
                 URLQueryItem(name: "perPage", value: "\(perPage)"),

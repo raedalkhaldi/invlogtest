@@ -5,10 +5,11 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Restaurant, OperatingHours, MenuItem } from './entities/restaurant.entity';
 import { CheckIn } from '../checkins/entities/checkin.entity';
 import { User } from '../users/entities/user.entity';
+import { Post, PostMedia } from '../posts/entities/post.entity';
 import {
   CreateRestaurantDto,
   UpdateRestaurantDto,
@@ -29,6 +30,10 @@ export class RestaurantsService {
     private readonly checkinRepo: Repository<CheckIn>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Post)
+    private readonly postRepo: Repository<Post>,
+    @InjectRepository(PostMedia)
+    private readonly mediaRepo: Repository<PostMedia>,
   ) {}
 
   private generateSlug(name: string): string {
@@ -287,5 +292,60 @@ export class RestaurantsService {
     }
 
     return { data: checkins, total };
+  }
+
+  // Posts for a restaurant
+
+  async getRestaurantPosts(
+    restaurantId: string,
+    page: number = 1,
+    perPage: number = 20,
+  ): Promise<{ data: any[]; total: number }> {
+    await this.findById(restaurantId);
+    const [posts, total] = await this.postRepo.findAndCount({
+      where: { restaurantId, isPublic: true },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * perPage,
+      take: perPage,
+    });
+
+    if (posts.length > 0) {
+      const postIds = posts.map((p) => p.id);
+
+      // Hydrate media
+      const allMedia = await this.mediaRepo.find({
+        where: { postId: In(postIds) },
+        order: { sortOrder: 'ASC' },
+      });
+      const mediaMap = new Map<string, PostMedia[]>();
+      for (const m of allMedia) {
+        const list = mediaMap.get(m.postId!) ?? [];
+        list.push(m);
+        mediaMap.set(m.postId!, list);
+      }
+
+      // Hydrate authors (all required User fields for iOS)
+      const authorIds = [...new Set(posts.map((p) => p.authorId).filter(Boolean))];
+      let authorMap = new Map<string, User>();
+      if (authorIds.length) {
+        const authors = await this.userRepo
+          .createQueryBuilder('u')
+          .select(['u.id', 'u.username', 'u.displayName', 'u.avatarUrl', 'u.isVerified', 'u.bio', 'u.followerCount', 'u.followingCount', 'u.postCount', 'u.isPrivate', 'u.coverUrl'])
+          .where('u.id IN (:...ids)', { ids: authorIds })
+          .getMany();
+        authorMap = new Map(authors.map((a) => [a.id, a]));
+      }
+
+      return {
+        data: posts.map((p) => ({
+          ...p,
+          media: mediaMap.get(p.id) ?? [],
+          author: authorMap.get(p.authorId) ?? null,
+        })),
+        total,
+      };
+    }
+
+    return { data: posts, total };
   }
 }
