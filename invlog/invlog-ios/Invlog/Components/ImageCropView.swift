@@ -281,7 +281,7 @@ struct CropScrollViewRepresentable: UIViewRepresentable {
 
 // MARK: - Crop Overlay
 
-private class CropOverlayView: UIView {
+fileprivate class CropOverlayView: UIView {
     var cropRect: CGRect = .zero
 
     override init(frame: CGRect) {
