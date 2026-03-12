@@ -287,31 +287,33 @@ struct VideoFilterView: View {
     // MARK: - Filter Thumbnail Generation
 
     private func generateFilterThumbnails() {
-        Task.detached(priority: .userInitiated) {
-            let asset = AVURLAsset(url: videoURL)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 150, height: 150)
+        let url = videoURL
+        Task {
+            let result = await Task.detached(priority: .userInitiated) { () -> [VideoFilter: UIImage] in
+                let asset = AVURLAsset(url: url)
+                let generator = AVAssetImageGenerator(asset: asset)
+                generator.appliesPreferredTrackTransform = true
+                generator.maximumSize = CGSize(width: 150, height: 150)
 
-            let time = CMTime(seconds: 0.5, preferredTimescale: 600)
-            guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else {
-                return
-            }
-
-            let sourceCI = CIImage(cgImage: cgImage)
-            let context = CIContext()
-            var thumbnails: [VideoFilter: UIImage] = [:]
-
-            for filter in VideoFilter.allCases {
-                let filteredCI = applyCIFilter(to: sourceCI, filter: filter)
-                if let filteredCG = context.createCGImage(filteredCI, from: filteredCI.extent) {
-                    thumbnails[filter] = UIImage(cgImage: filteredCG)
+                let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+                guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else {
+                    return [:]
                 }
-            }
 
-            await MainActor.run {
-                filterThumbnails = thumbnails
-            }
+                let sourceCI = CIImage(cgImage: cgImage)
+                let context = CIContext()
+                var thumbs: [VideoFilter: UIImage] = [:]
+
+                for filter in VideoFilter.allCases {
+                    let filteredCI = Self.applyCIFilterStatic(to: sourceCI, filter: filter)
+                    if let filteredCG = context.createCGImage(filteredCI, from: filteredCI.extent) {
+                        thumbs[filter] = UIImage(cgImage: filteredCG)
+                    }
+                }
+                return thumbs
+            }.value
+
+            filterThumbnails = result
         }
     }
 
@@ -400,7 +402,15 @@ struct VideoFilterView: View {
 
     // MARK: - CIFilter Application
 
+    private static func applyCIFilterStatic(to image: CIImage, filter: VideoFilter) -> CIImage {
+        applyCIFilterImpl(to: image, filter: filter)
+    }
+
     private func applyCIFilter(to image: CIImage, filter: VideoFilter) -> CIImage {
+        Self.applyCIFilterImpl(to: image, filter: filter)
+    }
+
+    private static func applyCIFilterImpl(to image: CIImage, filter: VideoFilter) -> CIImage {
         switch filter {
         case .original:
             return image

@@ -1,6 +1,7 @@
 import SwiftUI
-import NukeUI
+@preconcurrency import NukeUI
 
+@MainActor
 struct StoriesBarView: View {
     let storyGroups: [StoryGroup]
     let currentUser: User?

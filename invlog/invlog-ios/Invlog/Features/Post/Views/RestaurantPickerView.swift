@@ -1,5 +1,5 @@
 import SwiftUI
-import NukeUI
+@preconcurrency import NukeUI
 
 struct RestaurantPickerView: View {
     @Binding var selectedRestaurant: Restaurant?

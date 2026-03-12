@@ -1,6 +1,7 @@
 import SwiftUI
-import NukeUI
+@preconcurrency import NukeUI
 
+@MainActor
 struct MediaCarouselView: View {
     let media: [PostMedia]
     @State private var currentPage = 0

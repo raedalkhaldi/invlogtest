@@ -703,14 +703,8 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
     // MARK: - Video Orientation Helper
 
     private func setPortraitOrientation(on connection: AVCaptureConnection) {
-        if #available(iOS 17.0, *) {
-            if connection.isVideoRotationAngleSupported(90) {
-                connection.videoRotationAngle = 90
-            }
-        } else {
-            if connection.isVideoOrientationSupported {
-                connection.videoOrientation = .portrait
-            }
+        if connection.isVideoOrientationSupported {
+            connection.videoOrientation = .portrait
         }
     }
 

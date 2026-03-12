@@ -1,6 +1,6 @@
 import SwiftUI
 import Nuke
-import NukeUI
+@preconcurrency import NukeUI
 
 struct FeedView: View {
     @StateObject private var viewModel = FeedViewModel()
