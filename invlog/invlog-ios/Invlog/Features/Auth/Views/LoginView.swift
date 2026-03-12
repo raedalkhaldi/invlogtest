@@ -121,6 +121,7 @@ struct LoginView: View {
     private func styledTextField(_ placeholder: String, text: Binding<String>) -> some View {
         TextField(placeholder, text: text)
             .font(InvlogTheme.body(15))
+            .foregroundColor(Color.brandText)
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .background(Color.brandCard)
