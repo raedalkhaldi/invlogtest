@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { User } from '../users/entities/user.entity';
@@ -18,6 +20,7 @@ export class SearchService {
     private readonly postRepo: Repository<Post>,
     @InjectRepository(Follow)
     private readonly followRepo: Repository<Follow>,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async search(
@@ -106,6 +109,11 @@ export class SearchService {
     pattern: string | null,
     limit: number,
   ): Promise<Restaurant[]> {
+    // Cache restaurant search results for 3 minutes (restaurants rarely change)
+    const cacheKey = `search:restaurants:${pattern ?? 'all'}:${limit}`;
+    const cached = await this.cache.get<Restaurant[]>(cacheKey);
+    if (cached) return cached;
+
     const qb = this.restaurantRepo
       .createQueryBuilder('r')
       .where('r.is_active = true');
@@ -117,10 +125,13 @@ export class SearchService {
       );
     }
 
-    return qb
+    const results = await qb
       .orderBy('r.followerCount', 'DESC')
       .limit(limit)
       .getMany();
+
+    await this.cache.set(cacheKey, results, 180000); // 3 min
+    return results;
   }
 
   private async searchPosts(pattern: string | null, limit: number): Promise<any[]> {

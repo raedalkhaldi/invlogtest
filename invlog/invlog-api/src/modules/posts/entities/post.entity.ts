@@ -11,6 +11,8 @@ import type { User } from '../../users/entities/user.entity';
 import type { Restaurant } from '../../restaurants/entities/restaurant.entity';
 
 @Entity('posts')
+@Index(['authorId', 'createdAt'])
+@Index(['isPublic', 'createdAt'])
 export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;

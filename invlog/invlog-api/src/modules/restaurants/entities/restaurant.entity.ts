@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 
 @Entity('restaurants')
+@Index(['latitude', 'longitude'])
 export class Restaurant {
   @PrimaryGeneratedColumn('uuid')
   id: string;

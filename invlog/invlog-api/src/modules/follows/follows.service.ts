@@ -1,8 +1,11 @@
 import {
   Injectable,
+  Inject,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Follow } from './entities/follow.entity';
@@ -20,6 +23,7 @@ export class FollowsService {
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
     private readonly notificationsService: NotificationsService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async followUser(followerId: string, targetId: string): Promise<Follow> {
@@ -72,6 +76,9 @@ export class FollowsService {
       targetId: followerId,
     });
 
+    // Invalidate feed cache so new follow's posts appear
+    await this.cache.del(`feed:follows:${followerId}`);
+
     return saved;
   }
 
@@ -98,6 +105,9 @@ export class FollowsService {
       .set({ followingCount: () => 'GREATEST("following_count" - 1, 0)' })
       .where('id = :id', { id: followerId })
       .execute();
+
+    // Invalidate feed cache so unfollowed user's posts disappear
+    await this.cache.del(`feed:follows:${followerId}`);
   }
 
   async followRestaurant(
