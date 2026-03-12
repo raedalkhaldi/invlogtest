@@ -1,11 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Notification, DeviceToken } from './entities/notification.entity';
 import { User } from '../users/entities/user.entity';
+import { ApnsPushService } from './apns-push.service';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
@@ -13,6 +16,7 @@ export class NotificationsService {
     private readonly deviceTokenRepo: Repository<DeviceToken>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly apnsPushService: ApnsPushService,
   ) {}
 
   async create(data: {
@@ -28,7 +32,14 @@ export class NotificationsService {
       return null;
     }
     const notification = this.notificationRepo.create(data);
-    return this.notificationRepo.save(notification);
+    const saved = await this.notificationRepo.save(notification);
+
+    // Send push notification (fire-and-forget — never blocks API response)
+    this.sendPushForNotification(saved, data.actorId).catch((err) => {
+      this.logger.error(`Push notification failed: ${err.message}`);
+    });
+
+    return saved;
   }
 
   async findByRecipientId(
@@ -127,5 +138,102 @@ export class NotificationsService {
     });
 
     return this.deviceTokenRepo.save(deviceToken);
+  }
+
+  // MARK: - Push Notifications
+
+  private async sendPushForNotification(
+    notification: Notification,
+    actorId?: string,
+  ): Promise<void> {
+    // Look up active device tokens for recipient
+    const deviceTokens = await this.deviceTokenRepo.find({
+      where: {
+        userId: notification.recipientId,
+        isActive: true,
+        platform: 'ios',
+      },
+    });
+
+    if (deviceTokens.length === 0) return;
+
+    // Look up actor name for the push message
+    let actorName = 'Someone';
+    if (actorId) {
+      const actor = await this.userRepo.findOne({
+        where: { id: actorId },
+        select: ['id', 'displayName', 'username'],
+      });
+      if (actor) {
+        actorName = actor.displayName || actor.username;
+      }
+    }
+
+    // Build push payload based on notification type
+    const { title, body } = this.buildPushContent(
+      notification.type,
+      actorName,
+    );
+
+    // Get unread count for badge
+    const unreadCount = await this.getUnreadCount(notification.recipientId);
+
+    const tokens = deviceTokens.map((dt) => dt.token);
+    const result = await this.apnsPushService.sendPush(tokens, {
+      title,
+      body,
+      badge: unreadCount,
+      data: {
+        notificationId: notification.id,
+        type: notification.type,
+        ...(notification.targetType
+          ? { targetType: notification.targetType }
+          : {}),
+        ...(notification.targetId ? { targetId: notification.targetId } : {}),
+      },
+    });
+
+    // Deactivate invalid tokens
+    if (result.invalidTokens.length > 0) {
+      await this.deviceTokenRepo
+        .createQueryBuilder()
+        .update(DeviceToken)
+        .set({ isActive: false })
+        .where('token IN (:...tokens)', { tokens: result.invalidTokens })
+        .execute();
+    }
+  }
+
+  private buildPushContent(
+    type: string,
+    actorName: string,
+  ): { title: string; body: string } {
+    switch (type) {
+      case 'follow':
+        return {
+          title: 'New Follower',
+          body: `${actorName} started following you`,
+        };
+      case 'like_post':
+        return {
+          title: 'Post Liked',
+          body: `${actorName} liked your post`,
+        };
+      case 'like_comment':
+        return {
+          title: 'Comment Liked',
+          body: `${actorName} liked your comment`,
+        };
+      case 'comment':
+        return {
+          title: 'New Comment',
+          body: `${actorName} commented on your post`,
+        };
+      default:
+        return {
+          title: 'Invlog',
+          body: `${actorName} interacted with your content`,
+        };
+    }
   }
 }

@@ -35,6 +35,7 @@ struct CreatePostView: View {
     @StateObject private var uploadService = MediaUploadService()
     @StateObject private var locationManager = LocationManager()
     @State private var errorMessage: String?
+    @State private var showPhotoCapture = false
     @State private var showVineRecorder = false
     @State private var showVideoFilter = false
     @State private var recordedVideoURL: URL?
@@ -90,6 +91,24 @@ struct CreatePostView: View {
                 }
                 .padding(.horizontal)
                 .accessibilityLabel("Add photos or videos")
+
+                // Take Photo
+                Button {
+                    showPhotoCapture = true
+                } label: {
+                    HStack {
+                        Image(systemName: "camera.fill")
+                        Text("Take Photo")
+                    }
+                    .font(InvlogTheme.body(14, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.brandSecondary)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                }
+                .padding(.horizontal)
+                .accessibilityLabel("Take a photo with camera")
 
                 // Record a Clip (Vine-style)
                 Button {
@@ -311,6 +330,14 @@ struct CreatePostView: View {
                             mediaItems.append(.image(image))
                         }
                     }
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showPhotoCapture) {
+            NavigationStack {
+                PhotoCaptureView { capturedImage in
+                    mediaItems.append(.image(capturedImage))
+                    selectedImages.append(capturedImage)
                 }
             }
         }

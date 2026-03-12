@@ -22,6 +22,13 @@ export interface AppConfig {
     refreshSecret: string;
     refreshExpiry: string;
   };
+  apns: {
+    keyId: string;
+    teamId: string;
+    keyContent: string;
+    bundleId: string;
+    production: boolean;
+  };
 }
 
 export default (): AppConfig => ({
@@ -47,5 +54,12 @@ export default (): AppConfig => ({
     accessExpiry: process.env.JWT_ACCESS_EXPIRY ?? '15m',
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'refresh-secret-change-me',
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY ?? '7d',
+  },
+  apns: {
+    keyId: process.env.APNS_KEY_ID ?? '',
+    teamId: process.env.APNS_TEAM_ID ?? '',
+    keyContent: (process.env.APNS_KEY_CONTENT ?? '').replace(/\\n/g, '\n'),
+    bundleId: process.env.APNS_BUNDLE_ID ?? 'com.invlog.app',
+    production: process.env.NODE_ENV === 'production',
   },
 });
