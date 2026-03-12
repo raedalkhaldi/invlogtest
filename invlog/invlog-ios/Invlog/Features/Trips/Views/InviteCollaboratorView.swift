@@ -1,5 +1,5 @@
 import SwiftUI
-import NukeUI
+@preconcurrency import NukeUI
 
 struct InviteCollaboratorView: View {
     @Environment(\.dismiss) private var dismiss

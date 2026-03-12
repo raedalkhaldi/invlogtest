@@ -1,6 +1,6 @@
 import SwiftUI
 import MapKit
-import NukeUI
+@preconcurrency import NukeUI
 
 struct TripDetailView: View {
     let tripId: String

@@ -1,6 +1,6 @@
 import SwiftUI
 import PhotosUI
-import NukeUI
+@preconcurrency import NukeUI
 
 struct AvatarPresignResponse: Codable {
     let uploadUrl: String

@@ -1,5 +1,5 @@
 import SwiftUI
-import NukeUI
+@preconcurrency import NukeUI
 
 struct MessageThreadView: View {
     @StateObject private var viewModel: MessageThreadViewModel

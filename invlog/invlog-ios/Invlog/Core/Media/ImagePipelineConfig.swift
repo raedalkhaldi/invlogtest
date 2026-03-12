@@ -1,6 +1,6 @@
 import Foundation
 import Nuke
-import NukeUI
+@preconcurrency import NukeUI
 
 enum ImagePipelineConfig {
     static func setup() {

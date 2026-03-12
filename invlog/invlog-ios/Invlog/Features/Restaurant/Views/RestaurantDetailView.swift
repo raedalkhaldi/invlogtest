@@ -1,11 +1,12 @@
 import SwiftUI
 import MapKit
-import NukeUI
+@preconcurrency import NukeUI
 
 struct CheckInHistoryDestination: Hashable {
     let restaurantId: String
 }
 
+@MainActor
 struct RestaurantDetailView: View {
     let restaurantSlug: String
     @State private var restaurant: Restaurant?
@@ -378,7 +379,7 @@ struct RestaurantDetailView: View {
                                 }
                             }
                             .frame(width: 100, height: 100)
-                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.xs))
+                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                         }
                     }
                 }

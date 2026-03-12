@@ -1,5 +1,5 @@
 import SwiftUI
-import NukeUI
+@preconcurrency import NukeUI
 
 struct NearbyRestaurantsDestination: Hashable {}
 struct ExploreTripsDestination: Hashable {}

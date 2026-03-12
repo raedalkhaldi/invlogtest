@@ -1,6 +1,6 @@
 import SwiftUI
 import MapKit
-import NukeUI
+@preconcurrency import NukeUI
 
 struct NearbyRestaurantsView: View {
     @StateObject private var viewModel = NearbyRestaurantsViewModel()

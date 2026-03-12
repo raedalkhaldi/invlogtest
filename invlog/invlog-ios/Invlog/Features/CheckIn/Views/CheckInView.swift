@@ -1,6 +1,6 @@
 import SwiftUI
 import CoreLocation
-import NukeUI
+@preconcurrency import NukeUI
 
 struct CheckInView: View {
     let restaurant: Restaurant
