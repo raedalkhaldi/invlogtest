@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import configuration from './config/configuration.js';
 import databaseConfig from './config/database.config.js';
@@ -53,10 +54,33 @@ import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
         };
       },
     }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        const redisUrl = configService.get<string | null>('redis.url');
+        if (redisUrl) {
+          const { redisStore } = await import('cache-manager-ioredis-yet');
+          return {
+            store: redisStore,
+            url: redisUrl,
+            ttl: 300000, // 5 minutes default TTL (ms)
+          };
+        }
+        // In-memory cache for local dev
+        return { ttl: 300000 };
+      },
+    }),
     ThrottlerModule.forRoot([
       {
+        name: 'default',
         ttl: 60000,
-        limit: 60,
+        limit: 300,
+      },
+      {
+        name: 'auth',
+        ttl: 60000,
+        limit: 10,
       },
     ]),
     HealthModule,
