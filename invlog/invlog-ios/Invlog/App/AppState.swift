@@ -14,6 +14,25 @@ final class AppState: ObservableObject {
 
     func checkAuthState() {
         isAuthenticated = keychainManager.getAccessToken() != nil
+        if isAuthenticated {
+            loadCurrentUser()
+        }
+    }
+
+    func loadCurrentUser() {
+        Task {
+            do {
+                let (user, _) = try await APIClient.shared.requestWrapped(
+                    .currentUser,
+                    responseType: User.self
+                )
+                await MainActor.run {
+                    self.currentUser = user
+                }
+            } catch {
+                // Non-critical — user data will load on next sign-in
+            }
+        }
     }
 
     func signIn(accessToken: String, refreshToken: String, user: User) {

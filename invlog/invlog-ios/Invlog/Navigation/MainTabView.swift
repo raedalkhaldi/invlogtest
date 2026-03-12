@@ -4,6 +4,8 @@ struct MainTabView: View {
     @EnvironmentObject private var appState: AppState
     @State private var selectedTab: Tab = .feed
     @State private var showCreatePost = false
+    @State private var showCreateTrip = false
+    @State private var showCreateOptions = false
 
     enum Tab: Int, CaseIterable {
         case feed
@@ -41,14 +43,31 @@ struct MainTabView: View {
             // Custom tab bar overlay
             CustomTabBarView(
                 selectedTab: $selectedTab,
-                onCreateTapped: { showCreatePost = true },
+                onCreateTapped: { showCreateOptions = true },
                 unreadCount: appState.unreadNotificationCount
             )
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .confirmationDialog("Create", isPresented: $showCreateOptions, titleVisibility: .hidden) {
+            Button {
+                showCreatePost = true
+            } label: {
+                Label("Check In", systemImage: "mappin.and.ellipse")
+            }
+            Button {
+                showCreateTrip = true
+            } label: {
+                Label("Create Trip", systemImage: "map")
+            }
+        }
         .sheet(isPresented: $showCreatePost) {
             NavigationStack {
                 CreatePostView()
+            }
+        }
+        .sheet(isPresented: $showCreateTrip) {
+            NavigationStack {
+                CreateTripView()
             }
         }
     }
