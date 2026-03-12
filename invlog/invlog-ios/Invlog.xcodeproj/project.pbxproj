@@ -866,7 +866,10 @@
 				DEVELOPMENT_TEAM = U85YJ96XU8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Invlog needs camera access to record video clips for your check-ins.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Invlog uses your location to find nearby restaurants and check in.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Invlog needs microphone access to capture audio in your video clips.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Invlog needs photo library access to attach photos and videos to your check-ins.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -897,7 +900,10 @@
 				DEVELOPMENT_TEAM = U85YJ96XU8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Invlog needs camera access to record video clips for your check-ins.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Invlog uses your location to find nearby restaurants and check in.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Invlog needs microphone access to capture audio in your video clips.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Invlog needs photo library access to attach photos and videos to your check-ins.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
