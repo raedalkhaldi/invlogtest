@@ -281,6 +281,12 @@ export class RestaurantsService {
           'displayName',
           'avatarUrl',
           'isVerified',
+          'bio',
+          'followerCount',
+          'followingCount',
+          'postCount',
+          'isPrivate',
+          'coverUrl',
         ],
       });
       const userMap = new Map(users.map((u) => [u.id, u]));
