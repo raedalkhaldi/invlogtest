@@ -13,8 +13,8 @@ struct TripDetailView: View {
     @State private var showDeleteAlert = false
     @State private var showCloneAlert = false
     @State private var stopToDelete: TripStop?
-    @State private var showMapFullScreen = false
     @State private var showInviteCollaborator = false
+    @State private var viewMode: TripViewMode = .plan
 
     init(tripId: String) {
         self.tripId = tripId
@@ -185,55 +185,89 @@ struct TripDetailView: View {
 
     @ViewBuilder
     private func tripContent(_ trip: Trip) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: InvlogTheme.Spacing.md) {
-                // Hero Section
-                heroSection(trip)
+        VStack(spacing: 0) {
+            // Segmented Picker
+            Picker("View Mode", selection: $viewMode) {
+                ForEach(TripViewMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, InvlogTheme.Spacing.md)
+            .padding(.vertical, InvlogTheme.Spacing.xs)
 
-                // Error banner
-                if let error = viewModel.actionError {
-                    Text(error)
-                        .font(InvlogTheme.caption(12))
-                        .foregroundColor(.red)
-                        .padding(.horizontal, InvlogTheme.Spacing.md)
+            switch viewMode {
+            case .plan:
+                ScrollView {
+                    VStack(alignment: .leading, spacing: InvlogTheme.Spacing.md) {
+                        // Hero Section
+                        heroSection(trip)
+
+                        // Error banner
+                        if let error = viewModel.actionError {
+                            Text(error)
+                                .font(InvlogTheme.caption(12))
+                                .foregroundColor(.red)
+                                .padding(.horizontal, InvlogTheme.Spacing.md)
+                        }
+
+                        // Map Section
+                        if let stops = trip.stops, !stops.isEmpty {
+                            mapSection(stops)
+                        }
+
+                        // Stops by Day
+                        if let stops = trip.stops, !stops.isEmpty {
+                            stopsSection(stops)
+                        } else {
+                            VStack(spacing: InvlogTheme.Spacing.sm) {
+                                Image(systemName: "mappin.slash")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(Color.brandTextTertiary)
+                                Text("No stops added yet")
+                                    .font(InvlogTheme.body(14))
+                                    .foregroundColor(Color.brandTextSecondary)
+                                if canEdit {
+                                    Button("Add First Stop") {
+                                        showAddStop = true
+                                    }
+                                    .font(InvlogTheme.body(14, weight: .bold))
+                                    .foregroundColor(Color.brandPrimary)
+                                    .frame(minWidth: 44, minHeight: 44)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, InvlogTheme.Spacing.xxl)
+                        }
+
+                        // Collaborators
+                        if let collaborators = trip.collaborators, !collaborators.isEmpty {
+                            collaboratorsSection(collaborators)
+                        }
+
+                        // Bottom spacing
+                        Spacer(minLength: InvlogTheme.Spacing.xxl)
+                    }
                 }
 
-                // Map Section
+            case .map:
                 if let stops = trip.stops, !stops.isEmpty {
-                    mapSection(stops)
-                }
-
-                // Stops by Day
-                if let stops = trip.stops, !stops.isEmpty {
-                    stopsSection(stops)
+                    TripMapRouteView(stops: stops)
                 } else {
+                    Spacer()
                     VStack(spacing: InvlogTheme.Spacing.sm) {
-                        Image(systemName: "mappin.slash")
+                        Image(systemName: "map")
                             .font(.system(size: 32))
                             .foregroundColor(Color.brandTextTertiary)
-                        Text("No stops added yet")
+                        Text("No stops to map")
                             .font(InvlogTheme.body(14))
                             .foregroundColor(Color.brandTextSecondary)
-                        if canEdit {
-                            Button("Add First Stop") {
-                                showAddStop = true
-                            }
-                            .font(InvlogTheme.body(14, weight: .bold))
-                            .foregroundColor(Color.brandPrimary)
-                            .frame(minWidth: 44, minHeight: 44)
-                        }
+                        Text("Add stops to see them on the route map.")
+                            .font(InvlogTheme.caption(12))
+                            .foregroundColor(Color.brandTextTertiary)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, InvlogTheme.Spacing.xxl)
+                    Spacer()
                 }
-
-                // Collaborators
-                if let collaborators = trip.collaborators, !collaborators.isEmpty {
-                    collaboratorsSection(collaborators)
-                }
-
-                // Bottom spacing
-                Spacer(minLength: InvlogTheme.Spacing.xxl)
             }
         }
     }
@@ -673,6 +707,13 @@ struct TripDetailView: View {
             span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLng)
         )
     }
+}
+
+// MARK: - Trip View Mode
+
+enum TripViewMode: String, CaseIterable {
+    case plan = "Plan"
+    case map = "Map"
 }
 
 // MARK: - Stop Restaurant Destination
