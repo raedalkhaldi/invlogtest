@@ -4,16 +4,26 @@ import SwiftUI
 struct PostCardView: View {
     let post: Post
     var onCommentAdded: (() -> Void)?
+    var onDeleted: (() -> Void)?
+    @EnvironmentObject private var appState: AppState
     @State private var isLiked: Bool
     @State private var likeCount: Int
     @State private var commentCount: Int
     @State private var isBookmarked: Bool
     @State private var showShareSheet = false
     @State private var showComments = false
+    @State private var showDeleteConfirm = false
+    @State private var showEditSheet = false
+    @State private var isDeleted = false
 
-    init(post: Post, onCommentAdded: (() -> Void)? = nil) {
+    private var isOwnPost: Bool {
+        post.authorId == appState.currentUser?.id
+    }
+
+    init(post: Post, onCommentAdded: (() -> Void)? = nil, onDeleted: (() -> Void)? = nil) {
         self.post = post
         self.onCommentAdded = onCommentAdded
+        self.onDeleted = onDeleted
         _isLiked = State(initialValue: post.isLikedByMe ?? false)
         _likeCount = State(initialValue: post.likeCount)
         _commentCount = State(initialValue: post.commentCount)
@@ -71,6 +81,27 @@ struct PostCardView: View {
                 Text(post.createdAt, style: .relative)
                     .font(InvlogTheme.caption(11))
                     .foregroundColor(Color.brandTextTertiary)
+
+                if isOwnPost {
+                    Menu {
+                        Button {
+                            showEditSheet = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                            .frame(width: 32, height: 32)
+                    }
+                    .accessibilityLabel("Post options")
+                }
             }
             .padding(.horizontal, InvlogTheme.Card.padding)
             .padding(.top, InvlogTheme.Card.padding)
@@ -221,11 +252,25 @@ struct PostCardView: View {
             }
         }
         .invlogCard()
+        .opacity(isDeleted ? 0 : 1)
+        .frame(height: isDeleted ? 0 : nil)
+        .clipped()
         .sheet(isPresented: $showShareSheet) {
             ShareSheetView(items: [shareText])
         }
         .sheet(isPresented: $showComments) {
             CommentsSheetView(postId: post.id, commentCount: $commentCount, onCommentAdded: onCommentAdded)
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditPostSheet(post: post)
+        }
+        .alert("Delete Post", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await deletePost() }
+            }
+        } message: {
+            Text("Are you sure you want to delete this post? This action cannot be undone.")
         }
     }
 
@@ -272,6 +317,104 @@ struct PostCardView: View {
                 likeCount = post.likeCount
             }
         }
+    }
+
+    private func deletePost() async {
+        do {
+            try await APIClient.shared.requestVoid(.deletePost(id: post.id))
+            withAnimation {
+                isDeleted = true
+            }
+            onDeleted?()
+        } catch {
+            // Delete failed silently
+        }
+    }
+}
+
+// MARK: - Edit Post Sheet
+
+struct EditPostSheet: View {
+    let post: Post
+    @Environment(\.dismiss) private var dismiss
+    @State private var content: String
+    @State private var rating: Int?
+    @State private var isSaving = false
+
+    init(post: Post) {
+        self.post = post
+        _content = State(initialValue: post.content ?? "")
+        _rating = State(initialValue: post.rating)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                TextField("Share your experience...", text: $content, axis: .vertical)
+                    .font(InvlogTheme.body(15))
+                    .lineLimit(5...10)
+                    .padding()
+                    .accessibilityLabel("Post content")
+
+                // Rating
+                HStack(spacing: 4) {
+                    Text("Rating")
+                        .font(InvlogTheme.body(14, weight: .semibold))
+                        .foregroundColor(Color.brandText)
+                    Spacer()
+                    ForEach(1...5, id: \.self) { star in
+                        Button {
+                            rating = (rating == star) ? nil : star
+                        } label: {
+                            Image(systemName: (rating ?? 0) >= star ? "star.fill" : "star")
+                                .font(.title3)
+                                .foregroundColor((rating ?? 0) >= star ? Color.brandSecondary : Color.brandTextTertiary)
+                        }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
+                    }
+                }
+                .padding(.horizontal)
+
+                Spacer()
+            }
+            .invlogScreenBackground()
+            .navigationTitle("Edit Post")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Task { await saveChanges() }
+                    } label: {
+                        if isSaving {
+                            ProgressView()
+                        } else {
+                            Text("Save")
+                                .font(InvlogTheme.body(15, weight: .bold))
+                        }
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .disabled(isSaving)
+                }
+            }
+        }
+    }
+
+    private func saveChanges() async {
+        isSaving = true
+        do {
+            try await APIClient.shared.requestVoid(
+                .updatePost(id: post.id, content: content, rating: rating)
+            )
+            dismiss()
+        } catch {
+            // Save failed
+        }
+        isSaving = false
     }
 }
 

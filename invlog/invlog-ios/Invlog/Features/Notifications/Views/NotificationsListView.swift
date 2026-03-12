@@ -63,7 +63,7 @@ struct NotificationsListView: View {
             notifications = data
             appState.unreadNotificationCount = data.filter { !$0.isRead }.count
         } catch {
-            // Handle error
+            print("❌ Notifications load error: \(error)")
         }
         isLoading = false
     }
