@@ -27,7 +27,10 @@ struct ConversationsListView: View {
             } else {
                 List {
                     ForEach(viewModel.conversations) { conversation in
-                        NavigationLink(value: conversation) {
+                        NavigationLink(destination: MessageThreadView(
+                            conversationId: conversation.id,
+                            otherUser: conversation.otherUser
+                        )) {
                             ConversationRow(conversation: conversation)
                         }
                         .listRowBackground(Color.clear)
@@ -56,12 +59,6 @@ struct ConversationsListView: View {
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("New message")
             }
-        }
-        .navigationDestination(for: Conversation.self) { conversation in
-            MessageThreadView(
-                conversationId: conversation.id,
-                otherUser: conversation.otherUser
-            )
         }
         .sheet(isPresented: $showNewConversation) {
             NewConversationView()

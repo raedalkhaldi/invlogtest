@@ -56,6 +56,15 @@ export class RestaurantsController {
     return this.restaurantsService.update(id, user.sub, dto);
   }
 
+  @Get(':id/posts')
+  @ApiOperation({ summary: 'Get posts for a restaurant' })
+  async getRestaurantPosts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.restaurantsService.getRestaurantPosts(id, query.page, query.perPage);
+  }
+
   @Get(':id/checkins')
   @ApiOperation({ summary: 'Get check-ins for a restaurant' })
   async getCheckins(
