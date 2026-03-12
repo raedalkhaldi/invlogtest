@@ -6,6 +6,17 @@ struct MediaCarouselView: View {
     let media: [PostMedia]
     @State private var currentPage = 0
 
+    /// Aspect ratio from first media's dimensions, clamped between 4:5 and 1.91:1.
+    private var carouselAspectRatio: CGFloat {
+        guard let first = media.first,
+              let w = first.width, let h = first.height,
+              w > 0, h > 0 else {
+            return 4.0 / 5.0
+        }
+        let ratio = CGFloat(w) / CGFloat(h)
+        return min(max(ratio, 4.0 / 5.0), 1.91)
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $currentPage) {
@@ -16,7 +27,7 @@ struct MediaCarouselView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(maxWidth: .infinity)
-            .aspectRatio(4/5, contentMode: .fit)
+            .aspectRatio(carouselAspectRatio, contentMode: .fit)
             .clipped()
 
             // Page dots (only for 2+ items)

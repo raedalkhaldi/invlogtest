@@ -80,7 +80,7 @@ enum APIEndpoint {
 
     // Media
     case presignUpload(fileName: String, contentType: String, fileSize: Int)
-    case completeUpload(mediaId: String)
+    case completeUpload(mediaId: String, width: Int? = nil, height: Int? = nil)
     case mediaStatus(id: String)
 
     // Bookmarks
@@ -220,7 +220,7 @@ enum APIEndpoint {
 
         // Media
         case .presignUpload: return "/media/presign"
-        case .completeUpload(let mediaId): return "/media/\(mediaId)/complete"
+        case .completeUpload(let mediaId, _, _): return "/media/\(mediaId)/complete"
         case .mediaStatus(let id): return "/media/\(id)"
 
         // Bookmarks
@@ -357,8 +357,11 @@ enum APIEndpoint {
             return ["token": token]
         case .presignUpload(let fileName, let contentType, let fileSize):
             return ["fileName": fileName, "contentType": contentType, "fileSize": fileSize]
-        case .completeUpload:
-            return [:]
+        case .completeUpload(_, let width, let height):
+            var body: [String: Any] = [:]
+            if let width { body["width"] = width }
+            if let height { body["height"] = height }
+            return body
         case .createRestaurant(let data), .updateRestaurant(_, let data), .addMenuItem(_, let data):
             return data
         case .createStory(let mediaId):

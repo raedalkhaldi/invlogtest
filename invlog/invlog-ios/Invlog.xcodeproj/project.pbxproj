@@ -62,6 +62,7 @@
 		A90EB9EA3442F6202BE9FA6B /* FeedViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4BD0F68E8CCA6702A9B344 /* FeedViewModel.swift */; };
 		AA1122AABB1122AABB1122AA /* ImagePipelineConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677AABBCCDD /* ImagePipelineConfig.swift */; };
 		AA88BBCC99DD00EE11FF2233 /* MediaCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */; };
+		AB12CD34EF56AB12CD34EF56 /* ImageCropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB12CD34EF56AB12CD34EF57 /* ImageCropView.swift */; };
 		AABACEE8ABE8EED13AB55F7D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D75B86FA5BF4C5F3A8A27421 /* Assets.xcassets */; };
 		ABAE697AF2E58930B4134787 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21B14133F153EFBF04D2234 /* AppState.swift */; };
 		B016A016B016C016D016E001 /* InvlogTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B016A016B016C016D016E002 /* InvlogTheme.swift */; };
@@ -147,6 +148,7 @@
 		A7B8C9D0E1F2A3B4C5D6E7F8 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PushNotificationManager.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
 		AA11223344556677AABBCCDD /* ImagePipelineConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImagePipelineConfig.swift; path = ImagePipelineConfig.swift; sourceTree = "<group>"; };
 		AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MediaCarouselView.swift; path = MediaCarouselView.swift; sourceTree = "<group>"; };
+		AB12CD34EF56AB12CD34EF57 /* ImageCropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCropView.swift; path = ImageCropView.swift; sourceTree = "<group>"; };
 		ABCC08AE9A5E43650B116532 /* Restaurant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Restaurant.swift; path = Restaurant.swift; sourceTree = "<group>"; };
 		B016A016B016C016D016E002 /* InvlogTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InvlogTheme.swift; path = InvlogTheme.swift; sourceTree = "<group>"; };
 		B016A016B016C016D016E004 /* InvlogViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InvlogViewModifiers.swift; path = InvlogViewModifiers.swift; sourceTree = "<group>"; };
@@ -390,6 +392,7 @@
 				CC33445566778899AABBCCDD /* BlurhashView.swift */,
 				2C04220E27BC6959336F8222 /* EmptyStateView.swift */,
 				3127282C2A36603988C126E6 /* FollowableUserRowView.swift */,
+				AB12CD34EF56AB12CD34EF57 /* ImageCropView.swift */,
 				AA88BB99CC00DD11EE22FF33 /* MediaCarouselView.swift */,
 				A001B001C001D001E001F002 /* ShareSheetView.swift */,
 				FF66778899001122AABBCCDD /* ShimmerView.swift */,
@@ -826,6 +829,7 @@
 				EE5566AABB5566AABB5566EE /* UIImage+HEIC.swift in Sources */,
 				FF6677AABB6677AABB6677FF /* ShimmerView.swift in Sources */,
 				AA88BBCC99DD00EE11FF2233 /* MediaCarouselView.swift in Sources */,
+				AB12CD34EF56AB12CD34EF56 /* ImageCropView.swift in Sources */,
 				BB99CCDD00EE11FF22334455 /* AppearanceManager.swift in Sources */,
 				A001B001C001D001E001F001 /* ShareSheetView.swift in Sources */,
 				A002B002C002D002E002F001 /* BookmarksViewModel.swift in Sources */,
