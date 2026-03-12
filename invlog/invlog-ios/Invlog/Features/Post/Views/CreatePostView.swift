@@ -40,6 +40,9 @@ struct CreatePostView: View {
     @State private var showVideoFilter = false
     @State private var recordedVideoURL: URL?
     @State private var recordedVideoThumbnail: UIImage?
+    @State private var imagesToCrop: [UIImage] = []
+    @State private var currentCropIndex = 0
+    @State private var showCropView = false
 
     init(preselectedRestaurant: Restaurant? = nil) {
         self.preselectedRestaurant = preselectedRestaurant
@@ -315,6 +318,7 @@ struct CreatePostView: View {
             Task {
                 selectedImages = []
                 mediaItems = []
+                var newImagesToCrop: [UIImage] = []
                 for item in newItems {
                     if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
                         if let video = try? await item.loadTransferable(type: VideoTransferable.self) {
@@ -326,18 +330,26 @@ struct CreatePostView: View {
                     } else {
                         if let data = try? await item.loadTransferable(type: Data.self),
                            let image = UIImage(data: data) {
-                            selectedImages.append(image)
-                            mediaItems.append(.image(image))
+                            newImagesToCrop.append(image)
                         }
                     }
+                }
+                if !newImagesToCrop.isEmpty {
+                    imagesToCrop = newImagesToCrop
+                    currentCropIndex = 0
+                    showCropView = true
                 }
             }
         }
         .fullScreenCover(isPresented: $showPhotoCapture) {
             NavigationStack {
                 PhotoCaptureView { capturedImage in
-                    mediaItems.append(.image(capturedImage))
-                    selectedImages.append(capturedImage)
+                    showPhotoCapture = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        imagesToCrop = [capturedImage]
+                        currentCropIndex = 0
+                        showCropView = true
+                    }
                 }
             }
         }
@@ -364,6 +376,29 @@ struct CreatePostView: View {
                         recordedVideoURL = nil
                         recordedVideoThumbnail = nil
                     }
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showCropView) {
+            imagesToCrop = []
+            currentCropIndex = 0
+        } content: {
+            if currentCropIndex < imagesToCrop.count {
+                NavigationStack {
+                    ImageCropView(
+                        image: imagesToCrop[currentCropIndex],
+                        imageNumber: currentCropIndex + 1,
+                        totalImages: imagesToCrop.count
+                    ) { croppedImage in
+                        selectedImages.append(croppedImage)
+                        mediaItems.append(.image(croppedImage))
+                        if currentCropIndex + 1 < imagesToCrop.count {
+                            currentCropIndex += 1
+                        } else {
+                            showCropView = false
+                        }
+                    }
+                    .id(currentCropIndex)
                 }
             }
         }

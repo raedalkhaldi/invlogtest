@@ -117,8 +117,16 @@ final class MediaUploadService: ObservableObject {
             overallProgress = (Double(index) + 0.8) / total
 
             // 4. Mark upload complete → triggers server-side processing
+            let (imgWidth, imgHeight): (Int?, Int?) = {
+                switch item {
+                case .image(let img):
+                    return (Int(img.size.width * img.scale), Int(img.size.height * img.scale))
+                case .video:
+                    return (nil, nil)
+                }
+            }()
             let (_, _) = try await APIClient.shared.requestWrapped(
-                .completeUpload(mediaId: presign.mediaId),
+                .completeUpload(mediaId: presign.mediaId, width: imgWidth, height: imgHeight),
                 responseType: PostMedia.self
             )
 
