@@ -106,7 +106,7 @@ export class PostsService {
       if (commentAuthorIds.length) {
         const commentAuthors = await this.userRepo
           .createQueryBuilder('u')
-          .select(['u.id', 'u.username', 'u.displayName', 'u.avatarUrl', 'u.isVerified'])
+          .select(['u.id', 'u.username', 'u.displayName', 'u.avatarUrl', 'u.isVerified', 'u.bio', 'u.followerCount', 'u.followingCount', 'u.postCount', 'u.isPrivate', 'u.coverUrl'])
           .where('u.id IN (:...ids)', { ids: commentAuthorIds })
           .getMany();
         commentAuthorMap = new Map(commentAuthors.map((a) => [a.id, a]));
