@@ -253,7 +253,7 @@ struct CropScrollViewRepresentable: UIViewRepresentable {
     class Coordinator: NSObject, UIScrollViewDelegate {
         weak var scrollView: UIScrollView?
         weak var imageView: UIImageView?
-        weak var overlayView: CropOverlayView?
+        fileprivate weak var overlayView: CropOverlayView?
 
         func viewForZooming(in scrollView: UIScrollView) -> UIView? {
             imageView
