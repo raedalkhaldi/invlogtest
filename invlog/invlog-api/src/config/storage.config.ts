@@ -8,6 +8,7 @@ export interface StorageConfig {
   region: string;
   usePathStyle: boolean;
   mediaBaseUrl: string;
+  skipBucketInit: boolean;
 }
 
 export default registerAs(
@@ -21,5 +22,6 @@ export default registerAs(
     usePathStyle: process.env.S3_USE_PATH_STYLE !== 'false',
     mediaBaseUrl:
       process.env.MEDIA_BASE_URL ?? 'http://localhost:9000/invlog-media',
+    skipBucketInit: process.env.SKIP_BUCKET_INIT === 'true',
   }),
 );

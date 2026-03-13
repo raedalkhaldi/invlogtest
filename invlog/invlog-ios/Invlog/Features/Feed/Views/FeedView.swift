@@ -55,7 +55,7 @@ struct FeedView: View {
                                 let nextPosts = viewModel.posts.suffix(from: min(currentIndex + 1, viewModel.posts.endIndex)).prefix(5)
                                 let urls = nextPosts.compactMap { p -> URL? in
                                     guard let media = p.media?.first else { return nil }
-                                    return URL(string: media.mediumUrl ?? media.url)
+                                    return URL(string: media.thumbnailUrl ?? media.mediumUrl ?? media.url)
                                 }
                                 prefetcher.startPrefetching(with: urls)
                             }
