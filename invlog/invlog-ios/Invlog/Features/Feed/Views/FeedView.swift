@@ -35,7 +35,8 @@ struct FeedView: View {
                     Section {
                         StoriesBarView(
                             storyGroups: storiesViewModel.storyGroups,
-                            currentUser: appState.currentUser
+                            currentUser: appState.currentUser,
+                            storiesViewModel: storiesViewModel
                         )
                     }
                     .listRowInsets(EdgeInsets())
