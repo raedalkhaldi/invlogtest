@@ -57,6 +57,7 @@ struct PostCardView: View {
                             Text(post.author?.username ?? "unknown")
                                 .font(InvlogTheme.body(14, weight: .bold))
                                 .foregroundColor(Color.brandText)
+                                .lineLimit(1)
                             if post.author?.isVerified == true {
                                 Image(systemName: "checkmark.seal.fill")
                                     .font(.system(size: 12))
@@ -73,11 +74,11 @@ struct PostCardView: View {
                                     .font(.system(size: 10))
                                 Text(restaurant.name)
                                     .font(InvlogTheme.caption(12, weight: .semibold))
+                                    .lineLimit(1)
                             }
                             .foregroundColor(Color.brandPrimary)
                         }
-                        .buttonStyle(.borderless)
-                        .frame(minHeight: 44)
+                        .buttonStyle(.plain)
                         .accessibilityLabel("At \(restaurant.name), tap to view restaurant")
                     } else if let locationName = post.locationName {
                         HStack(spacing: 4) {

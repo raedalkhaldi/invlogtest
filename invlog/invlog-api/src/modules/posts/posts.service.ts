@@ -253,8 +253,9 @@ export class PostsService {
       .where('post.author_id = :authorId', { authorId });
 
     // If viewing own profile, show all; otherwise filter by visibility
+    // Treat NULL visibility as public (for posts created before visibility column)
     if (requestingUserId && requestingUserId !== authorId) {
-      qb.andWhere('(post.visibility = :pub OR post.visibility = :fol)', {
+      qb.andWhere('(post.visibility = :pub OR post.visibility IS NULL OR post.visibility = :fol)', {
         pub: 'public',
         fol: 'followers',
       });
@@ -374,7 +375,7 @@ export class PostsService {
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
     const qb = this.postRepo
       .createQueryBuilder('post')
-      .where('post.visibility = :pub', { pub: 'public' })
+      .where('(post.visibility = :pub OR post.visibility IS NULL)', { pub: 'public' })
       .andWhere('post.author_id != :excludeUserId', { excludeUserId })
       .orderBy('post.created_at', 'DESC')
       .take(limit + 1);
@@ -412,13 +413,14 @@ export class PostsService {
       .where('post.author_id IN (:...authorIds)', { authorIds });
 
     // Visibility filtering: show own posts always, public + followers for followed users
+    // Treat NULL visibility as public (for posts created before visibility column)
     if (requestingUserId) {
       qb.andWhere(
-        '(post.author_id = :reqUserId OR post.visibility = :pub OR post.visibility = :fol)',
+        '(post.author_id = :reqUserId OR post.visibility = :pub OR post.visibility IS NULL OR post.visibility = :fol)',
         { reqUserId: requestingUserId, pub: 'public', fol: 'followers' },
       );
     } else {
-      qb.andWhere('post.visibility = :pub', { pub: 'public' });
+      qb.andWhere('(post.visibility = :pub OR post.visibility IS NULL)', { pub: 'public' });
     }
 
     qb.orderBy('post.created_at', 'DESC').take(limit + 1);

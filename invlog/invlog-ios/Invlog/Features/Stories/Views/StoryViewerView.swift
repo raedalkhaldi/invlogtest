@@ -175,7 +175,7 @@ struct StoryViewerView: View {
     private func startTimer() {
         timer?.invalidate()
         progress = 0
-        let defaultDuration: Double = currentStory?.mediaType == "video" ? 10.0 : 5.0
+        let defaultDuration: Double = currentStory?.mediaType == "video" ? 30.0 : 5.0
         let duration: Double = currentStory?.durationSecs ?? defaultDuration
         let interval: Double = 0.05
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
