@@ -193,6 +193,7 @@ struct CreateStoryView: View {
                     selectedVideoURL = url
                     selectedImage = thumbnail
                     isVideo = true
+                    showVideoRecorder = false
                 }
             }
         }

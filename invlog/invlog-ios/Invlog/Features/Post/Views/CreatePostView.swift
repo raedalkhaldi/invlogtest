@@ -61,7 +61,7 @@ struct CreatePostView: View {
     }
 
     private var hasContent: Bool {
-        selectedPlace != nil && (!content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !selectedImages.isEmpty)
+        selectedPlace != nil
     }
 
     var body: some View {

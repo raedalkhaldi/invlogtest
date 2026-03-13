@@ -51,58 +51,15 @@ struct PostCardView: View {
                 }
                 .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    // Row 1: Username
-                    NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId)) {
-                        HStack(spacing: 4) {
-                            Text(post.author?.username ?? "unknown")
-                                .font(InvlogTheme.body(14, weight: .semibold))
-                                .foregroundColor(Color.brandText)
-                                .lineLimit(1)
-                            if post.author?.isVerified == true {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 4) {
+                    // Row 1: "username checked-in place name"
+                    checkinHeaderText
 
-                    // Row 2: Restaurant name (prominent)
-                    if let restaurant = post.restaurant {
-                        NavigationLink(value: restaurant) {
-                            Text(restaurant.name)
-                                .font(InvlogTheme.body(15, weight: .bold))
-                                .foregroundColor(Color.brandText)
-                                .lineLimit(1)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("At \(restaurant.name), tap to view restaurant")
-                    } else if let locationName = post.locationName {
-                        Text(locationName)
-                            .font(InvlogTheme.body(15, weight: .bold))
-                            .foregroundColor(Color.brandText)
-                            .lineLimit(1)
-                    }
-
-                    // Row 3: Location + stats
+                    // Row 2: Stats + time
                     HStack(spacing: 6) {
-                        if let restaurant = post.restaurant {
-                            if let city = restaurant.city {
-                                Text(city)
-                                    .font(InvlogTheme.caption(12))
-                                    .foregroundColor(Color.brandTextSecondary)
-                                    .lineLimit(1)
-                            }
-                            HStack(spacing: 3) {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 6, height: 6)
-                                Text("\(restaurant.checkinCount)")
-                                    .font(InvlogTheme.caption(12, weight: .semibold))
-                                    .foregroundColor(Color.brandTextSecondary)
-                            }
-                        }
+                        Text(post.createdAt.shortRelativeString)
+                            .font(InvlogTheme.caption(11))
+                            .foregroundColor(Color.brandTextTertiary)
 
                         if likeCount > 0 {
                             HStack(spacing: 2) {
@@ -110,7 +67,7 @@ struct PostCardView: View {
                                     .font(.system(size: 9))
                                     .foregroundColor(.red)
                                 Text("\(likeCount)")
-                                    .font(InvlogTheme.caption(12, weight: .semibold))
+                                    .font(InvlogTheme.caption(11, weight: .semibold))
                                     .foregroundColor(Color.brandTextSecondary)
                             }
                         }
@@ -121,16 +78,11 @@ struct PostCardView: View {
                                     .font(.system(size: 9))
                                     .foregroundColor(Color.brandTextTertiary)
                                 Text("\(commentCount)")
-                                    .font(InvlogTheme.caption(12, weight: .semibold))
+                                    .font(InvlogTheme.caption(11, weight: .semibold))
                                     .foregroundColor(Color.brandTextSecondary)
                             }
                         }
                     }
-
-                    // Row 4: Time ago
-                    Text(post.createdAt.shortRelativeString)
-                        .font(InvlogTheme.caption(11))
-                        .foregroundColor(Color.brandTextTertiary)
 
                     // Trip badge
                     if let tripId = post.tripId, let tripTitle = post.tripTitle {
@@ -348,6 +300,66 @@ struct PostCardView: View {
             }
         } message: {
             Text("They won't be able to see your posts, and you won't see theirs.")
+        }
+    }
+
+    @ViewBuilder
+    private var checkinHeaderText: some View {
+        let username = post.author?.username ?? "unknown"
+        let isVerified = post.author?.isVerified == true
+        let placeName = post.restaurant?.name ?? post.locationName
+
+        // Build as a flowing text with tappable parts
+        if let placeName, let restaurant = post.restaurant {
+            // username checked-in place (both tappable)
+            HStack(spacing: 0) {
+                (
+                    Text(username)
+                        .font(InvlogTheme.body(14, weight: .bold))
+                        .foregroundColor(Color.brandText)
+                    + (isVerified ? Text(" ") + Text(Image(systemName: "checkmark.seal.fill")).font(.system(size: 11)).foregroundColor(.blue) : Text(""))
+                    + Text(" checked-in ")
+                        .font(InvlogTheme.body(13))
+                        .foregroundColor(Color.brandTextSecondary)
+                )
+
+                NavigationLink(value: restaurant) {
+                    Text(placeName)
+                        .font(InvlogTheme.body(14, weight: .bold))
+                        .foregroundColor(Color.brandPrimary)
+                        .lineLimit(1)
+                }
+                .buttonStyle(.plain)
+            }
+            .lineLimit(2)
+            .accessibilityLabel("\(username) checked in at \(placeName)")
+        } else if let placeName {
+            // username checked-in locationName (no navigation)
+            (
+                Text(username)
+                    .font(InvlogTheme.body(14, weight: .bold))
+                    .foregroundColor(Color.brandText)
+                + (isVerified ? Text(" ") + Text(Image(systemName: "checkmark.seal.fill")).font(.system(size: 11)).foregroundColor(.blue) : Text(""))
+                + Text(" checked-in ")
+                    .font(InvlogTheme.body(13))
+                    .foregroundColor(Color.brandTextSecondary)
+                + Text(placeName)
+                    .font(InvlogTheme.body(14, weight: .bold))
+                    .foregroundColor(Color.brandText)
+            )
+            .lineLimit(2)
+        } else {
+            // No place — just username
+            HStack(spacing: 4) {
+                Text(username)
+                    .font(InvlogTheme.body(14, weight: .bold))
+                    .foregroundColor(Color.brandText)
+                if isVerified {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.blue)
+                }
+            }
         }
     }
 
