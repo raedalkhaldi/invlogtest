@@ -3,6 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { FollowsService } from '../follows/follows.service';
 import { PostsService } from '../posts/posts.service';
+import { BlocksService } from '../blocks/blocks.service';
 import type { Post } from '../posts/entities/post.entity';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class FeedService {
   constructor(
     private readonly followsService: FollowsService,
     private readonly postsService: PostsService,
+    private readonly blocksService: BlocksService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -27,10 +29,14 @@ export class FeedService {
       await this.cache.set(cacheKey, followedUserIds, 120000); // 2 min
     }
 
-    // Include the user's own posts in the feed
-    const authorIds = [...followedUserIds, userId];
+    // Exclude blocked users
+    const blockedIds = await this.blocksService.getAllBlockRelatedIds(userId);
+    const filteredFollowed = followedUserIds.filter((id) => !blockedIds.includes(id));
 
-    return this.postsService.findByAuthorIds(authorIds, cursor, limit);
+    // Include the user's own posts in the feed
+    const authorIds = [...filteredFollowed, userId];
+
+    return this.postsService.findByAuthorIds(authorIds, cursor, limit, userId);
   }
 
   async getExploreFeed(

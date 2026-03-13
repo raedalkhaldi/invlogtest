@@ -72,6 +72,7 @@ export class UsersController {
   async getUserPosts(
     @Param('username') username: string,
     @Query() query: CursorQueryDto,
+    @CurrentUser() reqUser: JwtPayload,
   ) {
     // username param can be a UUID (userId) or a username
     let userId = username;
@@ -84,7 +85,7 @@ export class UsersController {
       userId = user.id;
     }
 
-    return this.postsService.findByAuthor(userId, query.cursor, query.limit);
+    return this.postsService.findByAuthor(userId, query.cursor, query.limit, reqUser.sub);
   }
 
   @Get(':username')

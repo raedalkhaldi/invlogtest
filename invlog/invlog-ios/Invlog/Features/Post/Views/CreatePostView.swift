@@ -43,6 +43,9 @@ struct CreatePostView: View {
     @State private var imagesToCrop: [UIImage] = []
     @State private var currentCropIndex = 0
     @State private var showCropView = false
+    @State private var visibility = "public"
+    @State private var matchingTrips: [Trip] = []
+    @State private var selectedTripId: String?
 
     init(preselectedRestaurant: Restaurant? = nil) {
         self.preselectedRestaurant = preselectedRestaurant
@@ -278,6 +281,62 @@ struct CreatePostView: View {
                     }
                     .padding(.horizontal)
                 }
+
+                // Visibility
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Who can see this?")
+                        .font(InvlogTheme.caption(13))
+                        .foregroundColor(Color.brandTextSecondary)
+
+                    Picker("Visibility", selection: $visibility) {
+                        Label("Public", systemImage: "globe").tag("public")
+                        Label("Followers", systemImage: "person.2.fill").tag("followers")
+                        Label("Private", systemImage: "lock.fill").tag("private")
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.horizontal)
+
+                // Trip linking
+                if !matchingTrips.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Link to a trip")
+                            .font(InvlogTheme.caption(13))
+                            .foregroundColor(Color.brandTextSecondary)
+
+                        ForEach(matchingTrips) { trip in
+                            Button {
+                                selectedTripId = selectedTripId == trip.id ? nil : trip.id
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: selectedTripId == trip.id ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(selectedTripId == trip.id ? Color.brandPrimary : Color.brandTextTertiary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(trip.title)
+                                            .font(InvlogTheme.body(14, weight: .semibold))
+                                            .foregroundColor(Color.brandText)
+                                        Text(trip.status.capitalized)
+                                            .font(InvlogTheme.caption(11))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "map.fill")
+                                        .font(.caption)
+                                        .foregroundColor(Color.brandPrimary)
+                                }
+                                .padding(InvlogTheme.Spacing.sm)
+                                .background(selectedTripId == trip.id ? Color.brandOrangeLight : Color.brandCard)
+                                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                        .stroke(selectedTripId == trip.id ? Color.brandPrimary : Color.brandBorder, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
             }
         }
         .invlogScreenBackground()
@@ -313,6 +372,9 @@ struct CreatePostView: View {
             Button("Keep Editing", role: .cancel) {}
         } message: {
             Text("Your check-in will be lost if you go back.")
+        }
+        .onChange(of: selectedPlace?.restaurantId) { _ in
+            Task { await fetchMatchingTrips() }
         }
         .onChange(of: selectedItems) { newItems in
             Task {
@@ -403,6 +465,13 @@ struct CreatePostView: View {
             }
         }
         .interactiveDismissDisabled(hasContent)
+        .onChange(of: mediaItems.count) { _ in
+            guard !mediaItems.isEmpty else {
+                uploadService.cancelEagerUpload()
+                return
+            }
+            uploadService.startEagerUpload(mediaItems)
+        }
         .onAppear {
             let status = locationManager.authorizationStatus
             if status == .authorizedWhenInUse || status == .authorizedAlways {
@@ -418,7 +487,7 @@ struct CreatePostView: View {
         do {
             var mediaIds: [String] = []
             if !mediaItems.isEmpty {
-                mediaIds = try await uploadService.uploadMedia(mediaItems)
+                mediaIds = try await uploadService.awaitEagerUpload(fallbackItems: mediaItems)
             }
 
             let lat = selectedPlace?.latitude ?? locationManager.location?.latitude
@@ -449,7 +518,9 @@ struct CreatePostView: View {
                     latitude: lat,
                     longitude: lng,
                     locationName: locName,
-                    locationAddress: locAddress
+                    locationAddress: locAddress,
+                    visibility: visibility,
+                    tripId: selectedTripId
                 )
             )
 
@@ -460,6 +531,24 @@ struct CreatePostView: View {
         }
 
         isSubmitting = false
+    }
+
+    private func fetchMatchingTrips() async {
+        matchingTrips = []
+        selectedTripId = nil
+        guard let restaurantId = selectedPlace?.restaurantId else { return }
+        do {
+            let (response, _) = try await APIClient.shared.requestWrapped(
+                .myTrips(cursor: nil, limit: 50),
+                responseType: [Trip].self
+            )
+            // Filter to active trips that have a stop matching this restaurant
+            matchingTrips = response.filter { trip in
+                trip.status == "active" && (trip.stops ?? []).contains { $0.restaurantId == restaurantId }
+            }
+        } catch {
+            // Silently fail — trip linking is optional
+        }
     }
 
     private func generateThumbnail(for url: URL) async -> UIImage? {

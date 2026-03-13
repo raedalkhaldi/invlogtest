@@ -14,6 +14,7 @@ struct PostCardView: View {
     @State private var showComments = false
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
+    @State private var showBlockConfirm = false
     @State private var isDeleted = false
 
     private var isOwnPost: Bool {
@@ -34,23 +35,29 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Author Header
             HStack(spacing: 10) {
-                LazyImage(url: post.author?.avatarUrl) { state in
-                    if let image = state.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(Color.brandTextTertiary)
+                NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId)) {
+                    LazyImage(url: post.author?.avatarUrl) { state in
+                        if let image = state.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
                     }
+                    .frame(width: InvlogTheme.Avatar.large, height: InvlogTheme.Avatar.large)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .accessibilityHidden(true)
                 }
-                .frame(width: InvlogTheme.Avatar.large, height: InvlogTheme.Avatar.large)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .accessibilityHidden(true)
+                .buttonStyle(.plain)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(post.author?.displayName ?? post.author?.username ?? "Unknown")
-                        .font(InvlogTheme.body(14, weight: .bold))
-                        .foregroundColor(Color.brandText)
+                    NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId)) {
+                        Text(post.author?.displayName ?? post.author?.username ?? "Unknown")
+                            .font(InvlogTheme.body(14, weight: .bold))
+                            .foregroundColor(Color.brandText)
+                    }
+                    .buttonStyle(.plain)
 
                     if let restaurant = post.restaurant {
                         NavigationLink(value: restaurant) {
@@ -74,16 +81,35 @@ struct PostCardView: View {
                         }
                         .foregroundColor(Color.brandTextSecondary)
                     }
+
+                    if let tripId = post.tripId, let tripTitle = post.tripTitle {
+                        NavigationLink(destination: TripDetailView(tripId: tripId)) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "map.fill")
+                                    .font(.system(size: 9))
+                                Text(tripTitle)
+                                    .font(InvlogTheme.caption(11, weight: .semibold))
+                            }
+                            .foregroundColor(Color.brandAccent)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 Spacer()
+
+                if let visibility = post.visibility, visibility != "public" {
+                    Image(systemName: visibility == "followers" ? "person.2.fill" : "lock.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(Color.brandTextTertiary)
+                }
 
                 Text(post.createdAt, style: .relative)
                     .font(InvlogTheme.caption(11))
                     .foregroundColor(Color.brandTextTertiary)
 
-                if isOwnPost {
-                    Menu {
+                Menu {
+                    if isOwnPost {
                         Button {
                             showEditSheet = true
                         } label: {
@@ -94,14 +120,20 @@ struct PostCardView: View {
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color.brandTextSecondary)
-                            .frame(width: 32, height: 32)
+                    } else {
+                        Button(role: .destructive) {
+                            showBlockConfirm = true
+                        } label: {
+                            Label("Block User", systemImage: "slash.circle")
+                        }
                     }
-                    .accessibilityLabel("Post options")
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color.brandTextSecondary)
+                        .frame(width: 32, height: 32)
                 }
+                .accessibilityLabel("Post options")
             }
             .padding(.horizontal, InvlogTheme.Card.padding)
             .padding(.top, InvlogTheme.Card.padding)
@@ -272,6 +304,17 @@ struct PostCardView: View {
         } message: {
             Text("Are you sure you want to delete this post? This action cannot be undone.")
         }
+        .alert("Block User?", isPresented: $showBlockConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Block", role: .destructive) {
+                Task {
+                    try? await APIClient.shared.requestVoid(.blockUser(id: post.authorId))
+                    isDeleted = true
+                }
+            }
+        } message: {
+            Text("They won't be able to see your posts, and you won't see theirs.")
+        }
     }
 
     private var shareText: String {
@@ -339,44 +382,111 @@ struct EditPostSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var content: String
     @State private var rating: Int?
+    @State private var visibility: String
+    @State private var removedMediaIds: Set<String> = []
     @State private var isSaving = false
 
     init(post: Post) {
         self.post = post
         _content = State(initialValue: post.content ?? "")
         _rating = State(initialValue: post.rating)
+        _visibility = State(initialValue: post.visibility ?? "public")
+    }
+
+    private var remainingMedia: [PostMedia] {
+        (post.media ?? []).filter { !removedMediaIds.contains($0.id) }
     }
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                TextField("Share your experience...", text: $content, axis: .vertical)
-                    .font(InvlogTheme.body(15))
-                    .lineLimit(5...10)
-                    .padding()
-                    .accessibilityLabel("Post content")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    TextField("Share your experience...", text: $content, axis: .vertical)
+                        .font(InvlogTheme.body(15))
+                        .lineLimit(5...10)
+                        .padding()
+                        .accessibilityLabel("Post content")
 
-                // Rating
-                HStack(spacing: 4) {
-                    Text("Rating")
-                        .font(InvlogTheme.body(14, weight: .semibold))
-                        .foregroundColor(Color.brandText)
-                    Spacer()
-                    ForEach(1...5, id: \.self) { star in
-                        Button {
-                            rating = (rating == star) ? nil : star
-                        } label: {
-                            Image(systemName: (rating ?? 0) >= star ? "star.fill" : "star")
-                                .font(.title3)
-                                .foregroundColor((rating ?? 0) >= star ? Color.brandSecondary : Color.brandTextTertiary)
+                    // Media grid
+                    if let media = post.media, !media.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Media")
+                                .font(InvlogTheme.body(14, weight: .semibold))
+                                .foregroundColor(Color.brandText)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(media) { item in
+                                        ZStack(alignment: .topTrailing) {
+                                            LazyImage(url: URL(string: item.thumbnailUrl ?? item.mediumUrl ?? item.url)) { state in
+                                                if let image = state.image {
+                                                    image.resizable().scaledToFill()
+                                                } else {
+                                                    Color.brandSurface
+                                                }
+                                            }
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            .opacity(removedMediaIds.contains(item.id) ? 0.3 : 1.0)
+
+                                            Button {
+                                                if removedMediaIds.contains(item.id) {
+                                                    removedMediaIds.remove(item.id)
+                                                } else {
+                                                    removedMediaIds.insert(item.id)
+                                                }
+                                            } label: {
+                                                Image(systemName: removedMediaIds.contains(item.id) ? "arrow.uturn.backward.circle.fill" : "xmark.circle.fill")
+                                                    .font(.system(size: 20))
+                                                    .foregroundColor(removedMediaIds.contains(item.id) ? Color.brandPrimary : .white)
+                                                    .shadow(radius: 2)
+                                            }
+                                            .offset(x: 4, y: -4)
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
+                        .padding(.horizontal)
                     }
-                }
-                .padding(.horizontal)
 
-                Spacer()
+                    // Rating
+                    HStack(spacing: 4) {
+                        Text("Rating")
+                            .font(InvlogTheme.body(14, weight: .semibold))
+                            .foregroundColor(Color.brandText)
+                        Spacer()
+                        ForEach(1...5, id: \.self) { star in
+                            Button {
+                                rating = (rating == star) ? nil : star
+                            } label: {
+                                Image(systemName: (rating ?? 0) >= star ? "star.fill" : "star")
+                                    .font(.title3)
+                                    .foregroundColor((rating ?? 0) >= star ? Color.brandSecondary : Color.brandTextTertiary)
+                            }
+                            .frame(minWidth: 44, minHeight: 44)
+                            .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
+                        }
+                    }
+                    .padding(.horizontal)
+
+                    // Visibility
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Who can see this?")
+                            .font(InvlogTheme.body(14, weight: .semibold))
+                            .foregroundColor(Color.brandText)
+
+                        Picker("Visibility", selection: $visibility) {
+                            Label("Public", systemImage: "globe").tag("public")
+                            Label("Followers", systemImage: "person.2.fill").tag("followers")
+                            Label("Private", systemImage: "lock.fill").tag("private")
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding(.horizontal)
+
+                    Spacer()
+                }
             }
             .invlogScreenBackground()
             .navigationTitle("Edit Post")
@@ -408,7 +518,13 @@ struct EditPostSheet: View {
         isSaving = true
         do {
             try await APIClient.shared.requestVoid(
-                .updatePost(id: post.id, content: content, rating: rating)
+                .updatePost(
+                    id: post.id,
+                    content: content,
+                    rating: rating,
+                    visibility: visibility,
+                    removeMediaIds: removedMediaIds.isEmpty ? nil : Array(removedMediaIds)
+                )
             )
             dismiss()
         } catch {

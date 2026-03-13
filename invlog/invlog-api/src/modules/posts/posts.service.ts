@@ -11,6 +11,7 @@ import { User } from '../users/entities/user.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { CheckIn } from '../checkins/entities/checkin.entity';
 import { Comment } from '../comments/entities/comment.entity';
+import { Trip } from '../trips/entities/trip.entity';
 import { CreatePostDto, UpdatePostDto } from './dto/create-post.dto';
 
 @Injectable()
@@ -28,6 +29,8 @@ export class PostsService {
     private readonly checkinRepo: Repository<CheckIn>,
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
+    @InjectRepository(Trip)
+    private readonly tripRepo: Repository<Trip>,
   ) {}
 
   /**
@@ -78,6 +81,22 @@ export class PostsService {
       for (const post of posts) {
         if (post.restaurantId) {
           post.restaurant = restMap.get(post.restaurantId);
+        }
+      }
+    }
+
+    // Batch-fetch trip titles
+    const tripIds = [...new Set(posts.map((p) => p.tripId).filter(Boolean))];
+    if (tripIds.length) {
+      const trips = await this.tripRepo
+        .createQueryBuilder('t')
+        .select(['t.id', 't.title'])
+        .where('t.id IN (:...ids)', { ids: tripIds })
+        .getMany();
+      const tripMap = new Map(trips.map((t) => [t.id, t.title]));
+      for (const post of posts) {
+        if (post.tripId) {
+          post.tripTitle = tripMap.get(post.tripId);
         }
       }
     }
@@ -136,7 +155,9 @@ export class PostsService {
       rating: dto.rating,
       locationName: dto.locationName,
       locationAddress: dto.locationAddress,
-      isPublic: dto.isPublic ?? true,
+      isPublic: dto.visibility ? dto.visibility === 'public' : (dto.isPublic ?? true),
+      visibility: dto.visibility ?? (dto.isPublic === false ? 'private' : 'public'),
+      tripId: dto.tripId,
     });
 
     if (dto.latitude != null && dto.longitude != null) {
@@ -225,12 +246,21 @@ export class PostsService {
     authorId: string,
     cursor?: string,
     limit: number = 20,
+    requestingUserId?: string,
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
     const qb = this.postRepo
       .createQueryBuilder('post')
-      .where('post.author_id = :authorId', { authorId })
-      .orderBy('post.created_at', 'DESC')
-      .take(limit + 1);
+      .where('post.author_id = :authorId', { authorId });
+
+    // If viewing own profile, show all; otherwise filter by visibility
+    if (requestingUserId && requestingUserId !== authorId) {
+      qb.andWhere('(post.visibility = :pub OR post.visibility = :fol)', {
+        pub: 'public',
+        fol: 'followers',
+      });
+    }
+
+    qb.orderBy('post.created_at', 'DESC').take(limit + 1);
 
     if (cursor) {
       const cursorDate = new Date(
@@ -271,8 +301,27 @@ export class PostsService {
     if (post.authorId !== userId) {
       throw new ForbiddenException('You can only edit your own posts');
     }
-    Object.assign(post, dto);
+
+    // Sync isPublic with visibility
+    if (dto.visibility) {
+      dto.isPublic = dto.visibility === 'public';
+    }
+
+    const { removeMediaIds, ...updateFields } = dto;
+    Object.assign(post, updateFields);
     await this.postRepo.save(post);
+
+    // Remove specified media
+    if (removeMediaIds?.length) {
+      await this.mediaRepo
+        .createQueryBuilder()
+        .delete()
+        .from(PostMedia)
+        .where('id IN (:...ids)', { ids: removeMediaIds })
+        .andWhere('post_id = :postId', { postId: id })
+        .execute();
+    }
+
     return this.findById(id);
   }
 
@@ -325,7 +374,7 @@ export class PostsService {
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
     const qb = this.postRepo
       .createQueryBuilder('post')
-      .where('post.is_public = true')
+      .where('post.visibility = :pub', { pub: 'public' })
       .andWhere('post.author_id != :excludeUserId', { excludeUserId })
       .orderBy('post.created_at', 'DESC')
       .take(limit + 1);
@@ -354,15 +403,25 @@ export class PostsService {
     authorIds: string[],
     cursor?: string,
     limit: number = 20,
+    requestingUserId?: string,
   ): Promise<{ data: Post[]; nextCursor: string | null }> {
     if (!authorIds.length) return { data: [], nextCursor: null };
 
     const qb = this.postRepo
       .createQueryBuilder('post')
-      .where('post.author_id IN (:...authorIds)', { authorIds })
-      .andWhere('post.is_public = true')
-      .orderBy('post.created_at', 'DESC')
-      .take(limit + 1);
+      .where('post.author_id IN (:...authorIds)', { authorIds });
+
+    // Visibility filtering: show own posts always, public + followers for followed users
+    if (requestingUserId) {
+      qb.andWhere(
+        '(post.author_id = :reqUserId OR post.visibility = :pub OR post.visibility = :fol)',
+        { reqUserId: requestingUserId, pub: 'public', fol: 'followers' },
+      );
+    } else {
+      qb.andWhere('post.visibility = :pub', { pub: 'public' });
+    }
+
+    qb.orderBy('post.created_at', 'DESC').take(limit + 1);
 
     if (cursor) {
       const cursorDate = new Date(

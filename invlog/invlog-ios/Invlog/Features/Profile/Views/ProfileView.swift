@@ -21,6 +21,7 @@ struct ProfileView: View {
     @State private var showSettings = false
     @State private var error: String?
     @State private var messageConversation: Conversation?
+    @State private var showBlockConfirm = false
 
     private var isCurrentUser: Bool { userId == nil }
 
@@ -121,7 +122,30 @@ struct ProfileView: View {
                     .frame(minWidth: 44, minHeight: 44)
                     .accessibilityLabel("Settings")
                 }
+            } else if let user, user.id != appState.currentUser?.id {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button(role: .destructive) {
+                            showBlockConfirm = true
+                        } label: {
+                            Label("Block", systemImage: "slash.circle")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(Color.brandText)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("More options")
+                }
             }
+        }
+        .alert("Block User?", isPresented: $showBlockConfirm) {
+            Button("Block", role: .destructive) {
+                Task { await blockUser() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They won't be able to see your posts or profile, and you won't see theirs.")
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
@@ -163,6 +187,18 @@ struct ProfileView: View {
             self.error = error.localizedDescription
         }
         isLoading = false
+    }
+
+    @Environment(\.dismiss) private var dismiss
+
+    private func blockUser() async {
+        guard let user else { return }
+        do {
+            try await APIClient.shared.requestVoid(.blockUser(id: user.id))
+            dismiss()
+        } catch {
+            // Block failed silently
+        }
     }
 }
 

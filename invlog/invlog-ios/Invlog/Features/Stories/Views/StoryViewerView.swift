@@ -4,6 +4,7 @@ import SwiftUI
 struct StoryViewerView: View {
     let storyGroups: [StoryGroup]
     let initialGroup: StoryGroup
+    @Binding var selectedUsername: String?
     @Environment(\.dismiss) private var dismiss
 
     @State private var currentGroupIndex: Int = 0
@@ -11,9 +12,10 @@ struct StoryViewerView: View {
     @State private var progress: CGFloat = 0
     @State private var timer: Timer?
 
-    init(storyGroups: [StoryGroup], initialGroup: StoryGroup) {
+    init(storyGroups: [StoryGroup], initialGroup: StoryGroup, selectedUsername: Binding<String?> = .constant(nil)) {
         self.storyGroups = storyGroups
         self.initialGroup = initialGroup
+        self._selectedUsername = selectedUsername
         let idx = storyGroups.firstIndex(where: { $0.id == initialGroup.id }) ?? 0
         _currentGroupIndex = State(initialValue: idx)
     }
@@ -97,20 +99,28 @@ struct StoryViewerView: View {
 
                     // User info + close
                     HStack(spacing: 10) {
-                        LazyImage(url: group.user.avatarUrl) { state in
-                            if let image = state.image {
-                                image.resizable().scaledToFill()
-                            } else {
-                                Image(systemName: "person.circle.fill")
+                        Button {
+                            selectedUsername = group.user.username
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 10) {
+                                LazyImage(url: group.user.avatarUrl) { state in
+                                    if let image = state.image {
+                                        image.resizable().scaledToFill()
+                                    } else {
+                                        Image(systemName: "person.circle.fill")
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                                .frame(width: 32, height: 32)
+                                .clipShape(Circle())
+
+                                Text(group.user.displayName ?? group.user.username ?? "")
+                                    .font(.subheadline.bold())
                                     .foregroundColor(.white)
                             }
                         }
-                        .frame(width: 32, height: 32)
-                        .clipShape(Circle())
-
-                        Text(group.user.displayName ?? group.user.username ?? "")
-                            .font(.subheadline.bold())
-                            .foregroundColor(.white)
+                        .buttonStyle(.plain)
 
                         Text(story.createdAt, style: .relative)
                             .font(.caption)
@@ -126,7 +136,7 @@ struct StoryViewerView: View {
                                 .foregroundColor(.white)
                         }
                         .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityLabel("Close stories")
+                        .accessibilityLabel("Close vlogs")
                     }
                     .padding(.horizontal, 12)
 

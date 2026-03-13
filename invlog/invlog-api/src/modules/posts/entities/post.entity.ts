@@ -55,6 +55,15 @@ export class Post {
   @Column({ name: 'is_public', default: true })
   isPublic: boolean;
 
+  @Column({ length: 10, default: 'public' })
+  visibility: 'public' | 'followers' | 'private';
+
+  @Column({ name: 'trip_id', type: 'uuid', nullable: true })
+  tripId: string;
+
+  // Populated via batch hydration
+  tripTitle?: string;
+
   @Index()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

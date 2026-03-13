@@ -94,7 +94,8 @@ struct FeedView: View {
         .navigationDestination(for: Restaurant.self) { restaurant in
             RestaurantDetailView(restaurantSlug: restaurant.slug)
         }
-        .task {
+        .task(id: appState.currentUser?.id) {
+            guard appState.currentUser != nil else { return }
             if viewModel.posts.isEmpty {
                 await viewModel.loadFeed()
             }
