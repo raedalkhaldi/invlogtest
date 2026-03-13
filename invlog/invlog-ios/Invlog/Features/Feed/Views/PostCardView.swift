@@ -309,29 +309,28 @@ struct PostCardView: View {
         let isVerified = post.author?.isVerified == true
         let placeName = post.restaurant?.name ?? post.locationName
 
-        // Build as a flowing text with tappable parts
+        // Build as a flowing text with tappable place
         if let placeName, let restaurant = post.restaurant {
-            // username checked-in place (both tappable)
-            HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
                 (
                     Text(username)
                         .font(InvlogTheme.body(14, weight: .bold))
                         .foregroundColor(Color.brandText)
                     + (isVerified ? Text(" ") + Text(Image(systemName: "checkmark.seal.fill")).font(.system(size: 11)).foregroundColor(.blue) : Text(""))
-                    + Text(" checked-in ")
+                    + Text(" checked-in")
                         .font(InvlogTheme.body(13))
                         .foregroundColor(Color.brandTextSecondary)
                 )
+                .lineLimit(1)
 
                 NavigationLink(value: restaurant) {
                     Text(placeName)
                         .font(InvlogTheme.body(14, weight: .bold))
                         .foregroundColor(Color.brandPrimary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
                 .buttonStyle(.plain)
             }
-            .lineLimit(2)
             .accessibilityLabel("\(username) checked in at \(placeName)")
         } else if let placeName {
             // username checked-in locationName (no navigation)
