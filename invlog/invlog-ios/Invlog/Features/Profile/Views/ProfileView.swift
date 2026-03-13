@@ -26,52 +26,6 @@ struct ProfileView: View {
     private var isCurrentUser: Bool { userId == nil }
 
     var body: some View {
-        profileContent
-            .invlogScreenBackground()
-            .refreshable { await loadProfile() }
-            .navigationTitle(user?.username ?? "Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(for: Post.self) { post in
-                PostDetailView(postId: post.id)
-            }
-            .navigationDestination(for: FollowListDestination.self) { dest in
-                FollowersListView(userId: dest.userId, mode: dest.mode)
-            }
-            .navigationDestination(for: CheckInListDestination.self) { dest in
-                CheckInHistoryView(mode: .user, id: dest.userId)
-            }
-            .navigationDestination(for: TripsListDestination.self) { _ in
-                MyTripsView()
-            }
-            .navigationDestination(for: Trip.self) { trip in
-                TripDetailView(tripId: trip.id)
-            }
-            .navigationDestination(for: User.self) { user in
-                ProfileView(userId: user.username)
-            }
-            .sheet(item: $messageConversation) { conversation in
-                messageSheet(for: conversation)
-            }
-            .toolbar { profileToolbar }
-            .alert("Block User?", isPresented: $showBlockConfirm) {
-                Button("Block", role: .destructive) {
-                    Task { await blockUser() }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("They won't be able to see your posts or profile, and you won't see theirs.")
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-            }
-            .task { await loadProfile() }
-            .onReceive(NotificationCenter.default.publisher(for: .didCreatePost)) { _ in
-                Task { await loadProfile() }
-            }
-    }
-
-    @ViewBuilder
-    private var profileContent: some View {
         ScrollView {
             if let user {
                 VStack(spacing: 0) {
@@ -83,6 +37,7 @@ struct ProfileView: View {
                         }
                     )
 
+                    // Posts
                     LazyVStack(spacing: InvlogTheme.Spacing.sm) {
                         ForEach(posts) { post in
                             NavigationLink(value: post) {
@@ -108,61 +63,98 @@ struct ProfileView: View {
                 .padding(.top, 60)
             }
         }
-    }
-
-    @ViewBuilder
-    private func messageSheet(for conversation: Conversation) -> some View {
-        if let user {
-            NavigationStack {
-                MessageThreadView(
-                    conversationId: conversation.id,
-                    otherUser: ConversationUser(
-                        id: user.id,
-                        username: user.username,
-                        displayName: user.displayName,
-                        avatarUrl: user.avatarUrl,
-                        isVerified: user.isVerified
-                    )
-                )
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") { messageConversation = nil }
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                }
-            }
-            .environmentObject(appState)
+        .invlogScreenBackground()
+        .refreshable {
+            await loadProfile()
         }
-    }
-
-    @ToolbarContentBuilder
-    private var profileToolbar: some ToolbarContent {
-        if isCurrentUser {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .foregroundColor(Color.brandText)
-                }
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel("Settings")
-            }
-        } else if let user, user.id != appState.currentUser?.id {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button(role: .destructive) {
-                        showBlockConfirm = true
-                    } label: {
-                        Label("Block", systemImage: "slash.circle")
+        .navigationTitle(user?.username ?? "Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: Post.self) { post in
+            PostDetailView(postId: post.id)
+        }
+        .navigationDestination(for: FollowListDestination.self) { dest in
+            FollowersListView(userId: dest.userId, mode: dest.mode)
+        }
+        .navigationDestination(for: CheckInListDestination.self) { dest in
+            CheckInHistoryView(mode: .user, id: dest.userId)
+        }
+        .navigationDestination(for: TripsListDestination.self) { _ in
+            MyTripsView()
+        }
+        .navigationDestination(for: Trip.self) { trip in
+            TripDetailView(tripId: trip.id)
+        }
+        .navigationDestination(for: User.self) { user in
+            ProfileView(userId: user.username)
+        }
+        .sheet(item: $messageConversation) { conversation in
+            if let user {
+                NavigationStack {
+                    MessageThreadView(
+                        conversationId: conversation.id,
+                        otherUser: ConversationUser(
+                            id: user.id,
+                            username: user.username,
+                            displayName: user.displayName,
+                            avatarUrl: user.avatarUrl,
+                            isVerified: user.isVerified
+                        )
+                    )
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { messageConversation = nil }
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
                     }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundColor(Color.brandText)
                 }
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel("More options")
+                .environmentObject(appState)
             }
+        }
+        .toolbar {
+            if isCurrentUser {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .foregroundColor(Color.brandText)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("Settings")
+                }
+            } else if let user, user.id != appState.currentUser?.id {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button(role: .destructive) {
+                            showBlockConfirm = true
+                        } label: {
+                            Label("Block", systemImage: "slash.circle")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(Color.brandText)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("More options")
+                }
+            }
+        }
+        .alert("Block User?", isPresented: $showBlockConfirm) {
+            Button("Block", role: .destructive) {
+                Task { await blockUser() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They won't be able to see your posts or profile, and you won't see theirs.")
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .task {
+            await loadProfile()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .didCreatePost)) { _ in
+            Task { await loadProfile() }
         }
     }
 

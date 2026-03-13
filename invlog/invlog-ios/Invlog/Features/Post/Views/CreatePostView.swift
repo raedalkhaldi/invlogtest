@@ -67,11 +67,276 @@ struct CreatePostView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                formContentSection
-                mediaPreviewSection
-                ratingSectionView
-                placeTagSection
-                settingsSection
+                // Text Input
+                TextField("Share your experience...", text: $content, axis: .vertical)
+                    .font(InvlogTheme.body(15))
+                    .lineLimit(5...10)
+                    .padding()
+                    .accessibilityLabel("Post content")
+
+                // Photo Picker
+                PhotosPicker(
+                    selection: $selectedItems,
+                    maxSelectionCount: 10,
+                    matching: .any(of: [.images, .videos])
+                ) {
+                    HStack {
+                        Image(systemName: "photo.on.rectangle.angled")
+                        Text(selectedImages.isEmpty ? "Add Photos or Videos" : "\(selectedImages.count) selected")
+                    }
+                    .font(InvlogTheme.body(14, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.brandCard)
+                    .foregroundColor(Color.brandText)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(Color.brandBorder, lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal)
+                .accessibilityLabel("Add photos or videos")
+
+                // Take Photo
+                Button {
+                    showPhotoCapture = true
+                } label: {
+                    HStack {
+                        Image(systemName: "camera.fill")
+                        Text("Take Photo")
+                    }
+                    .font(InvlogTheme.body(14, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.brandSecondary)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                }
+                .padding(.horizontal)
+                .accessibilityLabel("Take a photo with camera")
+
+                // Record a Clip (Vine-style)
+                Button {
+                    showVineRecorder = true
+                } label: {
+                    HStack {
+                        Image(systemName: "video.fill")
+                        Text("Record a Clip")
+                    }
+                    .font(InvlogTheme.body(14, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.brandPrimary)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                }
+                .padding(.horizontal)
+                .accessibilityLabel("Record a short video clip")
+
+                // Selected Images Preview
+                if !selectedImages.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
+                                ZStack {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 100, height: 100)
+                                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+
+                                    if let state = uploadService.states[index] {
+                                        uploadOverlay(for: state)
+                                    }
+                                }
+                                .accessibilityLabel("Selected photo \(index + 1)")
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    if isSubmitting {
+                        ProgressView(value: uploadService.overallProgress)
+                            .tint(Color.brandPrimary)
+                            .padding(.horizontal)
+                            .accessibilityLabel("Upload progress \(Int(uploadService.overallProgress * 100)) percent")
+                    }
+                }
+
+                // Error message
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(InvlogTheme.caption(12))
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
+                }
+
+                // Rating
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Rating (optional)")
+                        .font(InvlogTheme.caption(13))
+                        .foregroundColor(Color.brandTextSecondary)
+
+                    HStack(spacing: 8) {
+                        ForEach(1...5, id: \.self) { star in
+                            Button {
+                                rating = rating == star ? nil : star
+                            } label: {
+                                Image(systemName: (rating ?? 0) >= star ? "star.fill" : "star")
+                                    .font(.title2)
+                                    .foregroundColor((rating ?? 0) >= star ? Color.brandSecondary : Color.brandTextTertiary)
+                            }
+                            .frame(minWidth: 44, minHeight: 44)
+                            .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
+                        }
+                    }
+                }
+                .padding(.horizontal)
+
+                // Place Tag
+                if preselectedRestaurant != nil, let place = selectedPlace {
+                    // Preselected restaurant — show as static card
+                    HStack(spacing: 12) {
+                        Image(systemName: "mappin.circle.fill")
+                            .foregroundColor(Color.brandPrimary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(place.name)
+                                .font(InvlogTheme.body(14, weight: .bold))
+                                .foregroundColor(Color.brandText)
+                            if !place.address.isEmpty {
+                                Text(place.address)
+                                    .font(InvlogTheme.caption(12))
+                                    .foregroundColor(Color.brandTextSecondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(Color.brandAccent)
+                    }
+                    .padding(InvlogTheme.Spacing.sm)
+                    .background(Color.brandOrangeLight)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(Color.brandPrimary, lineWidth: 1)
+                    )
+                    .padding(.horizontal)
+                    .accessibilityLabel("Checking in at \(place.name)")
+                } else {
+                    Button {
+                        showPlacePicker = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(Color.brandPrimary)
+
+                            if let place = selectedPlace {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(place.name)
+                                        .font(InvlogTheme.body(14, weight: .bold))
+                                        .foregroundColor(Color.brandText)
+                                    if !place.address.isEmpty {
+                                        Text(place.address)
+                                            .font(InvlogTheme.caption(12))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            } else {
+                                Text("Select Place *")
+                                    .font(InvlogTheme.body(14))
+                                    .foregroundColor(Color.brandTextSecondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+                        .padding(InvlogTheme.Spacing.sm)
+                        .background(Color.brandCard)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                .stroke(Color.brandBorder, lineWidth: 1)
+                        )
+                    }
+                    .frame(minHeight: 44)
+                    .padding(.horizontal)
+                    .accessibilityLabel(selectedPlace != nil ? "Place: \(selectedPlace!.name). Tap to change." : "Add a place")
+                }
+
+                // Location status
+                if locationManager.location != nil {
+                    HStack(spacing: 8) {
+                        Image(systemName: "location.fill")
+                            .font(.caption)
+                            .foregroundColor(Color.brandAccent)
+                        Text("Location detected")
+                            .font(InvlogTheme.caption(12))
+                            .foregroundColor(Color.brandTextSecondary)
+                    }
+                    .padding(.horizontal)
+                }
+
+                // Visibility
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Who can see this?")
+                        .font(InvlogTheme.caption(13))
+                        .foregroundColor(Color.brandTextSecondary)
+
+                    Picker("Visibility", selection: $visibility) {
+                        Label("Public", systemImage: "globe").tag("public")
+                        Label("Followers", systemImage: "person.2.fill").tag("followers")
+                        Label("Private", systemImage: "lock.fill").tag("private")
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.horizontal)
+
+                // Trip linking
+                if !matchingTrips.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Link to a trip")
+                            .font(InvlogTheme.caption(13))
+                            .foregroundColor(Color.brandTextSecondary)
+
+                        ForEach(matchingTrips) { trip in
+                            Button {
+                                selectedTripId = selectedTripId == trip.id ? nil : trip.id
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: selectedTripId == trip.id ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(selectedTripId == trip.id ? Color.brandPrimary : Color.brandTextTertiary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(trip.title)
+                                            .font(InvlogTheme.body(14, weight: .semibold))
+                                            .foregroundColor(Color.brandText)
+                                        Text(trip.status.capitalized)
+                                            .font(InvlogTheme.caption(11))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "map.fill")
+                                        .font(.caption)
+                                        .foregroundColor(Color.brandPrimary)
+                                }
+                                .padding(InvlogTheme.Spacing.sm)
+                                .background(selectedTripId == trip.id ? Color.brandOrangeLight : Color.brandCard)
+                                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                        .stroke(selectedTripId == trip.id ? Color.brandPrimary : Color.brandBorder, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
             }
         }
         .invlogScreenBackground()
@@ -213,304 +478,6 @@ struct CreatePostView: View {
                 locationManager.startUpdating()
             }
         }
-    }
-
-    // MARK: - Form Content
-
-    @ViewBuilder
-    private var formContentSection: some View {
-        TextField("Share your experience...", text: $content, axis: .vertical)
-            .font(InvlogTheme.body(15))
-            .lineLimit(5...10)
-            .padding()
-            .accessibilityLabel("Post content")
-
-        PhotosPicker(
-            selection: $selectedItems,
-            maxSelectionCount: 10,
-            matching: .any(of: [.images, .videos])
-        ) {
-            HStack {
-                Image(systemName: "photo.on.rectangle.angled")
-                Text(selectedImages.isEmpty ? "Add Photos or Videos" : "\(selectedImages.count) selected")
-            }
-            .font(InvlogTheme.body(14, weight: .semibold))
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(Color.brandCard)
-            .foregroundColor(Color.brandText)
-            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-            .overlay(
-                RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                    .stroke(Color.brandBorder, lineWidth: 1)
-            )
-        }
-        .padding(.horizontal)
-        .accessibilityLabel("Add photos or videos")
-
-        Button {
-            showPhotoCapture = true
-        } label: {
-            HStack {
-                Image(systemName: "camera.fill")
-                Text("Take Photo")
-            }
-            .font(InvlogTheme.body(14, weight: .semibold))
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(Color.brandSecondary)
-            .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-        }
-        .padding(.horizontal)
-        .accessibilityLabel("Take a photo with camera")
-
-        Button {
-            showVineRecorder = true
-        } label: {
-            HStack {
-                Image(systemName: "video.fill")
-                Text("Record a Clip")
-            }
-            .font(InvlogTheme.body(14, weight: .semibold))
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(Color.brandPrimary)
-            .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-        }
-        .padding(.horizontal)
-        .accessibilityLabel("Record a short video clip")
-    }
-
-    // MARK: - Media Preview
-
-    @ViewBuilder
-    private var mediaPreviewSection: some View {
-        if !selectedImages.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
-                        ZStack {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 100, height: 100)
-                                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-
-                            if let state = uploadService.states[index] {
-                                uploadOverlay(for: state)
-                            }
-                        }
-                        .accessibilityLabel("Selected photo \(index + 1)")
-                    }
-                }
-                .padding(.horizontal)
-            }
-
-            if isSubmitting {
-                ProgressView(value: uploadService.overallProgress)
-                    .tint(Color.brandPrimary)
-                    .padding(.horizontal)
-                    .accessibilityLabel("Upload progress \(Int(uploadService.overallProgress * 100)) percent")
-            }
-        }
-
-        if let errorMessage {
-            Text(errorMessage)
-                .font(InvlogTheme.caption(12))
-                .foregroundColor(.red)
-                .padding(.horizontal)
-        }
-    }
-
-    // MARK: - Rating
-
-    @ViewBuilder
-    private var ratingSectionView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Rating (optional)")
-                .font(InvlogTheme.caption(13))
-                .foregroundColor(Color.brandTextSecondary)
-
-            HStack(spacing: 8) {
-                ForEach(1...5, id: \.self) { star in
-                    Button {
-                        rating = rating == star ? nil : star
-                    } label: {
-                        Image(systemName: (rating ?? 0) >= star ? "star.fill" : "star")
-                            .font(.title2)
-                            .foregroundColor((rating ?? 0) >= star ? Color.brandSecondary : Color.brandTextTertiary)
-                    }
-                    .frame(minWidth: 44, minHeight: 44)
-                    .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
-                }
-            }
-        }
-        .padding(.horizontal)
-    }
-
-    // MARK: - Place Tag
-
-    @ViewBuilder
-    private var placeTagSection: some View {
-        if preselectedRestaurant != nil, let place = selectedPlace {
-            HStack(spacing: 12) {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundColor(Color.brandPrimary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(place.name)
-                        .font(InvlogTheme.body(14, weight: .bold))
-                        .foregroundColor(Color.brandText)
-                    if !place.address.isEmpty {
-                        Text(place.address)
-                            .font(InvlogTheme.caption(12))
-                            .foregroundColor(Color.brandTextSecondary)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer()
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(Color.brandAccent)
-            }
-            .padding(InvlogTheme.Spacing.sm)
-            .background(Color.brandOrangeLight)
-            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-            .overlay(
-                RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                    .stroke(Color.brandPrimary, lineWidth: 1)
-            )
-            .padding(.horizontal)
-            .accessibilityLabel("Checking in at \(place.name)")
-        } else {
-            Button {
-                showPlacePicker = true
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "mappin.circle.fill")
-                        .foregroundColor(Color.brandPrimary)
-
-                    if let place = selectedPlace {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(place.name)
-                                .font(InvlogTheme.body(14, weight: .bold))
-                                .foregroundColor(Color.brandText)
-                            if !place.address.isEmpty {
-                                Text(place.address)
-                                    .font(InvlogTheme.caption(12))
-                                    .foregroundColor(Color.brandTextSecondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                    } else {
-                        Text("Select Place *")
-                            .font(InvlogTheme.body(14))
-                            .foregroundColor(Color.brandTextSecondary)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(Color.brandTextTertiary)
-                }
-                .padding(InvlogTheme.Spacing.sm)
-                .background(Color.brandCard)
-                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                .overlay(
-                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                        .stroke(Color.brandBorder, lineWidth: 1)
-                )
-            }
-            .frame(minHeight: 44)
-            .padding(.horizontal)
-            .accessibilityLabel(selectedPlace != nil ? "Place: \(selectedPlace!.name). Tap to change." : "Add a place")
-        }
-    }
-
-    // MARK: - Settings
-
-    @ViewBuilder
-    private var settingsSection: some View {
-        if locationManager.location != nil {
-            HStack(spacing: 8) {
-                Image(systemName: "location.fill")
-                    .font(.caption)
-                    .foregroundColor(Color.brandAccent)
-                Text("Location detected")
-                    .font(InvlogTheme.caption(12))
-                    .foregroundColor(Color.brandTextSecondary)
-            }
-            .padding(.horizontal)
-        }
-
-        visibilityPicker
-        tripLinkingSection
-    }
-
-    @ViewBuilder
-    private var visibilityPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Who can see this?")
-                .font(InvlogTheme.caption(13))
-                .foregroundColor(Color.brandTextSecondary)
-
-            Picker("Visibility", selection: $visibility) {
-                Label("Public", systemImage: "globe").tag("public")
-                Label("Followers", systemImage: "person.2.fill").tag("followers")
-                Label("Private", systemImage: "lock.fill").tag("private")
-            }
-            .pickerStyle(.segmented)
-        }
-        .padding(.horizontal)
-    }
-
-    @ViewBuilder
-    private var tripLinkingSection: some View {
-        if !matchingTrips.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Link to a trip")
-                    .font(InvlogTheme.caption(13))
-                    .foregroundColor(Color.brandTextSecondary)
-
-                ForEach(matchingTrips) { trip in
-                    tripRow(trip)
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-
-    @ViewBuilder
-    private func tripRow(_ trip: Trip) -> some View {
-        Button {
-            selectedTripId = selectedTripId == trip.id ? nil : trip.id
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: selectedTripId == trip.id ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(selectedTripId == trip.id ? Color.brandPrimary : Color.brandTextTertiary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(trip.title)
-                        .font(InvlogTheme.body(14, weight: .semibold))
-                        .foregroundColor(Color.brandText)
-                    Text(trip.status.capitalized)
-                        .font(InvlogTheme.caption(11))
-                        .foregroundColor(Color.brandTextSecondary)
-                }
-                Spacer()
-                Image(systemName: "map.fill")
-                    .font(.caption)
-                    .foregroundColor(Color.brandPrimary)
-            }
-            .padding(InvlogTheme.Spacing.sm)
-            .background(selectedTripId == trip.id ? Color.brandOrangeLight : Color.brandCard)
-            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-            .overlay(
-                RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                    .stroke(selectedTripId == trip.id ? Color.brandPrimary : Color.brandBorder, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     private func submitPost() async {
