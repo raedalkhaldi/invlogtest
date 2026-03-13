@@ -73,8 +73,7 @@ struct AutoPlayVideoView: View {
         }
         .onDisappear {
             isVisible = false
-            player?.pause()
-            cleanupObservers()
+            tearDownPlayer()
         }
         .onChange(of: muteManager.isMuted) { muted in
             player?.isMuted = muted
@@ -150,6 +149,14 @@ struct AutoPlayVideoView: View {
         if isVisible {
             avPlayer.play()
         }
+    }
+
+    private func tearDownPlayer() {
+        cleanupObservers()
+        player?.pause()
+        player = nil
+        isPlayerReady = false
+        hasFailed = false
     }
 
     private func cleanupObservers() {

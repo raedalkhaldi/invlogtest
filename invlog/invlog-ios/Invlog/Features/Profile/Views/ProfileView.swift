@@ -40,9 +40,7 @@ struct ProfileView: View {
                     // Posts
                     LazyVStack(spacing: InvlogTheme.Spacing.sm) {
                         ForEach(posts) { post in
-                            NavigationLink(value: post) {
-                                PostCardView(post: post)
-                            }
+                            PostCardView(post: post)
                         }
                     }
                     .padding(.horizontal, InvlogTheme.Spacing.md)
@@ -86,6 +84,9 @@ struct ProfileView: View {
         }
         .navigationDestination(for: User.self) { user in
             ProfileView(userId: user.username)
+        }
+        .navigationDestination(for: Restaurant.self) { restaurant in
+            RestaurantDetailView(restaurantSlug: restaurant.slug)
         }
         .sheet(item: $messageConversation) { conversation in
             if let user {
