@@ -1,9 +1,15 @@
 import SwiftUI
 @preconcurrency import NukeUI
 
+enum MediaQuality {
+    case thumbnail  // 600px — for feed cards
+    case medium     // 1080px — for detail/fullscreen
+}
+
 @MainActor
 struct MediaCarouselView: View {
     let media: [PostMedia]
+    var quality: MediaQuality = .thumbnail
     @State private var currentPage = 0
 
     /// Aspect ratio from first media's dimensions, clamped between 4:5 and 1.91:1.
@@ -58,7 +64,12 @@ struct MediaCarouselView: View {
                 blurhash: item.blurhash
             )
         } else {
-            LazyImage(url: URL(string: item.mediumUrl ?? item.url)) { state in
+            LazyImage(url: URL(string: {
+                switch quality {
+                case .thumbnail: return item.thumbnailUrl ?? item.mediumUrl ?? item.url
+                case .medium: return item.mediumUrl ?? item.url
+                }
+            }())) { state in
                 if let image = state.image {
                     image
                         .resizable()

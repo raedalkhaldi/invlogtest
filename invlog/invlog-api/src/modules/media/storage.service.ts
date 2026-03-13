@@ -19,11 +19,13 @@ export class StorageService implements OnModuleInit {
   private readonly s3: S3Client;
   private readonly bucket: string;
   private readonly mediaBaseUrl: string;
+  private readonly skipBucketInit: boolean;
 
   constructor(private readonly configService: ConfigService) {
     const config = this.configService.get<StorageConfig>('storage')!;
     this.bucket = config.bucket;
     this.mediaBaseUrl = config.mediaBaseUrl;
+    this.skipBucketInit = config.skipBucketInit;
 
     this.s3 = new S3Client({
       endpoint: config.endpoint,
@@ -41,6 +43,10 @@ export class StorageService implements OnModuleInit {
   }
 
   private async ensureBucket(): Promise<void> {
+    if (this.skipBucketInit) {
+      this.logger.log('Skipping bucket init (SKIP_BUCKET_INIT=true)');
+      return;
+    }
     try {
       await this.s3.send(new HeadBucketCommand({ Bucket: this.bucket }));
       this.logger.log(`Bucket "${this.bucket}" already exists`);
@@ -130,6 +136,7 @@ export class StorageService implements OnModuleInit {
     key: string,
     body: Buffer,
     contentType: string,
+    cacheControl?: string,
   ): Promise<void> {
     await this.s3.send(
       new PutObjectCommand({
@@ -137,6 +144,7 @@ export class StorageService implements OnModuleInit {
         Key: key,
         Body: body,
         ContentType: contentType,
+        CacheControl: cacheControl ?? 'public, max-age=31536000, immutable',
       }),
     );
   }

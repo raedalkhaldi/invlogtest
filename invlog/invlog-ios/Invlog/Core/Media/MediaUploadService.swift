@@ -55,32 +55,26 @@ final class MediaUploadService: ObservableObject {
 
             switch item {
             case .image(let image):
-                // Try HEIC first at 0.92 quality, fallback to JPEG at 0.92
-                if let resized = resizeIfNeeded(image: image, maxDimension: 4096) {
+                // Resize to max 2048px and compress as JPEG 0.85
+                // (backend re-encodes to WebP anyway, so HEIC encoding is wasted CPU)
+                if let resized = resizeIfNeeded(image: image, maxDimension: 2048) {
                     mediaData = resized
-                    // resizeIfNeeded returns HEIC-first data
-                    fileName = "photo_\(index).heic"
-                    contentType = "image/heic"
-                } else if let heicData = heicData(for: image, quality: 0.92) {
-                    mediaData = heicData
-                    fileName = "photo_\(index).heic"
-                    contentType = "image/heic"
-                } else if let jpegData = image.jpegData(compressionQuality: 0.92) {
+                } else if let jpegData = image.jpegData(compressionQuality: 0.85) {
                     mediaData = jpegData
-                    fileName = "photo_\(index).jpg"
-                    contentType = "image/jpeg"
                 } else {
                     states[index] = .failed("Failed to compress image")
                     continue
                 }
+                fileName = "photo_\(index).jpg"
+                contentType = "image/jpeg"
 
             case .video(let url, _):
                 do {
-                    mediaData = try Data(contentsOf: url)
+                    mediaData = try await compressVideo(url: url)
                     fileName = "video_\(index).mp4"
                     contentType = "video/mp4"
                 } catch {
-                    states[index] = .failed("Failed to read video file")
+                    states[index] = .failed("Failed to compress video: \(error.localizedDescription)")
                     continue
                 }
             }
@@ -203,6 +197,39 @@ final class MediaUploadService: ObservableObject {
         return data as Data
     }
 
+    private func compressVideo(url: URL) async throws -> Data {
+        let asset = AVURLAsset(url: url)
+
+        // Use 1280x720 preset — backend caps at 1080p anyway
+        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
+            // Fallback: read raw file if export session unavailable
+            return try Data(contentsOf: url)
+        }
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp4")
+
+        session.outputURL = tempURL
+        session.outputFileType = .mp4
+        session.shouldOptimizeForNetworkUse = true
+
+        await session.export()
+
+        guard session.status == .completed else {
+            // Clean up and fallback to raw file
+            try? FileManager.default.removeItem(at: tempURL)
+            if let error = session.error {
+                throw error
+            }
+            return try Data(contentsOf: url)
+        }
+
+        let data = try Data(contentsOf: tempURL)
+        try? FileManager.default.removeItem(at: tempURL)
+        return data
+    }
+
     private func resizeIfNeeded(image: UIImage, maxDimension: CGFloat) -> Data? {
         let size = image.size
         guard size.width > maxDimension || size.height > maxDimension else { return nil }
@@ -214,10 +241,6 @@ final class MediaUploadService: ObservableObject {
         let resized = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
-        // Try HEIC first, fallback to JPEG
-        if let heic = heicData(for: resized, quality: 0.92) {
-            return heic
-        }
-        return resized.jpegData(compressionQuality: 0.92)
+        return resized.jpegData(compressionQuality: 0.85)
     }
 }
