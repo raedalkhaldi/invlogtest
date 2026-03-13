@@ -469,7 +469,7 @@ struct EditPostSheet: View {
                 if let image = state.image {
                     image.resizable().scaledToFill()
                 } else {
-                    Color.brandSurface
+                    Color.brandBackground
                 }
             }
             .frame(width: 80, height: 80)
