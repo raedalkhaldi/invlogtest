@@ -21,9 +21,9 @@ enum APIEndpoint {
     case exploreFeed(cursor: String?, limit: Int)
 
     // Posts
-    case createPost(content: String?, mediaIds: [String], restaurantId: String?, rating: Int?, latitude: Double?, longitude: Double?, locationName: String?, locationAddress: String?)
+    case createPost(content: String?, mediaIds: [String], restaurantId: String?, rating: Int?, latitude: Double?, longitude: Double?, locationName: String?, locationAddress: String?, visibility: String?, tripId: String?)
     case postDetail(id: String)
-    case updatePost(id: String, content: String?, rating: Int?)
+    case updatePost(id: String, content: String?, rating: Int?, visibility: String?, removeMediaIds: [String]?)
     case deletePost(id: String)
 
     // Comments
@@ -45,6 +45,10 @@ enum APIEndpoint {
     case unfollowRestaurant(id: String)
     case followers(userId: String, page: Int, perPage: Int)
     case following(userId: String, page: Int, perPage: Int)
+
+    // Blocks
+    case blockUser(id: String)
+    case unblockUser(id: String)
 
     // Users
     case currentUser
@@ -122,7 +126,7 @@ enum APIEndpoint {
         switch self {
         case .register, .login, .socialLogin, .refreshToken, .logout,
              .createPost, .createComment, .likePost, .likeComment,
-             .followUser, .followRestaurant, .createRestaurant,
+             .followUser, .followRestaurant, .blockUser, .createRestaurant,
              .createCheckIn, .addMenuItem, .registerDeviceToken,
              .presignUpload, .completeUpload,
              .bookmarkPost, .createStory, .viewStory,
@@ -137,7 +141,7 @@ enum APIEndpoint {
              .updateTrip, .updateTripStop:
             return .patch
         case .deleteAccount, .deletePost, .deleteComment,
-             .unlikePost, .unlikeComment, .unfollowUser, .unfollowRestaurant,
+             .unlikePost, .unlikeComment, .unfollowUser, .unfollowRestaurant, .unblockUser,
              .removeBookmark, .deleteStory,
              .deleteTrip, .removeTripStop, .removeCollaborator:
             return .delete
@@ -163,7 +167,7 @@ enum APIEndpoint {
         // Posts
         case .createPost: return "/posts"
         case .postDetail(let id): return "/posts/\(id)"
-        case .updatePost(let id, _, _): return "/posts/\(id)"
+        case .updatePost(let id, _, _, _, _): return "/posts/\(id)"
         case .deletePost(let id): return "/posts/\(id)"
 
         // Comments
@@ -185,6 +189,8 @@ enum APIEndpoint {
         case .unfollowRestaurant(let id): return "/restaurants/\(id)/follow"
         case .followers(let userId, _, _): return "/users/\(userId)/followers"
         case .following(let userId, _, _): return "/users/\(userId)/following"
+        case .blockUser(let id): return "/users/\(id)/block"
+        case .unblockUser(let id): return "/users/\(id)/block"
 
         // Users
         case .currentUser: return "/users/me"
@@ -317,7 +323,7 @@ enum APIEndpoint {
             return ["refreshToken": token]
         case .logout(let refreshToken):
             return ["refreshToken": refreshToken]
-        case .createPost(let content, let mediaIds, let restaurantId, let rating, let lat, let lng, let locationName, let locationAddress):
+        case .createPost(let content, let mediaIds, let restaurantId, let rating, let lat, let lng, let locationName, let locationAddress, let visibility, let tripId):
             var body: [String: Any] = ["mediaIds": mediaIds]
             if let content { body["content"] = content }
             if let restaurantId { body["restaurantId"] = restaurantId }
@@ -326,6 +332,8 @@ enum APIEndpoint {
             if let lng { body["longitude"] = lng }
             if let locationName { body["locationName"] = locationName }
             if let locationAddress { body["locationAddress"] = locationAddress }
+            if let visibility { body["visibility"] = visibility }
+            if let tripId { body["tripId"] = tripId }
             return body
         case .createComment(_, let content, let parentId):
             var body: [String: Any] = ["content": content]
@@ -333,10 +341,12 @@ enum APIEndpoint {
             return body
         case .updateComment(_, let content):
             return ["content": content]
-        case .updatePost(_, let content, let rating):
+        case .updatePost(_, let content, let rating, let visibility, let removeMediaIds):
             var body: [String: Any] = [:]
             if let content { body["content"] = content }
             if let rating { body["rating"] = rating }
+            if let visibility { body["visibility"] = visibility }
+            if let removeMediaIds, !removeMediaIds.isEmpty { body["removeMediaIds"] = removeMediaIds }
             return body
         case .updateProfile(let displayName, let bio, let isPrivate, let avatarUrl):
             var body: [String: Any] = [:]

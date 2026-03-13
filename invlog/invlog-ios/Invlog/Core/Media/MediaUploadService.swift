@@ -151,7 +151,40 @@ final class MediaUploadService: ObservableObject {
         try await uploadMedia(images.map { .image($0) })
     }
 
+    // MARK: - Eager Upload
+
+    private var eagerTask: Task<[String], Error>?
+    private var eagerMediaIds: [String]?
+
+    /// Start uploading immediately in background. Call `awaitEagerUpload()` to get the IDs.
+    func startEagerUpload(_ items: [MediaItem]) {
+        cancelEagerUpload()
+        eagerMediaIds = nil
+        eagerTask = Task {
+            let ids = try await uploadMedia(items)
+            eagerMediaIds = ids
+            return ids
+        }
+    }
+
+    /// Await completion of an eager upload started with `startEagerUpload`.
+    /// If no eager upload is in progress, falls back to uploading the provided items.
+    func awaitEagerUpload(fallbackItems: [MediaItem]) async throws -> [String] {
+        if let task = eagerTask {
+            return try await task.value
+        }
+        return try await uploadMedia(fallbackItems)
+    }
+
+    /// Cancel any in-progress eager upload (e.g. when media selection changes).
+    func cancelEagerUpload() {
+        eagerTask?.cancel()
+        eagerTask = nil
+        eagerMediaIds = nil
+    }
+
     func reset() {
+        cancelEagerUpload()
         states = [:]
         overallProgress = 0
     }

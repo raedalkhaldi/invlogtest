@@ -97,17 +97,20 @@ struct NotificationRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            LazyImage(url: notification.actor?.avatarUrl) { state in
-                if let image = state.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    Image(systemName: iconForType)
-                        .foregroundColor(Color.brandTextTertiary)
+            NavigationLink(destination: ProfileView(userId: notification.actor?.username ?? "")) {
+                LazyImage(url: notification.actor?.avatarUrl) { state in
+                    if let image = state.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Image(systemName: iconForType)
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
                 }
+                .frame(width: 40, height: 40)
+                .clipShape(Circle())
+                .accessibilityHidden(true)
             }
-            .frame(width: 40, height: 40)
-            .clipShape(Circle())
-            .accessibilityHidden(true)
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(notificationText)

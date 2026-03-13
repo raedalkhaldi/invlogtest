@@ -7,6 +7,7 @@ struct StoriesBarView: View {
     let currentUser: User?
     @State private var selectedGroup: StoryGroup?
     @State private var showCreateStory = false
+    @State private var navigateToUsername: String?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -20,7 +21,7 @@ struct StoriesBarView: View {
                         storyAvatarView(for: group)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("\(group.user.displayName ?? group.user.username ?? "")'s story\(group.hasUnviewed ? ", new" : "")")
+                    .accessibilityLabel("\(group.user.displayName ?? group.user.username ?? "")'s vlog\(group.hasUnviewed ? ", new" : "")")
                 }
             }
             .padding(.horizontal, InvlogTheme.Spacing.md)
@@ -29,15 +30,30 @@ struct StoriesBarView: View {
         .fullScreenCover(item: $selectedGroup) { group in
             StoryViewerView(
                 storyGroups: storyGroups,
-                initialGroup: group
+                initialGroup: group,
+                selectedUsername: $navigateToUsername
             )
         }
         .sheet(isPresented: $showCreateStory) {
             CreateStoryView()
         }
+        .background(
+            NavigationLink(
+                destination: Group {
+                    if let username = navigateToUsername {
+                        ProfileView(userId: username)
+                    }
+                },
+                isActive: Binding(
+                    get: { navigateToUsername != nil },
+                    set: { if !$0 { navigateToUsername = nil } }
+                )
+            ) { EmptyView() }
+            .hidden()
+        )
     }
 
-    // MARK: - Add Story Button
+    // MARK: - Add Vlog Button
 
     private var addStoryButton: some View {
         Button {
@@ -83,7 +99,7 @@ struct StoriesBarView: View {
                 }
                 .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
 
-                Text("Add Story")
+                Text("Add Vlog")
                     .font(InvlogTheme.caption(10, weight: .medium))
                     .foregroundColor(Color.brandTextSecondary)
                     .lineLimit(1)
@@ -91,7 +107,7 @@ struct StoriesBarView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Add to your story")
+        .accessibilityLabel("Add to your vlog")
     }
 
     private var placeholderAvatar: some View {

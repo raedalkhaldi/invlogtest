@@ -11,17 +11,30 @@ struct CreateStoryView: View {
     @State private var isUploading = false
     @State private var errorMessage: String?
     @StateObject private var uploadService = MediaUploadService()
+    @State private var isLoadingMedia = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                if selectedImage != nil || selectedVideoURL != nil {
+                if isLoadingMedia {
+                    ProgressView("Loading media...")
+                        .frame(maxHeight: 500)
+                        .frame(maxWidth: .infinity)
+                } else if selectedImage != nil || selectedVideoURL != nil {
                     // Preview
                     if isVideo, let videoURL = selectedVideoURL {
-                        StoryVideoPreview(url: videoURL)
-                            .frame(maxHeight: 500)
-                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.lg))
-                            .padding(.horizontal)
+                        ZStack {
+                            // Show thumbnail as fallback while video player initializes
+                            if let thumb = selectedImage {
+                                Image(uiImage: thumb)
+                                    .resizable()
+                                    .scaledToFit()
+                            }
+                            StoryVideoPreview(url: videoURL)
+                        }
+                        .frame(maxHeight: 500)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.lg))
+                        .padding(.horizontal)
                     } else if let image = selectedImage {
                         Image(uiImage: image)
                             .resizable()
@@ -35,7 +48,7 @@ struct CreateStoryView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "video.fill")
                                 .font(.caption)
-                            Text("10s video story")
+                            Text("10s video vlog")
                                 .font(InvlogTheme.caption(12, weight: .semibold))
                         }
                         .foregroundColor(Color.brandAccent)
@@ -46,7 +59,7 @@ struct CreateStoryView: View {
                             ProgressView(value: uploadService.overallProgress)
                                 .tint(Color.brandPrimary)
                                 .padding(.horizontal)
-                            Text("Uploading story...")
+                            Text("Uploading vlog...")
                                 .font(InvlogTheme.caption(12))
                                 .foregroundColor(Color.brandTextSecondary)
                         }
@@ -75,7 +88,7 @@ struct CreateStoryView: View {
                             .font(.system(size: 48))
                             .foregroundColor(Color.brandTextTertiary)
 
-                        Text("Add to Your Story")
+                        Text("Add to Your Vlog")
                             .font(InvlogTheme.heading(20, weight: .bold))
                             .foregroundColor(Color.brandText)
 
@@ -107,7 +120,7 @@ struct CreateStoryView: View {
                 }
             }
             .invlogScreenBackground()
-            .navigationTitle("New Story")
+            .navigationTitle("New Vlog")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -134,6 +147,7 @@ struct CreateStoryView: View {
 
     private func loadMedia(from item: PhotosPickerItem?) async {
         guard let item else { return }
+        isLoadingMedia = true
         errorMessage = nil
         selectedImage = nil
         selectedVideoURL = nil
@@ -141,15 +155,17 @@ struct CreateStoryView: View {
 
         // Try video first
         if let movie = try? await item.loadTransferable(type: VideoTransferable.self) {
+            // Generate thumbnail first so it's ready before showing the preview
+            let thumbnail = await generateThumbnail(from: movie.url)
+            selectedImage = thumbnail
             selectedVideoURL = movie.url
             isVideo = true
-            // Generate thumbnail
-            selectedImage = await generateThumbnail(from: movie.url)
         } else if let data = try? await item.loadTransferable(type: Data.self),
                   let image = UIImage(data: data) {
             selectedImage = image
             isVideo = false
         }
+        isLoadingMedia = false
     }
 
     private func generateThumbnail(from url: URL) async -> UIImage? {
@@ -206,13 +222,14 @@ struct CreateStoryView: View {
 private struct StoryVideoPreview: UIViewRepresentable {
     let url: URL
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+    func makeUIView(context: Context) -> PlayerContainerView {
+        let view = PlayerContainerView()
         let player = AVPlayer(url: url)
         player.isMuted = true
         let playerLayer = AVPlayerLayer(player: player)
         playerLayer.videoGravity = .resizeAspect
         view.layer.addSublayer(playerLayer)
+        view.playerLayer = playerLayer
         player.play()
 
         NotificationCenter.default.addObserver(
@@ -229,11 +246,20 @@ private struct StoryVideoPreview: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
+    func updateUIView(_ uiView: PlayerContainerView, context: Context) {
         context.coordinator.playerLayer?.frame = uiView.bounds
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
+
+    class PlayerContainerView: UIView {
+        var playerLayer: AVPlayerLayer?
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            playerLayer?.frame = bounds
+        }
+    }
 
     class Coordinator {
         var player: AVPlayer?

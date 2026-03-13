@@ -15,6 +15,9 @@ struct Post: Codable, Identifiable, Hashable {
     let likeCount: Int
     var commentCount: Int
     let isPublic: Bool
+    let visibility: String?
+    let tripId: String?
+    let tripTitle: String?
     let media: [PostMedia]?
     let recentComments: [Comment]?
     let createdAt: Date

@@ -10,6 +10,7 @@ import {
   MaxLength,
   IsBoolean,
   IsNotEmpty,
+  IsIn,
 } from 'class-validator';
 
 export class CreatePostDto {
@@ -54,6 +55,14 @@ export class CreatePostDto {
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsIn(['public', 'followers', 'private'])
+  visibility?: 'public' | 'followers' | 'private';
+
+  @IsOptional()
+  @IsUUID()
+  tripId?: string;
 }
 
 export class UpdatePostDto {
@@ -71,4 +80,13 @@ export class UpdatePostDto {
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsIn(['public', 'followers', 'private'])
+  visibility?: 'public' | 'followers' | 'private';
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  removeMediaIds?: string[];
 }
