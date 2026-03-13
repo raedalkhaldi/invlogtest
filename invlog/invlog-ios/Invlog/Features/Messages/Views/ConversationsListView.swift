@@ -77,20 +77,17 @@ struct ConversationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            NavigationLink(destination: ProfileView(userId: conversation.otherUser?.username ?? "")) {
-                LazyImage(url: conversation.otherUser?.avatarUrl) { state in
-                    if let image = state.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(Color.brandTextTertiary)
-                    }
+            LazyImage(url: conversation.otherUser?.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(Color.brandTextTertiary)
                 }
-                .frame(width: 48, height: 48)
-                .clipShape(Circle())
             }
-            .buttonStyle(.plain)
+            .frame(width: 48, height: 48)
+            .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {

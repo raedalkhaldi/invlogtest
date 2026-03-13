@@ -1,5 +1,7 @@
 import SwiftUI
 import AVKit
+import Combine
+@preconcurrency import NukeUI
 
 struct AutoPlayVideoView: View {
     let url: URL
@@ -8,19 +10,26 @@ struct AutoPlayVideoView: View {
 
     @State private var player: AVPlayer?
     @State private var isVisible = false
+    @State private var isPlayerReady = false
+    @State private var statusObserver: AnyCancellable?
     @ObservedObject private var muteManager = VideoMuteManager.shared
 
     var body: some View {
         ZStack {
-            // Video player
-            if let player {
-                VideoPlayerView(player: player)
-                    .onDisappear {
-                        player.pause()
-                    }
-            } else {
+            // Thumbnail / placeholder (shown while video buffers)
+            if !isPlayerReady {
                 ZStack {
-                    if let blurhash {
+                    if let thumbnailUrl {
+                        LazyImage(url: thumbnailUrl) { state in
+                            if let image = state.image {
+                                image.resizable().scaledToFill()
+                            } else if let blurhash {
+                                BlurhashView(blurhash: blurhash)
+                            } else {
+                                Rectangle().fill(Color(.systemGray5))
+                            }
+                        }
+                    } else if let blurhash {
                         BlurhashView(blurhash: blurhash)
                     } else {
                         Rectangle()
@@ -29,6 +38,14 @@ struct AutoPlayVideoView: View {
                     ShimmerView()
                         .opacity(0.4)
                 }
+            }
+
+            // Video player
+            if let player {
+                VideoPlayerView(player: player)
+                    .onDisappear {
+                        player.pause()
+                    }
             }
 
             // Mute/unmute button
@@ -83,6 +100,18 @@ struct AutoPlayVideoView: View {
             avPlayer.seek(to: .zero)
             avPlayer.play()
         }
+
+        // Observe player item status to know when video is ready
+        statusObserver = avPlayer.currentItem?.publisher(for: \.status)
+            .receive(on: DispatchQueue.main)
+            .sink { status in
+                if status == .readyToPlay {
+                    withAnimation(.easeIn(duration: 0.2)) {
+                        isPlayerReady = true
+                    }
+                    statusObserver?.cancel()
+                }
+            }
 
         player = avPlayer
         if isVisible {

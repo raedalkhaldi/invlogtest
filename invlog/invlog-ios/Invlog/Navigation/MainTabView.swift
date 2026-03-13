@@ -45,6 +45,9 @@ struct MainTabView: View {
                 }
                 .opacity(selectedTab == .profile ? 1 : 0)
             }
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: InvlogTheme.TabBar.contentHeight)
+            }
 
             // Custom tab bar overlay
             CustomTabBarView(
