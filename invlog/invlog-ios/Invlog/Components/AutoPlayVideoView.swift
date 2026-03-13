@@ -11,60 +11,59 @@ struct AutoPlayVideoView: View {
     @State private var player: AVPlayer?
     @State private var isVisible = false
     @State private var isPlayerReady = false
+    @State private var hasFailed = false
     @State private var statusObserver: AnyCancellable?
+    @State private var loopObserver: Any?
     @ObservedObject private var muteManager = VideoMuteManager.shared
 
     var body: some View {
         ZStack {
-            // Thumbnail / placeholder (shown while video buffers)
-            if !isPlayerReady {
-                ZStack {
-                    if let thumbnailUrl {
-                        LazyImage(url: thumbnailUrl) { state in
-                            if let image = state.image {
-                                image.resizable().scaledToFill()
-                            } else if let blurhash {
-                                BlurhashView(blurhash: blurhash)
-                            } else {
-                                Rectangle().fill(Color(.systemGray5))
-                            }
-                        }
-                    } else if let blurhash {
-                        BlurhashView(blurhash: blurhash)
-                    } else {
-                        Rectangle()
-                            .fill(Color(.systemGray5))
-                    }
-                    ShimmerView()
-                        .opacity(0.4)
-                }
-            }
-
-            // Video player
+            // Video player (behind thumbnail, always present when player exists)
             if let player {
                 VideoPlayerView(player: player)
+                    .opacity(isPlayerReady ? 1 : 0)
                     .onDisappear {
                         player.pause()
                     }
             }
 
-            // Mute/unmute button
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Button {
-                        muteManager.toggle()
-                    } label: {
-                        Image(systemName: muteManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
+            // Thumbnail / placeholder (shown while video buffers, fades out)
+            if !isPlayerReady {
+                ZStack {
+                    if hasFailed {
+                        // Show static thumbnail for failed videos
+                        thumbnailOrPlaceholder
+                        Image(systemName: "play.slash.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.7))
+                    } else {
+                        thumbnailOrPlaceholder
+                        ShimmerView()
+                            .opacity(0.4)
                     }
-                    .buttonStyle(.borderless)
-                    .padding(8)
+                }
+                .transition(.opacity)
+            }
+
+            // Mute/unmute button
+            if isPlayerReady {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button {
+                            muteManager.toggle()
+                        } label: {
+                            Image(systemName: muteManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(8)
+                                .background(Color.black.opacity(0.6))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.borderless)
+                        .padding(8)
+                    }
                 }
             }
         }
@@ -75,18 +74,38 @@ struct AutoPlayVideoView: View {
         .onDisappear {
             isVisible = false
             player?.pause()
-            if let item = player?.currentItem {
-                NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: item)
-            }
+            cleanupObservers()
         }
         .onChange(of: muteManager.isMuted) { muted in
             player?.isMuted = muted
         }
     }
 
+    @ViewBuilder
+    private var thumbnailOrPlaceholder: some View {
+        if let thumbnailUrl {
+            LazyImage(url: thumbnailUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else if let blurhash {
+                    BlurhashView(blurhash: blurhash)
+                } else {
+                    Rectangle().fill(Color(.systemGray5))
+                }
+            }
+        } else if let blurhash {
+            BlurhashView(blurhash: blurhash)
+        } else {
+            Rectangle()
+                .fill(Color(.systemGray5))
+        }
+    }
+
     private func setupPlayer() {
         guard player == nil else {
-            if isVisible { player?.play() }
+            if isVisible {
+                player?.play()
+            }
             return
         }
 
@@ -94,11 +113,10 @@ struct AutoPlayVideoView: View {
         avPlayer.isMuted = muteManager.isMuted
         avPlayer.actionAtItemEnd = .none
 
-        // Loop video
-        let item = avPlayer.currentItem
-        NotificationCenter.default.addObserver(
+        // Loop video — store observer token for proper cleanup
+        loopObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
-            object: item,
+            object: avPlayer.currentItem,
             queue: .main
         ) { [weak avPlayer] _ in
             avPlayer?.seek(to: .zero)
@@ -109,17 +127,37 @@ struct AutoPlayVideoView: View {
         statusObserver = avPlayer.currentItem?.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
             .sink { status in
-                if status == .readyToPlay {
-                    withAnimation(.easeIn(duration: 0.2)) {
-                        isPlayerReady = true
+                switch status {
+                case .readyToPlay:
+                    // Small delay to ensure first frame is rendered
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        withAnimation(.easeIn(duration: 0.2)) {
+                            isPlayerReady = true
+                        }
                     }
                     statusObserver?.cancel()
+                    statusObserver = nil
+                case .failed:
+                    hasFailed = true
+                    statusObserver?.cancel()
+                    statusObserver = nil
+                default:
+                    break
                 }
             }
 
         player = avPlayer
         if isVisible {
             avPlayer.play()
+        }
+    }
+
+    private func cleanupObservers() {
+        statusObserver?.cancel()
+        statusObserver = nil
+        if let observer = loopObserver {
+            NotificationCenter.default.removeObserver(observer)
+            loopObserver = nil
         }
     }
 }
