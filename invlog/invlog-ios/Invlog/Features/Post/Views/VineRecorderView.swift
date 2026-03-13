@@ -235,7 +235,7 @@ struct VineRecorderView: View {
     // MARK: - Record Button
 
     private var recordButton: some View {
-        let buttonSize: CGFloat = isRecording ? 88 : 80
+        let buttonSize: CGFloat = 80
 
         return ZStack {
             // Outer ring
@@ -243,27 +243,27 @@ struct VineRecorderView: View {
                 .stroke(Color.white, lineWidth: 4)
                 .frame(width: buttonSize + 8, height: buttonSize + 8)
 
-            // Inner red circle
-            Circle()
-                .fill(Color.red)
-                .frame(width: buttonSize, height: buttonSize)
+            // Inner shape: circle when idle, rounded square when recording
+            if isRecording {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.red)
+                    .frame(width: 36, height: 36)
+            } else {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: buttonSize, height: buttonSize)
+            }
         }
         .animation(.easeInOut(duration: 0.15), value: isRecording)
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    if !isRecording {
-                        startRecordingSegment()
-                    }
-                }
-                .onEnded { _ in
-                    if isRecording {
-                        stopRecordingSegment()
-                    }
-                }
-        )
-        .accessibilityLabel("Hold to record")
-        .accessibilityHint("Press and hold to record a clip. Release to stop.")
+        .onTapGesture {
+            if isRecording {
+                stopRecordingSegment()
+            } else {
+                startRecordingSegment()
+            }
+        }
+        .accessibilityLabel(isRecording ? "Stop recording" : "Start recording")
+        .accessibilityHint("Tap to start or stop recording a clip.")
     }
 
     // MARK: - Permission Denied View
