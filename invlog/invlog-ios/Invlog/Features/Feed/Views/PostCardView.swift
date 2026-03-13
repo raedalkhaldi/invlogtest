@@ -53,9 +53,16 @@ struct PostCardView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId)) {
-                        Text(post.author?.displayName ?? post.author?.username ?? "Unknown")
-                            .font(InvlogTheme.body(14, weight: .bold))
-                            .foregroundColor(Color.brandText)
+                        HStack(spacing: 4) {
+                            Text(post.author?.username ?? "unknown")
+                                .font(InvlogTheme.body(14, weight: .bold))
+                                .foregroundColor(Color.brandText)
+                            if post.author?.isVerified == true {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.blue)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
 
@@ -166,18 +173,6 @@ struct PostCardView: View {
             // Media
             if let media = post.media, !media.isEmpty {
                 MediaCarouselView(media: media)
-
-                if let firstVideo = media.first(where: { $0.mediaType == "video" }),
-                   let duration = firstVideo.durationSecs {
-                    HStack {
-                        Image(systemName: "video.fill")
-                            .font(.caption2)
-                        Text(String(format: "0:%02d", Int(duration)))
-                            .font(InvlogTheme.caption(11))
-                    }
-                    .foregroundColor(Color.brandTextSecondary)
-                    .padding(.horizontal, InvlogTheme.Card.padding)
-                }
             }
 
             // Actions Bar
@@ -541,6 +536,7 @@ struct EditPostSheet: View {
                     removeMediaIds: removedMediaIds.isEmpty ? nil : Array(removedMediaIds)
                 )
             )
+            NotificationCenter.default.post(name: .didCreatePost, object: nil)
             dismiss()
         } catch {
             // Save failed

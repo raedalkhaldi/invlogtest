@@ -80,8 +80,13 @@ struct FeedView: View {
             }
         }
         .invlogScreenBackground()
-        .navigationTitle("Invlog")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("invlog")
+                    .font(InvlogTheme.heading(22, weight: .bold))
+                    .foregroundColor(Color.brandText)
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink(destination: ConversationsListView()) {
                     Image(systemName: "paperplane")

@@ -68,8 +68,36 @@ struct MessageThreadView: View {
             }
         }
         .invlogScreenBackground()
-        .navigationTitle(otherUser?.displayName ?? otherUser?.username ?? "Chat")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                if let user = otherUser {
+                    NavigationLink(destination: ProfileView(userId: user.username)) {
+                        HStack(spacing: 8) {
+                            LazyImage(url: user.avatarUrl) { state in
+                                if let image = state.image {
+                                    image.resizable().scaledToFill()
+                                } else {
+                                    Image(systemName: "person.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(Color.brandTextTertiary)
+                                }
+                            }
+                            .frame(width: 28, height: 28)
+                            .clipShape(Circle())
+
+                            Text(user.displayName ?? user.username)
+                                .font(InvlogTheme.body(15, weight: .bold))
+                                .foregroundColor(Color.brandText)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text("Chat")
+                        .font(InvlogTheme.body(15, weight: .bold))
+                }
+            }
+        }
         .task {
             await viewModel.loadMessages()
             viewModel.markAsRead()
@@ -104,7 +132,7 @@ struct MessageBubble: View {
                     .font(InvlogTheme.body(15))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(isFromMe ? Color.brandText : Color.brandCard)
+                    .background(isFromMe ? Color.brandPrimary : Color.brandCard)
                     .foregroundColor(isFromMe ? .white : Color.brandText)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .overlay(

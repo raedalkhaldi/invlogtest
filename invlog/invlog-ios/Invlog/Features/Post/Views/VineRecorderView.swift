@@ -5,6 +5,7 @@ import AVFoundation
 
 struct VineRecorderView: View {
     let onComplete: (URL, UIImage) -> Void
+    var maxSeconds: Double = 10.0
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var cameraManager = CameraManager()
@@ -21,7 +22,7 @@ struct VineRecorderView: View {
 
     @State private var permissionGranted = false
 
-    private let maxDuration: Double = 10.0
+    private var maxDuration: Double { maxSeconds }
     private let timerInterval: Double = 0.05
 
     var body: some View {

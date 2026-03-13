@@ -218,9 +218,9 @@ struct ProfileHeaderView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Dark header background
+            // Header background
             ZStack {
-                Color.brandText
+                Color.brandPrimary.opacity(0.15)
                     .frame(height: 100)
 
                 VStack(spacing: 0) {
@@ -352,6 +352,33 @@ struct ProfileHeaderView: View {
                 .accessibilityLabel("View my trips")
             }
 
+            // Saved items (only visible to current user)
+            if isCurrentUser {
+                NavigationLink(destination: BookmarksView()) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bookmark.fill")
+                            .foregroundColor(Color.brandSecondary)
+                        Text("Saved")
+                            .font(InvlogTheme.body(14, weight: .semibold))
+                            .foregroundColor(Color.brandText)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
+                    .padding(InvlogTheme.Spacing.sm)
+                    .background(Color.brandCard)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(Color.brandBorder, lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal, InvlogTheme.Spacing.md)
+                .padding(.top, InvlogTheme.Spacing.xxs)
+                .accessibilityLabel("View saved posts")
+            }
+
             // XP progress placeholder
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
@@ -436,7 +463,7 @@ struct ProfileHeaderView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
                 .background(isFollowing ? Color.brandCard : Color.brandText)
-                .foregroundColor(isFollowing ? Color.brandText : .white)
+                .foregroundColor(isFollowing ? Color.brandText : Color.brandBackground)
                 .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                 .overlay(
                     RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
