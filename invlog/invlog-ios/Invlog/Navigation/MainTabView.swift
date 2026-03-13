@@ -7,6 +7,12 @@ struct MainTabView: View {
     @State private var showCreateTrip = false
     @State private var showCreateOptions = false
 
+    // Navigation paths for pop-to-root on re-tap
+    @State private var feedPath = NavigationPath()
+    @State private var searchPath = NavigationPath()
+    @State private var notificationsPath = NavigationPath()
+    @State private var profilePath = NavigationPath()
+
     enum Tab: Int, CaseIterable {
         case feed
         case search
@@ -19,22 +25,22 @@ struct MainTabView: View {
         ZStack(alignment: .bottom) {
             // Content — all tabs alive via opacity for state preservation
             ZStack {
-                NavigationStack {
+                NavigationStack(path: $feedPath) {
                     FeedView()
                 }
                 .opacity(selectedTab == .feed ? 1 : 0)
 
-                NavigationStack {
+                NavigationStack(path: $searchPath) {
                     SearchView()
                 }
                 .opacity(selectedTab == .search ? 1 : 0)
 
-                NavigationStack {
+                NavigationStack(path: $notificationsPath) {
                     NotificationsListView()
                 }
                 .opacity(selectedTab == .notifications ? 1 : 0)
 
-                NavigationStack {
+                NavigationStack(path: $profilePath) {
                     ProfileView(userId: nil)
                 }
                 .opacity(selectedTab == .profile ? 1 : 0)
@@ -44,7 +50,10 @@ struct MainTabView: View {
             CustomTabBarView(
                 selectedTab: $selectedTab,
                 onCreateTapped: { showCreateOptions = true },
-                unreadCount: appState.unreadNotificationCount
+                unreadCount: appState.unreadNotificationCount,
+                onTabReselected: { tab in
+                    popToRoot(tab)
+                }
             )
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -69,6 +78,16 @@ struct MainTabView: View {
             NavigationStack {
                 CreateTripView()
             }
+        }
+    }
+
+    private func popToRoot(_ tab: Tab) {
+        switch tab {
+        case .feed: feedPath = NavigationPath()
+        case .search: searchPath = NavigationPath()
+        case .notifications: notificationsPath = NavigationPath()
+        case .profile: profilePath = NavigationPath()
+        case .create: break
         }
     }
 }

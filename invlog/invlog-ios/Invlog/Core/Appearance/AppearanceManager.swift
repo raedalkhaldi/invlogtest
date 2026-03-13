@@ -27,7 +27,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 final class AppearanceManager: ObservableObject {
     static let shared = AppearanceManager()
 
-    @AppStorage("appearanceMode") var mode: AppearanceMode = .light
+    @AppStorage("appearanceMode") var mode: AppearanceMode = .system
 
     var preferredColorScheme: ColorScheme? {
         mode.colorScheme

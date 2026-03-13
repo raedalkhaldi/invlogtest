@@ -6,6 +6,7 @@ struct CustomTabBarView: View {
     @Binding var selectedTab: MainTabView.Tab
     let onCreateTapped: () -> Void
     let unreadCount: Int
+    var onTabReselected: ((MainTabView.Tab) -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -61,7 +62,11 @@ struct CustomTabBarView: View {
         badge: Int = 0
     ) -> some View {
         Button {
-            selectedTab = tab
+            if selectedTab == tab {
+                onTabReselected?(tab)
+            } else {
+                selectedTab = tab
+            }
         } label: {
             VStack(spacing: 3) {
                 ZStack(alignment: .topTrailing) {

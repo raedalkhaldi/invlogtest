@@ -12,6 +12,8 @@ struct CreateStoryView: View {
     @State private var errorMessage: String?
     @StateObject private var uploadService = MediaUploadService()
     @State private var isLoadingMedia = false
+    @State private var showCamera = false
+    @State private var showVideoRecorder = false
 
     var body: some View {
         NavigationStack {
@@ -24,7 +26,6 @@ struct CreateStoryView: View {
                     // Preview
                     if isVideo, let videoURL = selectedVideoURL {
                         ZStack {
-                            // Show thumbnail as fallback while video player initializes
                             if let thumb = selectedImage {
                                 Image(uiImage: thumb)
                                     .resizable()
@@ -48,7 +49,7 @@ struct CreateStoryView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "video.fill")
                                 .font(.caption)
-                            Text("10s video vlog")
+                            Text("Video vlog (up to 1 min)")
                                 .font(InvlogTheme.caption(12, weight: .semibold))
                         }
                         .foregroundColor(Color.brandAccent)
@@ -92,11 +93,45 @@ struct CreateStoryView: View {
                             .font(InvlogTheme.heading(20, weight: .bold))
                             .foregroundColor(Color.brandText)
 
-                        Text("Select a photo or video to share with your followers for 24 hours.")
+                        Text("Take a photo, record a video (up to 1 min), or choose from your library.")
                             .font(InvlogTheme.body(14))
                             .foregroundColor(Color.brandTextSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
+
+                        // Camera buttons
+                        HStack(spacing: 12) {
+                            Button {
+                                showCamera = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "camera.fill")
+                                    Text("Photo")
+                                }
+                                .font(InvlogTheme.body(14, weight: .bold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(Color.brandSecondary)
+                                .foregroundColor(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                            }
+
+                            Button {
+                                showVideoRecorder = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "video.fill")
+                                    Text("Video")
+                                }
+                                .font(InvlogTheme.body(14, weight: .bold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(Color.brandPrimary)
+                                .foregroundColor(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                            }
+                        }
+                        .padding(.horizontal, 48)
 
                         PhotosPicker(
                             selection: $selectedItem,
@@ -104,14 +139,18 @@ struct CreateStoryView: View {
                         ) {
                             HStack(spacing: 8) {
                                 Image(systemName: "photo.on.rectangle")
-                                Text("Choose Photo or Video")
+                                Text("Choose from Library")
                             }
                             .font(InvlogTheme.body(14, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
-                            .background(Color.brandPrimary)
-                            .foregroundColor(.white)
+                            .background(Color.brandCard)
+                            .foregroundColor(Color.brandText)
                             .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                    .stroke(Color.brandBorder, lineWidth: 1)
+                            )
                         }
                         .padding(.horizontal, 48)
                     }
@@ -142,6 +181,20 @@ struct CreateStoryView: View {
                 Task { await loadMedia(from: newItem) }
             }
             .interactiveDismissDisabled(isUploading)
+            .fullScreenCover(isPresented: $showCamera) {
+                PhotoCaptureView { image in
+                    selectedImage = image
+                    selectedVideoURL = nil
+                    isVideo = false
+                }
+            }
+            .fullScreenCover(isPresented: $showVideoRecorder) {
+                VineRecorderView(maxSeconds: 60) { url, thumbnail in
+                    selectedVideoURL = url
+                    selectedImage = thumbnail
+                    isVideo = true
+                }
+            }
         }
     }
 
@@ -155,7 +208,6 @@ struct CreateStoryView: View {
 
         // Try video first
         if let movie = try? await item.loadTransferable(type: VideoTransferable.self) {
-            // Generate thumbnail first so it's ready before showing the preview
             let thumbnail = await generateThumbnail(from: movie.url)
             selectedImage = thumbnail
             selectedVideoURL = movie.url

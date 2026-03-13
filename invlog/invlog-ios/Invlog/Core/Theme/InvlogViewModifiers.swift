@@ -19,13 +19,13 @@ struct InvlogCardModifier: ViewModifier {
     }
 }
 
-// MARK: - Primary Button Style (dark bg, white text)
+// MARK: - Primary Button Style (contrasting bg + text)
 
 struct InvlogPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(InvlogTheme.body(15, weight: .bold))
-            .foregroundColor(.white)
+            .foregroundColor(Color.brandBackground)
             .frame(maxWidth: .infinity)
             .frame(height: 44)
             .background(Color.brandText)
@@ -79,7 +79,7 @@ struct InvlogFilterPillStyle: ButtonStyle {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(isActive ? Color.brandText : Color.brandCard)
-            .foregroundColor(isActive ? .white : Color.brandTextSecondary)
+            .foregroundColor(isActive ? Color.brandBackground : Color.brandTextSecondary)
             .clipShape(Capsule())
             .overlay(
                 Capsule().stroke(isActive ? Color.clear : Color.brandBorder, lineWidth: 1)

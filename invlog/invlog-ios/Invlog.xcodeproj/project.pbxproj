@@ -19,6 +19,7 @@
 		2E53B62ADDF61C0B122E9E3E /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C04220E27BC6959336F8222 /* EmptyStateView.swift */; };
 		3C4D5E6F7A8B9C0D1E2F3A4B /* NearbyRestaurantsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8C9D0E1F2A3B4 /* NearbyRestaurantsView.swift */; };
 		43807BCA467AE9D06F13258C /* MediaUploadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04ABE1A136CF79ADB232244D /* MediaUploadService.swift */; };
+		VMUTE00200020002VMUTE0002 /* VideoMuteManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VMUTE00100010001VMUTE0001 /* VideoMuteManager.swift */; };
 		454F0DDE05E202777C6AEAE7 /* TripMapRouteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3B0234A0638927487979A9 /* TripMapRouteView.swift */; };
 		4D5E6F7A8B9C0D1E2F3A4B5C /* CheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B4C5 /* CheckInView.swift */; };
 		53A0E9136362C6F021A06C17 /* VideoFilterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3FCA70EB16732E81A2ACEC /* VideoFilterView.swift */; };
@@ -98,6 +99,7 @@
 
 /* Begin PBXFileReference section */
 		04ABE1A136CF79ADB232244D /* MediaUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MediaUploadService.swift; path = MediaUploadService.swift; sourceTree = "<group>"; };
+		VMUTE00100010001VMUTE0001 /* VideoMuteManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoMuteManager.swift; path = VideoMuteManager.swift; sourceTree = "<group>"; };
 		071A76EECEF1BBE6918B90FB /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EditProfileView.swift; path = EditProfileView.swift; sourceTree = "<group>"; };
 		07558A518EA1AE50710D8D11 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeedView.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		0A57ACED734EB3A998842698 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KeychainManager.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
@@ -603,6 +605,7 @@
 			children = (
 				AA11223344556677AABBCCDD /* ImagePipelineConfig.swift */,
 				04ABE1A136CF79ADB232244D /* MediaUploadService.swift */,
+				VMUTE00100010001VMUTE0001 /* VideoMuteManager.swift */,
 			);
 			name = Media;
 			path = Media;
@@ -784,6 +787,7 @@
 				14EFD54177F4F7BF9B4CC0E7 /* FollowableUserRowView.swift in Sources */,
 				F860A5CD560241A5A6660839 /* DependencyContainer.swift in Sources */,
 				43807BCA467AE9D06F13258C /* MediaUploadService.swift in Sources */,
+				VMUTE00200020002VMUTE0002 /* VideoMuteManager.swift in Sources */,
 				195E0CD83F02FC5929EF8026 /* APIClient.swift in Sources */,
 				8E3A1F5FC27FE75317EC1250 /* APIEndpoint.swift in Sources */,
 				A5E18AE6CF17D609D27DA2ED /* APIError.swift in Sources */,

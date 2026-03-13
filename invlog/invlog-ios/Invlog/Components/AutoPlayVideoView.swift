@@ -7,8 +7,8 @@ struct AutoPlayVideoView: View {
     let blurhash: String?
 
     @State private var player: AVPlayer?
-    @State private var isMuted = true
     @State private var isVisible = false
+    @ObservedObject private var muteManager = VideoMuteManager.shared
 
     var body: some View {
         ZStack {
@@ -37,10 +37,9 @@ struct AutoPlayVideoView: View {
                 HStack {
                     Spacer()
                     Button {
-                        isMuted.toggle()
-                        player?.isMuted = isMuted
+                        muteManager.toggle()
                     } label: {
-                        Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        Image(systemName: muteManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                             .font(.caption)
                             .foregroundColor(.white)
                             .padding(8)
@@ -60,6 +59,9 @@ struct AutoPlayVideoView: View {
             isVisible = false
             player?.pause()
         }
+        .onChange(of: muteManager.isMuted) { muted in
+            player?.isMuted = muted
+        }
     }
 
     private func setupPlayer() {
@@ -69,7 +71,7 @@ struct AutoPlayVideoView: View {
         }
 
         let avPlayer = AVPlayer(url: url)
-        avPlayer.isMuted = isMuted
+        avPlayer.isMuted = muteManager.isMuted
         avPlayer.actionAtItemEnd = .none
 
         // Loop video
