@@ -143,8 +143,13 @@ export class CommentsService {
 
   async remove(id: string, userId: string): Promise<void> {
     const comment = await this.findById(id);
+
+    // Allow comment author OR post owner to delete
     if (comment.authorId !== userId) {
-      throw new ForbiddenException('You can only delete your own comments');
+      const post = await this.postRepo.findOne({ where: { id: comment.postId } });
+      if (!post || post.authorId !== userId) {
+        throw new ForbiddenException('You can only delete your own comments or comments on your posts');
+      }
     }
 
     await this.commentRepo.softRemove(comment);

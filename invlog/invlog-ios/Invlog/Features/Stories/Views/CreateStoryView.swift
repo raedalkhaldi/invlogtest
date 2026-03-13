@@ -316,5 +316,12 @@ private struct StoryVideoPreview: UIViewRepresentable {
     class Coordinator {
         var player: AVPlayer?
         var playerLayer: AVPlayerLayer?
+
+        deinit {
+            if let item = player?.currentItem {
+                NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: item)
+            }
+            player?.pause()
+        }
     }
 }

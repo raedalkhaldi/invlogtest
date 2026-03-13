@@ -40,31 +40,33 @@ export class BlocksService {
     const block = this.blockRepo.create({ blockerId, blockedUserId });
     const saved = await this.blockRepo.save(block);
 
-    // Auto-unfollow in both directions
-    await this.followRepo.delete({
-      followerId: blockerId,
-      targetType: 'user',
-      targetId: blockedUserId,
+    // Auto-unfollow in both directions, only decrement counts if follow actually existed
+    const blockerFollowedTarget = await this.followRepo.findOne({
+      where: { followerId: blockerId, targetType: 'user', targetId: blockedUserId },
     });
-    await this.followRepo.delete({
-      followerId: blockedUserId,
-      targetType: 'user',
-      targetId: blockerId,
+    const targetFollowedBlocker = await this.followRepo.findOne({
+      where: { followerId: blockedUserId, targetType: 'user', targetId: blockerId },
     });
 
-    // Decrement follower/following counts
-    await this.userRepo
-      .createQueryBuilder()
-      .update(User)
-      .set({ followingCount: () => 'GREATEST("following_count" - 1, 0)' })
-      .where('id IN (:...ids)', { ids: [blockerId, blockedUserId] })
-      .execute();
-    await this.userRepo
-      .createQueryBuilder()
-      .update(User)
-      .set({ followerCount: () => 'GREATEST("follower_count" - 1, 0)' })
-      .where('id IN (:...ids)', { ids: [blockerId, blockedUserId] })
-      .execute();
+    if (blockerFollowedTarget) {
+      await this.followRepo.remove(blockerFollowedTarget);
+      await this.userRepo.createQueryBuilder().update(User)
+        .set({ followingCount: () => 'GREATEST("following_count" - 1, 0)' })
+        .where('id = :id', { id: blockerId }).execute();
+      await this.userRepo.createQueryBuilder().update(User)
+        .set({ followerCount: () => 'GREATEST("follower_count" - 1, 0)' })
+        .where('id = :id', { id: blockedUserId }).execute();
+    }
+
+    if (targetFollowedBlocker) {
+      await this.followRepo.remove(targetFollowedBlocker);
+      await this.userRepo.createQueryBuilder().update(User)
+        .set({ followingCount: () => 'GREATEST("following_count" - 1, 0)' })
+        .where('id = :id', { id: blockedUserId }).execute();
+      await this.userRepo.createQueryBuilder().update(User)
+        .set({ followerCount: () => 'GREATEST("follower_count" - 1, 0)' })
+        .where('id = :id', { id: blockerId }).execute();
+    }
 
     return saved;
   }

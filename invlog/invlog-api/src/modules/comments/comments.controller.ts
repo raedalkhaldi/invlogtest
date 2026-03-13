@@ -51,7 +51,7 @@ export class CommentsController {
   }
 
   @Delete('comments/:id')
-  @ApiOperation({ summary: 'Delete a comment (author only)' })
+  @ApiOperation({ summary: 'Delete a comment (author or post owner)' })
   remove(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: JwtPayload,

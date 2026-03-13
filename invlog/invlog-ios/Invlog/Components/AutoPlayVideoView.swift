@@ -75,6 +75,9 @@ struct AutoPlayVideoView: View {
         .onDisappear {
             isVisible = false
             player?.pause()
+            if let item = player?.currentItem {
+                NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: item)
+            }
         }
         .onChange(of: muteManager.isMuted) { muted in
             player?.isMuted = muted
@@ -92,13 +95,14 @@ struct AutoPlayVideoView: View {
         avPlayer.actionAtItemEnd = .none
 
         // Loop video
+        let item = avPlayer.currentItem
         NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
-            object: avPlayer.currentItem,
+            object: item,
             queue: .main
-        ) { _ in
-            avPlayer.seek(to: .zero)
-            avPlayer.play()
+        ) { [weak avPlayer] _ in
+            avPlayer?.seek(to: .zero)
+            avPlayer?.play()
         }
 
         // Observe player item status to know when video is ready
