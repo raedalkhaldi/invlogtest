@@ -401,90 +401,10 @@ struct EditPostSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    TextField("Share your experience...", text: $content, axis: .vertical)
-                        .font(InvlogTheme.body(15))
-                        .lineLimit(5...10)
-                        .padding()
-                        .accessibilityLabel("Post content")
-
-                    // Media grid
-                    if let media = post.media, !media.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Media")
-                                .font(InvlogTheme.body(14, weight: .semibold))
-                                .foregroundColor(Color.brandText)
-
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(media) { item in
-                                        ZStack(alignment: .topTrailing) {
-                                            LazyImage(url: URL(string: item.thumbnailUrl ?? item.mediumUrl ?? item.url)) { state in
-                                                if let image = state.image {
-                                                    image.resizable().scaledToFill()
-                                                } else {
-                                                    Color.brandSurface
-                                                }
-                                            }
-                                            .frame(width: 80, height: 80)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                                            .opacity(removedMediaIds.contains(item.id) ? 0.3 : 1.0)
-
-                                            Button {
-                                                if removedMediaIds.contains(item.id) {
-                                                    removedMediaIds.remove(item.id)
-                                                } else {
-                                                    removedMediaIds.insert(item.id)
-                                                }
-                                            } label: {
-                                                Image(systemName: removedMediaIds.contains(item.id) ? "arrow.uturn.backward.circle.fill" : "xmark.circle.fill")
-                                                    .font(.system(size: 20))
-                                                    .foregroundColor(removedMediaIds.contains(item.id) ? Color.brandPrimary : .white)
-                                                    .shadow(radius: 2)
-                                            }
-                                            .offset(x: 4, y: -4)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // Rating
-                    HStack(spacing: 4) {
-                        Text("Rating")
-                            .font(InvlogTheme.body(14, weight: .semibold))
-                            .foregroundColor(Color.brandText)
-                        Spacer()
-                        ForEach(1...5, id: \.self) { star in
-                            Button {
-                                rating = (rating == star) ? nil : star
-                            } label: {
-                                Image(systemName: (rating ?? 0) >= star ? "star.fill" : "star")
-                                    .font(.title3)
-                                    .foregroundColor((rating ?? 0) >= star ? Color.brandSecondary : Color.brandTextTertiary)
-                            }
-                            .frame(minWidth: 44, minHeight: 44)
-                            .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // Visibility
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Who can see this?")
-                            .font(InvlogTheme.body(14, weight: .semibold))
-                            .foregroundColor(Color.brandText)
-
-                        Picker("Visibility", selection: $visibility) {
-                            Label("Public", systemImage: "globe").tag("public")
-                            Label("Followers", systemImage: "person.2.fill").tag("followers")
-                            Label("Private", systemImage: "lock.fill").tag("private")
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                    .padding(.horizontal)
-
+                    contentField
+                    mediaGrid
+                    ratingSection
+                    visibilitySection
                     Spacer()
                 }
             }
@@ -512,6 +432,101 @@ struct EditPostSheet: View {
                 }
             }
         }
+    }
+
+    private var contentField: some View {
+        TextField("Share your experience...", text: $content, axis: .vertical)
+            .font(InvlogTheme.body(15))
+            .lineLimit(5...10)
+            .padding()
+            .accessibilityLabel("Post content")
+    }
+
+    @ViewBuilder
+    private var mediaGrid: some View {
+        if let media = post.media, !media.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Media")
+                    .font(InvlogTheme.body(14, weight: .semibold))
+                    .foregroundColor(Color.brandText)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(media) { item in
+                            mediaItemView(item)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    private func mediaItemView(_ item: PostMedia) -> some View {
+        let isRemoved = removedMediaIds.contains(item.id)
+        return ZStack(alignment: .topTrailing) {
+            LazyImage(url: URL(string: item.thumbnailUrl ?? item.mediumUrl ?? item.url)) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Color.brandSurface
+                }
+            }
+            .frame(width: 80, height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .opacity(isRemoved ? 0.3 : 1.0)
+
+            Button {
+                if isRemoved {
+                    removedMediaIds.remove(item.id)
+                } else {
+                    removedMediaIds.insert(item.id)
+                }
+            } label: {
+                Image(systemName: isRemoved ? "arrow.uturn.backward.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(isRemoved ? Color.brandPrimary : .white)
+                    .shadow(radius: 2)
+            }
+            .offset(x: 4, y: -4)
+        }
+    }
+
+    private var ratingSection: some View {
+        HStack(spacing: 4) {
+            Text("Rating")
+                .font(InvlogTheme.body(14, weight: .semibold))
+                .foregroundColor(Color.brandText)
+            Spacer()
+            ForEach(1...5, id: \.self) { star in
+                Button {
+                    rating = (rating == star) ? nil : star
+                } label: {
+                    Image(systemName: (rating ?? 0) >= star ? "star.fill" : "star")
+                        .font(.title3)
+                        .foregroundColor((rating ?? 0) >= star ? Color.brandSecondary : Color.brandTextTertiary)
+                }
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var visibilitySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Who can see this?")
+                .font(InvlogTheme.body(14, weight: .semibold))
+                .foregroundColor(Color.brandText)
+
+            Picker("Visibility", selection: $visibility) {
+                Label("Public", systemImage: "globe").tag("public")
+                Label("Followers", systemImage: "person.2.fill").tag("followers")
+                Label("Private", systemImage: "lock.fill").tag("private")
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding(.horizontal)
     }
 
     private func saveChanges() async {
