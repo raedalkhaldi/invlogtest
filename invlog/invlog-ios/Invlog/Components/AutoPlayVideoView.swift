@@ -118,8 +118,11 @@ struct AutoPlayVideoView: View {
             object: avPlayer.currentItem,
             queue: .main
         ) { [weak avPlayer] _ in
-            avPlayer?.seek(to: .zero)
-            avPlayer?.play()
+            avPlayer?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
+                if finished {
+                    avPlayer?.play()
+                }
+            }
         }
 
         // Observe player item status to know when video is ready

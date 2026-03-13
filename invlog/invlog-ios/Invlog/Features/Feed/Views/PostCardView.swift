@@ -98,8 +98,9 @@ struct PostCardView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                .layoutPriority(1)
 
-                Spacer()
+                Spacer(minLength: 0)
 
                 VStack(alignment: .trailing, spacing: 8) {
                     HStack(spacing: 8) {
