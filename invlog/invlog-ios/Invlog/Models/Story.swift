@@ -17,7 +17,7 @@ struct Story: Codable, Identifiable, Hashable {
 struct StoryGroup: Codable, Identifiable, Hashable {
     var id: String { user.id ?? UUID().uuidString }
     let user: StoryUser
-    let stories: [Story]
+    var stories: [Story]
     let hasUnviewed: Bool
     let latestAt: Date
 }

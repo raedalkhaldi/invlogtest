@@ -5,6 +5,7 @@ import SwiftUI
 struct StoriesBarView: View {
     let storyGroups: [StoryGroup]
     let currentUser: User?
+    @ObservedObject var storiesViewModel: StoriesViewModel
     @State private var selectedGroup: StoryGroup?
     @State private var showCreateStory = false
     @State private var navigateToUsername: String?
@@ -31,7 +32,8 @@ struct StoriesBarView: View {
             StoryViewerView(
                 storyGroups: storyGroups,
                 initialGroup: group,
-                selectedUsername: $navigateToUsername
+                selectedUsername: $navigateToUsername,
+                storiesViewModel: storiesViewModel
             )
         }
         .sheet(isPresented: $showCreateStory) {

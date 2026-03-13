@@ -6,16 +6,20 @@ struct StoryViewerView: View {
     let initialGroup: StoryGroup
     @Binding var selectedUsername: String?
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
+    @ObservedObject var storiesViewModel: StoriesViewModel
 
     @State private var currentGroupIndex: Int = 0
     @State private var currentStoryIndex: Int = 0
     @State private var progress: CGFloat = 0
     @State private var timer: Timer?
+    @State private var showDeleteConfirm = false
 
-    init(storyGroups: [StoryGroup], initialGroup: StoryGroup, selectedUsername: Binding<String?> = .constant(nil)) {
+    init(storyGroups: [StoryGroup], initialGroup: StoryGroup, selectedUsername: Binding<String?> = .constant(nil), storiesViewModel: StoriesViewModel) {
         self.storyGroups = storyGroups
         self.initialGroup = initialGroup
         self._selectedUsername = selectedUsername
+        self.storiesViewModel = storiesViewModel
         let idx = storyGroups.firstIndex(where: { $0.id == initialGroup.id }) ?? 0
         _currentGroupIndex = State(initialValue: idx)
     }
@@ -29,6 +33,12 @@ struct StoryViewerView: View {
         guard let group = currentGroup,
               currentStoryIndex < group.stories.count else { return nil }
         return group.stories[currentStoryIndex]
+    }
+
+    /// Whether the current story belongs to the logged-in user
+    private var isOwnStory: Bool {
+        guard let story = currentStory else { return false }
+        return story.authorId == appState.currentUser?.id
     }
 
     var body: some View {
@@ -97,7 +107,7 @@ struct StoryViewerView: View {
                     .padding(.horizontal, 8)
                     .padding(.top, 8)
 
-                    // User info + close
+                    // User info + actions
                     HStack(spacing: 10) {
                         Button {
                             selectedUsername = group.user.username
@@ -127,6 +137,20 @@ struct StoryViewerView: View {
                             .foregroundColor(.white.opacity(0.7))
 
                         Spacer()
+
+                        // Delete button (own vlogs only)
+                        if isOwnStory {
+                            Button {
+                                timer?.invalidate()
+                                showDeleteConfirm = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.body)
+                                    .foregroundColor(.white)
+                            }
+                            .frame(minWidth: 44, minHeight: 44)
+                            .accessibilityLabel("Delete vlog")
+                        }
 
                         Button {
                             dismiss()
@@ -160,6 +184,38 @@ struct StoryViewerView: View {
             timer?.invalidate()
         }
         .statusBarHidden()
+        .alert("Delete Vlog", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) {
+                guard let story = currentStory else { return }
+                Task {
+                    let success = await storiesViewModel.deleteStory(story.id)
+                    if success {
+                        // Move to next story or dismiss if none left
+                        if let group = currentGroup, group.stories.isEmpty {
+                            if storyGroups.isEmpty {
+                                dismiss()
+                            } else {
+                                // Group was removed, adjust index
+                                if currentGroupIndex >= storyGroups.count {
+                                    currentGroupIndex = max(0, storyGroups.count - 1)
+                                }
+                                currentStoryIndex = 0
+                                startTimer()
+                            }
+                        } else {
+                            nextStory()
+                        }
+                    } else {
+                        startTimer()
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                startTimer()
+            }
+        } message: {
+            Text("Are you sure you want to delete this vlog?")
+        }
     }
 
     private func barWidth(for index: Int, totalWidth: CGFloat) -> CGFloat {

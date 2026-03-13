@@ -21,4 +21,20 @@ final class StoriesViewModel: ObservableObject {
             try? await APIClient.shared.requestVoid(.viewStory(id: storyId))
         }
     }
+
+    func deleteStory(_ storyId: String) async -> Bool {
+        do {
+            try await APIClient.shared.requestVoid(.deleteStory(id: storyId))
+            // Remove from local state
+            for i in storyGroups.indices {
+                storyGroups[i].stories.removeAll { $0.id == storyId }
+            }
+            // Remove empty groups
+            storyGroups.removeAll { $0.stories.isEmpty }
+            return true
+        } catch {
+            print("Failed to delete story: \(error)")
+            return false
+        }
+    }
 }
