@@ -71,8 +71,8 @@ struct MessageThreadView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                if let user = otherUser {
-                    NavigationLink(destination: ProfileView(userId: user.username)) {
+                if let user = otherUser, let username = user.username {
+                    NavigationLink(destination: ProfileView(userId: username)) {
                         HStack(spacing: 8) {
                             LazyImage(url: user.avatarUrl) { state in
                                 if let image = state.image {
@@ -86,7 +86,7 @@ struct MessageThreadView: View {
                             .frame(width: 28, height: 28)
                             .clipShape(Circle())
 
-                            Text(user.displayName ?? user.username)
+                            Text(user.displayName ?? user.username ?? "User")
                                 .font(InvlogTheme.body(15, weight: .bold))
                                 .foregroundColor(Color.brandText)
                         }
