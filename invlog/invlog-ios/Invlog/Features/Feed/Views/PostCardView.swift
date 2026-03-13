@@ -423,6 +423,7 @@ struct PostCardView: View {
 
 // MARK: - Edit Post Sheet
 
+@MainActor
 struct EditPostSheet: View {
     let post: Post
     @Environment(\.dismiss) private var dismiss
@@ -508,9 +509,10 @@ struct EditPostSheet: View {
         }
     }
 
+    @ViewBuilder
     private func mediaItemView(_ item: PostMedia) -> some View {
         let isRemoved = removedMediaIds.contains(item.id)
-        return ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .topTrailing) {
             LazyImage(url: URL(string: item.thumbnailUrl ?? item.mediumUrl ?? item.url)) { state in
                 if let image = state.image {
                     image.resizable().scaledToFill()
