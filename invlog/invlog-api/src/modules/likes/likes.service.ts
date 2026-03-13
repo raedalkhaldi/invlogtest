@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Like } from './entities/like.entity';
 import { Post } from '../posts/entities/post.entity';
 import { Comment } from '../comments/entities/comment.entity';
@@ -16,63 +16,68 @@ export class LikesService {
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
     private readonly notificationsService: NotificationsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async likePost(userId: string, postId: string): Promise<Like> {
-    const post = await this.postRepo.findOne({ where: { id: postId } });
-    if (!post) {
-      throw new NotFoundException('Post not found');
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const post = await manager.findOne(Post, { where: { id: postId } });
+      if (!post) {
+        throw new NotFoundException('Post not found');
+      }
 
-    const existing = await this.likeRepo.findOne({
-      where: { userId, targetType: 'post', targetId: postId },
+      const existing = await manager.findOne(Like, {
+        where: { userId, targetType: 'post', targetId: postId },
+      });
+      if (existing) {
+        throw new ConflictException('Already liked');
+      }
+
+      const like = manager.create(Like, {
+        userId,
+        targetType: 'post',
+        targetId: postId,
+      });
+
+      const saved = await manager.save(like);
+
+      await manager
+        .createQueryBuilder()
+        .update(Post)
+        .set({ likeCount: () => '"like_count" + 1' })
+        .where('id = :id', { id: postId })
+        .execute();
+
+      await this.notificationsService.create({
+        recipientId: post.authorId,
+        actorId: userId,
+        type: 'like_post',
+        targetType: 'post',
+        targetId: postId,
+      });
+
+      return saved;
     });
-    if (existing) {
-      throw new ConflictException('Already liked');
-    }
-
-    const like = this.likeRepo.create({
-      userId,
-      targetType: 'post',
-      targetId: postId,
-    });
-
-    const saved = await this.likeRepo.save(like);
-
-    await this.postRepo
-      .createQueryBuilder()
-      .update(Post)
-      .set({ likeCount: () => '"like_count" + 1' })
-      .where('id = :id', { id: postId })
-      .execute();
-
-    await this.notificationsService.create({
-      recipientId: post.authorId,
-      actorId: userId,
-      type: 'like_post',
-      targetType: 'post',
-      targetId: postId,
-    });
-
-    return saved;
   }
 
   async unlikePost(userId: string, postId: string): Promise<void> {
-    const like = await this.likeRepo.findOne({
-      where: { userId, targetType: 'post', targetId: postId },
+    await this.dataSource.transaction(async (manager) => {
+      const like = await manager.findOne(Like, {
+        where: { userId, targetType: 'post', targetId: postId },
+      });
+      if (!like) {
+        throw new NotFoundException('Like not found');
+      }
+
+      await manager.remove(like);
+
+      await manager
+        .createQueryBuilder()
+        .update(Post)
+        .set({ likeCount: () => 'GREATEST("like_count" - 1, 0)' })
+        .where('id = :id', { id: postId })
+        .execute();
     });
-    if (!like) {
-      throw new NotFoundException('Like not found');
-    }
-
-    await this.likeRepo.remove(like);
-
-    await this.postRepo
-      .createQueryBuilder()
-      .update(Post)
-      .set({ likeCount: () => 'GREATEST("like_count" - 1, 0)' })
-      .where('id = :id', { id: postId })
-      .execute();
   }
 
   async likeComment(userId: string, commentId: string): Promise<Like> {

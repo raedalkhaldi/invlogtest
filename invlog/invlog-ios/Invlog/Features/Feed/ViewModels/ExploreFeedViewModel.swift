@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 
+@MainActor
 final class ExploreFeedViewModel: ObservableObject {
     @Published var posts: [Post] = []
     @Published var isLoading = false

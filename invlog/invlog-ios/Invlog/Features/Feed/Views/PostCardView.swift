@@ -287,7 +287,7 @@ struct PostCardView: View {
             ShareSheetView(items: [shareText])
         }
         .sheet(isPresented: $showComments) {
-            CommentsSheetView(postId: post.id, commentCount: $commentCount, onCommentAdded: onCommentAdded)
+            CommentsSheetView(postId: post.id, postAuthorId: post.authorId, commentCount: $commentCount, onCommentAdded: onCommentAdded)
         }
         .sheet(isPresented: $showEditSheet) {
             EditPostSheet(post: post)
@@ -550,8 +550,10 @@ struct EditPostSheet: View {
 
 struct CommentsSheetView: View {
     let postId: String
+    let postAuthorId: String
     @Binding var commentCount: Int
     var onCommentAdded: (() -> Void)?
+    @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var comments: [Comment] = []
     @State private var newComment = ""
@@ -583,6 +585,15 @@ struct CommentsSheetView: View {
                                 CommentRowView(comment: comment)
                                     .padding(.horizontal)
                                     .padding(.vertical, 8)
+                                    .contextMenu {
+                                        if canDeleteComment(comment) {
+                                            Button(role: .destructive) {
+                                                Task { await deleteComment(comment) }
+                                            } label: {
+                                                Label("Delete Comment", systemImage: "trash")
+                                            }
+                                        }
+                                    }
                                 Rectangle().fill(Color.brandBorder).frame(height: 0.5)
                                     .padding(.horizontal)
                             }
@@ -661,6 +672,21 @@ struct CommentsSheetView: View {
             onCommentAdded?()
         } catch {
             newComment = content
+        }
+    }
+
+    private func canDeleteComment(_ comment: Comment) -> Bool {
+        guard let currentUserId = appState.currentUser?.id else { return false }
+        return comment.authorId == currentUserId || postAuthorId == currentUserId
+    }
+
+    private func deleteComment(_ comment: Comment) async {
+        do {
+            try await APIClient.shared.requestVoid(.deleteComment(id: comment.id))
+            comments.removeAll { $0.id == comment.id }
+            commentCount = max(commentCount - 1, 0)
+        } catch {
+            // Silent fail
         }
     }
 }

@@ -53,7 +53,15 @@ actor APIClient {
             if let date = formatter.date(from: string) { return date }
             formatter.formatOptions = [.withInternetDateTime]
             if let date = formatter.date(from: string) { return date }
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(string)")
+            // Fallback: common date formats
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "en_US_POSIX")
+            for fmt in ["yyyy-MM-dd'T'HH:mm:ss.SSSZ", "yyyy-MM-dd'T'HH:mm:ssZ", "yyyy-MM-dd"] {
+                df.dateFormat = fmt
+                if let date = df.date(from: string) { return date }
+            }
+            // Return current date instead of crashing on unexpected format
+            return Date()
         }
         self.decoder = decoder
     }
@@ -62,38 +70,67 @@ actor APIClient {
         _ endpoint: APIEndpoint,
         responseType: T.Type
     ) async throws -> T {
-        var urlRequest = try endpoint.urlRequest(baseURL: baseURL)
-        urlRequest = addAuthHeader(to: urlRequest)
+        var lastError: Error = APIError.unknown
 
-        let (data, response) = try await session.data(for: urlRequest)
+        for attempt in 0..<3 {
+            do {
+                var urlRequest = try endpoint.urlRequest(baseURL: baseURL)
+                urlRequest = addAuthHeader(to: urlRequest)
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
+                let (data, response) = try await session.data(for: urlRequest)
 
-        // Handle 401 — try refresh once
-        if httpResponse.statusCode == 401 {
-            try await refreshAccessToken()
-            var retryRequest = try endpoint.urlRequest(baseURL: baseURL)
-            retryRequest = addAuthHeader(to: retryRequest)
-            let (retryData, retryResponse) = try await session.data(for: retryRequest)
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw APIError.invalidResponse
+                }
 
-            guard let retryHttp = retryResponse as? HTTPURLResponse else {
-                throw APIError.invalidResponse
+                // Handle 401 — try refresh once
+                if httpResponse.statusCode == 401 {
+                    try await refreshAccessToken()
+                    var retryRequest = try endpoint.urlRequest(baseURL: baseURL)
+                    retryRequest = addAuthHeader(to: retryRequest)
+                    let (retryData, retryResponse) = try await session.data(for: retryRequest)
+
+                    guard let retryHttp = retryResponse as? HTTPURLResponse else {
+                        throw APIError.invalidResponse
+                    }
+
+                    guard (200...299).contains(retryHttp.statusCode) else {
+                        throw parseError(statusCode: retryHttp.statusCode, data: retryData)
+                    }
+
+                    return try decoder.decode(T.self, from: retryData)
+                }
+
+                // Retry on 5xx or 429 with exponential backoff
+                if ((500...599).contains(httpResponse.statusCode) || httpResponse.statusCode == 429),
+                   attempt < 2 {
+                    lastError = parseError(statusCode: httpResponse.statusCode, data: data)
+                    try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt + 1))) * 500_000_000)
+                    continue
+                }
+
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    throw parseError(statusCode: httpResponse.statusCode, data: data)
+                }
+
+                return try decoder.decode(T.self, from: data)
+            } catch let error as APIError {
+                // Don't retry client errors (except 429 handled above)
+                throw error
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // Network errors — retry with backoff
+                lastError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt + 1))) * 500_000_000)
+                    continue
+                }
+                throw error
             }
-
-            guard (200...299).contains(retryHttp.statusCode) else {
-                throw parseError(statusCode: retryHttp.statusCode, data: retryData)
-            }
-
-            return try decoder.decode(T.self, from: retryData)
         }
 
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw parseError(statusCode: httpResponse.statusCode, data: data)
-        }
-
-        return try decoder.decode(T.self, from: data)
+        throw lastError
     }
 
     /// For endpoints that return APIResponse<T> wrapper
@@ -107,30 +144,59 @@ actor APIClient {
 
     /// For endpoints with no response body (204, etc.)
     func requestVoid(_ endpoint: APIEndpoint) async throws {
-        var urlRequest = try endpoint.urlRequest(baseURL: baseURL)
-        urlRequest = addAuthHeader(to: urlRequest)
+        var lastError: Error = APIError.unknown
 
-        let (data, response) = try await session.data(for: urlRequest)
+        for attempt in 0..<3 {
+            do {
+                var urlRequest = try endpoint.urlRequest(baseURL: baseURL)
+                urlRequest = addAuthHeader(to: urlRequest)
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
+                let (data, response) = try await session.data(for: urlRequest)
 
-        if httpResponse.statusCode == 401 {
-            try await refreshAccessToken()
-            var retryRequest = try endpoint.urlRequest(baseURL: baseURL)
-            retryRequest = addAuthHeader(to: retryRequest)
-            let (retryData, retryResponse) = try await session.data(for: retryRequest)
-            guard let retryHttp = retryResponse as? HTTPURLResponse,
-                  (200...299).contains(retryHttp.statusCode) else {
-                throw parseError(statusCode: (retryResponse as? HTTPURLResponse)?.statusCode ?? 500, data: retryData)
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw APIError.invalidResponse
+                }
+
+                if httpResponse.statusCode == 401 {
+                    try await refreshAccessToken()
+                    var retryRequest = try endpoint.urlRequest(baseURL: baseURL)
+                    retryRequest = addAuthHeader(to: retryRequest)
+                    let (retryData, retryResponse) = try await session.data(for: retryRequest)
+                    guard let retryHttp = retryResponse as? HTTPURLResponse,
+                          (200...299).contains(retryHttp.statusCode) else {
+                        throw parseError(statusCode: (retryResponse as? HTTPURLResponse)?.statusCode ?? 500, data: retryData)
+                    }
+                    return
+                }
+
+                // Retry on 5xx or 429
+                if ((500...599).contains(httpResponse.statusCode) || httpResponse.statusCode == 429),
+                   attempt < 2 {
+                    lastError = parseError(statusCode: httpResponse.statusCode, data: data)
+                    try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt + 1))) * 500_000_000)
+                    continue
+                }
+
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    throw parseError(statusCode: httpResponse.statusCode, data: data)
+                }
+
+                return
+            } catch let error as APIError {
+                throw error
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                lastError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt + 1))) * 500_000_000)
+                    continue
+                }
+                throw error
             }
-            return
         }
 
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw parseError(statusCode: httpResponse.statusCode, data: data)
-        }
+        throw lastError
     }
 
     // MARK: - Direct Upload (for presigned S3/MinIO URLs)

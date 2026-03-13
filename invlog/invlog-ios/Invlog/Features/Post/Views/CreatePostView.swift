@@ -540,10 +540,10 @@ struct CreatePostView: View {
         do {
             let (response, _) = try await APIClient.shared.requestWrapped(
                 .myTrips(cursor: nil, limit: 50),
-                responseType: [Trip].self
+                responseType: TripsResponse.self
             )
             // Filter to active trips that have a stop matching this restaurant
-            matchingTrips = response.filter { trip in
+            matchingTrips = response.data.filter { trip in
                 trip.status == "active" && (trip.stops ?? []).contains { $0.restaurantId == restaurantId }
             }
         } catch {

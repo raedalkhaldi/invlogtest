@@ -76,7 +76,7 @@ import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
       {
         name: 'default',
         ttl: 60000,
-        limit: 300,
+        limit: 600,
       },
       {
         name: 'auth',

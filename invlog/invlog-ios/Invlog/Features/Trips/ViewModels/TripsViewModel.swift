@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 
+@MainActor
 final class TripsViewModel: ObservableObject {
     @Published var trips: [Trip] = []
     @Published var isLoading = false
