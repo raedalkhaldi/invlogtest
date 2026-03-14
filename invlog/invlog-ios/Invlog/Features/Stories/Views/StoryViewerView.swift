@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 @preconcurrency import NukeUI
 
 struct StoryViewerView: View {
@@ -182,6 +183,8 @@ struct StoryViewerView: View {
         }
         .onDisappear {
             timer?.invalidate()
+            // Stop all audio playback when viewer is dismissed
+            stopAllPlayback()
         }
         .statusBarHidden()
         .alert("Delete Vlog", isPresented: $showDeleteConfirm) {
@@ -279,5 +282,10 @@ struct StoryViewerView: View {
         Task {
             try? await APIClient.shared.requestVoid(.viewStory(id: story.id))
         }
+    }
+
+    private func stopAllPlayback() {
+        // Deactivate audio session to immediately kill any lingering sound
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

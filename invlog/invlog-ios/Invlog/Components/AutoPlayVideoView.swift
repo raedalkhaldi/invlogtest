@@ -55,14 +55,15 @@ struct AutoPlayVideoView: View {
                             muteManager.toggle()
                         } label: {
                             Image(systemName: muteManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                                .font(.caption)
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.white)
-                                .padding(8)
-                                .background(Color.black.opacity(0.6))
+                                .frame(width: 36, height: 36)
+                                .background(Color.black.opacity(0.5))
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.borderless)
-                        .padding(8)
+                        .padding(.trailing, 14)
+                        .padding(.bottom, 14)
                     }
                 }
             }
@@ -131,11 +132,8 @@ struct AutoPlayVideoView: View {
             .sink { status in
                 switch status {
                 case .readyToPlay:
-                    // Small delay to ensure first frame is rendered
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        withAnimation(.easeIn(duration: 0.2)) {
-                            isPlayerReady = true
-                        }
+                    withAnimation(.easeIn(duration: 0.15)) {
+                        isPlayerReady = true
                     }
                     statusObserver?.cancel()
                     statusObserver = nil
