@@ -221,7 +221,7 @@ struct CreateStoryView: View {
         }
     }
 
-    private func shareAndDismiss() {
+    @MainActor private func shareAndDismiss() {
         let mediaItem: MediaItem
         if isVideo, let videoURL = selectedVideoURL, let thumbnail = selectedImage {
             mediaItem = .video(videoURL, thumbnail)

@@ -305,7 +305,6 @@ struct PostCardView: View {
     }
 
     @ViewBuilder
-    @ViewBuilder
     private var checkinHeaderText: some View {
         let username = post.author?.username ?? "unknown"
         let isVerified = post.author?.isVerified == true
@@ -424,6 +423,7 @@ struct PostCardView: View {
 
 // MARK: - Edit Post Sheet
 
+@MainActor
 struct EditPostSheet: View {
     let post: Post
     @Environment(\.dismiss) private var dismiss
