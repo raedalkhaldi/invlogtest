@@ -8,9 +8,7 @@ struct CreateStoryView: View {
     @State private var selectedImage: UIImage?
     @State private var selectedVideoURL: URL?
     @State private var isVideo = false
-    @State private var isUploading = false
     @State private var errorMessage: String?
-    @StateObject private var uploadService = MediaUploadService()
     @State private var isLoadingMedia = false
     @State private var showCamera = false
     @State private var showVideoRecorder = false
@@ -53,17 +51,6 @@ struct CreateStoryView: View {
                                 .font(InvlogTheme.caption(12, weight: .semibold))
                         }
                         .foregroundColor(Color.brandAccent)
-                    }
-
-                    if isUploading {
-                        VStack(spacing: 8) {
-                            ProgressView(value: uploadService.overallProgress)
-                                .tint(Color.brandPrimary)
-                                .padding(.horizontal)
-                            Text("Uploading vlog...")
-                                .font(InvlogTheme.caption(12))
-                                .foregroundColor(Color.brandTextSecondary)
-                        }
                     }
 
                     if let errorMessage {
@@ -169,18 +156,18 @@ struct CreateStoryView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Share") {
-                        Task { await uploadStory() }
+                        shareAndDismiss()
                     }
                     .font(InvlogTheme.body(15, weight: .bold))
                     .foregroundColor(Color.brandPrimary)
                     .frame(minWidth: 44, minHeight: 44)
-                    .disabled((selectedImage == nil && selectedVideoURL == nil) || isUploading)
+                    .disabled(selectedImage == nil && selectedVideoURL == nil)
                 }
             }
             .onChange(of: selectedItem) { newItem in
                 Task { await loadMedia(from: newItem) }
             }
-            .interactiveDismissDisabled(isUploading)
+            .interactiveDismissDisabled(false)
             .fullScreenCover(isPresented: $showCamera) {
                 PhotoCaptureView { image in
                     selectedImage = image
@@ -234,38 +221,19 @@ struct CreateStoryView: View {
         }
     }
 
-    private func uploadStory() async {
-        isUploading = true
-        errorMessage = nil
-
-        do {
-            let mediaItem: MediaItem
-            if isVideo, let videoURL = selectedVideoURL, let thumbnail = selectedImage {
-                mediaItem = .video(videoURL, thumbnail)
-            } else if let image = selectedImage {
-                mediaItem = .image(image)
-            } else {
-                errorMessage = "No media selected."
-                isUploading = false
-                return
-            }
-
-            let mediaIds = try await uploadService.uploadMedia([mediaItem])
-            guard let mediaId = mediaIds.first else {
-                errorMessage = "Upload failed — no media ID returned."
-                isUploading = false
-                return
-            }
-
-            try await APIClient.shared.requestVoid(.createStory(mediaId: mediaId))
-
-            NotificationCenter.default.post(name: .didCreateStory, object: nil)
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
+    private func shareAndDismiss() {
+        let mediaItem: MediaItem
+        if isVideo, let videoURL = selectedVideoURL, let thumbnail = selectedImage {
+            mediaItem = .video(videoURL, thumbnail)
+        } else if let image = selectedImage {
+            mediaItem = .image(image)
+        } else {
+            errorMessage = "No media selected."
+            return
         }
 
-        isUploading = false
+        StoryUploadManager.shared.upload(mediaItem: mediaItem)
+        dismiss()
     }
 }
 

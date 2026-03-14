@@ -158,7 +158,7 @@ export class MediaProcessor extends WorkerHost {
 
       // 1. Probe video for duration and dimensions
       const probe = await this.probeVideo(inputPath);
-      const duration = Math.min(probe.duration, 10); // Cap at 10 seconds
+      const duration = Math.min(probe.duration, 60); // Cap at 60 seconds for vlogs
       const videoWidth = probe.width;
       const videoHeight = probe.height;
 

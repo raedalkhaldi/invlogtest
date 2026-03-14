@@ -1,25 +1,22 @@
 import SwiftUI
 import AVFoundation
 
-// MARK: - VineRecorderView
+// MARK: - VineRecorderView (Reels-style: tap to start, tap to stop)
 
 struct VineRecorderView: View {
-    let onComplete: (URL, UIImage) -> Void
     var maxSeconds: Double = 10.0
+    let onComplete: (URL, UIImage) -> Void
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var cameraManager = CameraManager()
 
     @State private var isRecording = false
-    @State private var totalDuration: Double = 0
-    @State private var segmentDurations: [Double] = []
-    @State private var currentSegmentDuration: Double = 0
+    @State private var recordedDuration: Double = 0
     @State private var recordTimer: Timer?
 
     @State private var isExporting = false
     @State private var showDiscardAlert = false
     @State private var showPermissionDenied = false
-
     @State private var permissionGranted = false
 
     private var maxDuration: Double { maxSeconds }
@@ -52,12 +49,12 @@ struct VineRecorderView: View {
         }
         .alert("Discard Recording?", isPresented: $showDiscardAlert) {
             Button("Discard", role: .destructive) {
-                cleanupSegments()
+                cleanupRecording()
                 dismiss()
             }
-            Button("Keep Recording", role: .cancel) {}
+            Button("Keep", role: .cancel) {}
         } message: {
-            Text("Your recorded clips will be lost if you go back.")
+            Text("Your recorded video will be lost.")
         }
     }
 
@@ -65,20 +62,30 @@ struct VineRecorderView: View {
 
     private var cameraContent: some View {
         ZStack {
-            // Live camera preview
             CameraPreviewView(session: cameraManager.session)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Progress bar at very top
+                // Progress bar
                 progressBar
-                    .padding(.top, 0)
 
                 // Top controls
                 topControls
                     .padding(.top, InvlogTheme.Spacing.xs)
 
                 Spacer()
+
+                // Duration label
+                if isRecording || recordedDuration > 0 {
+                    Text(formatDuration(isRecording ? recordedDuration : recordedDuration))
+                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.5))
+                        .clipShape(Capsule())
+                        .padding(.bottom, 12)
+                }
 
                 // Bottom controls
                 bottomControls
@@ -91,34 +98,15 @@ struct VineRecorderView: View {
 
     private var progressBar: some View {
         GeometryReader { geo in
-            let totalWidth = geo.size.width
             ZStack(alignment: .leading) {
-                // Background track
                 Rectangle()
                     .fill(Color.white.opacity(0.3))
                     .frame(height: 4)
 
-                // Segment sections
-                HStack(spacing: 0) {
-                    let allDurations = segmentDurations + (isRecording ? [currentSegmentDuration] : [])
-                    ForEach(Array(allDurations.enumerated()), id: \.offset) { index, duration in
-                        let fraction = duration / maxDuration
-                        let segmentWidth = fraction * totalWidth
-
-                        if index > 0 {
-                            // White divider between segments
-                            Rectangle()
-                                .fill(Color.white)
-                                .frame(width: 2, height: 4)
-                        }
-
-                        Rectangle()
-                            .fill(Color.brandPrimary)
-                            .frame(width: max(0, segmentWidth), height: 4)
-                    }
-
-                    Spacer(minLength: 0)
-                }
+                Rectangle()
+                    .fill(Color.brandPrimary)
+                    .frame(width: geo.size.width * (recordedDuration / maxDuration), height: 4)
+                    .animation(.linear(duration: timerInterval), value: recordedDuration)
             }
         }
         .frame(height: 4)
@@ -128,9 +116,8 @@ struct VineRecorderView: View {
 
     private var topControls: some View {
         HStack {
-            // Close button
             Button {
-                if !cameraManager.segments.isEmpty {
+                if cameraManager.hasRecording {
                     showDiscardAlert = true
                 } else {
                     dismiss()
@@ -143,22 +130,23 @@ struct VineRecorderView: View {
                     .background(Color.black.opacity(0.4))
                     .clipShape(Circle())
             }
-            .accessibilityLabel("Close")
+            .disabled(isRecording)
+            .opacity(isRecording ? 0.4 : 1)
 
             Spacer()
 
-            // Flip camera button
-            Button {
-                cameraManager.switchCamera()
-            } label: {
-                Image(systemName: "camera.rotate")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.black.opacity(0.4))
-                    .clipShape(Circle())
+            if !isRecording {
+                Button {
+                    cameraManager.switchCamera()
+                } label: {
+                    Image(systemName: "camera.rotate")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .background(Color.black.opacity(0.4))
+                        .clipShape(Circle())
+                }
             }
-            .accessibilityLabel("Flip camera")
         }
         .padding(.horizontal, InvlogTheme.Spacing.md)
     }
@@ -167,7 +155,7 @@ struct VineRecorderView: View {
 
     private var bottomControls: some View {
         HStack(alignment: .bottom) {
-            // Flash / torch toggle
+            // Flash toggle
             VStack {
                 Spacer()
                 Button {
@@ -180,7 +168,6 @@ struct VineRecorderView: View {
                         .background(Color.black.opacity(0.4))
                         .clipShape(Circle())
                 }
-                .accessibilityLabel(cameraManager.isTorchOn ? "Turn off flash" : "Turn on flash")
             }
             .frame(width: 60)
 
@@ -191,43 +178,8 @@ struct VineRecorderView: View {
 
             Spacer()
 
-            // Right side: delete + next
-            VStack(spacing: 16) {
-                // Next / checkmark button
-                if totalDuration > 1.0 {
-                    Button {
-                        finishRecording()
-                    } label: {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.brandPrimary)
-                            .clipShape(Circle())
-                    }
-                    .accessibilityLabel("Next")
-                    .transition(.scale.combined(with: .opacity))
-                }
-
-                // Delete last segment button
-                if !cameraManager.segments.isEmpty {
-                    Button {
-                        deleteLastSegment()
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.black.opacity(0.4))
-                            .clipShape(Circle())
-                    }
-                    .accessibilityLabel("Delete last clip")
-                    .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .frame(width: 60)
-            .animation(.easeInOut(duration: 0.2), value: cameraManager.segments.count)
-            .animation(.easeInOut(duration: 0.2), value: totalDuration > 1.0)
+            // Empty space for symmetry
+            Color.clear.frame(width: 60)
         }
         .padding(.horizontal, InvlogTheme.Spacing.md)
     }
@@ -238,17 +190,19 @@ struct VineRecorderView: View {
         let buttonSize: CGFloat = 80
 
         return ZStack {
-            // Outer ring
+            // Outer ring — pulses red when recording
             Circle()
-                .stroke(Color.white, lineWidth: 4)
+                .stroke(isRecording ? Color.red : Color.white, lineWidth: 4)
                 .frame(width: buttonSize + 8, height: buttonSize + 8)
+                .animation(.easeInOut(duration: 0.3), value: isRecording)
 
-            // Inner shape: circle when idle, rounded square when recording
             if isRecording {
+                // Stop icon (rounded square)
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.red)
                     .frame(width: 36, height: 36)
             } else {
+                // Start icon (big red circle)
                 Circle()
                     .fill(Color.red)
                     .frame(width: buttonSize, height: buttonSize)
@@ -257,13 +211,12 @@ struct VineRecorderView: View {
         .animation(.easeInOut(duration: 0.15), value: isRecording)
         .onTapGesture {
             if isRecording {
-                stopRecordingSegment()
+                stopAndFinish()
             } else {
-                startRecordingSegment()
+                startRecording()
             }
         }
         .accessibilityLabel(isRecording ? "Stop recording" : "Start recording")
-        .accessibilityHint("Tap to start or stop recording a clip.")
     }
 
     // MARK: - Permission Denied View
@@ -296,11 +249,8 @@ struct VineRecorderView: View {
                     .background(Color.brandPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
             }
-            .accessibilityLabel("Open Settings to grant camera access")
 
-            Button {
-                dismiss()
-            } label: {
+            Button { dismiss() } label: {
                 Text("Go Back")
                     .font(InvlogTheme.body(14))
                     .foregroundColor(Color.brandTextSecondary)
@@ -314,12 +264,10 @@ struct VineRecorderView: View {
     private var exportingOverlay: some View {
         ZStack {
             Color.black.opacity(0.6).ignoresSafeArea()
-
             VStack(spacing: 16) {
                 ProgressView()
                     .tint(.white)
                     .scaleEffect(1.5)
-
                 Text("Preparing video...")
                     .font(InvlogTheme.body(14, weight: .semibold))
                     .foregroundColor(.white)
@@ -363,46 +311,36 @@ struct VineRecorderView: View {
         }
     }
 
-    // MARK: - Recording Controls
+    // MARK: - Recording
 
-    private func startRecordingSegment() {
-        guard totalDuration < maxDuration else { return }
-
-        currentSegmentDuration = 0
+    private func startRecording() {
+        recordedDuration = 0
         cameraManager.startRecording()
         isRecording = true
         startTimer()
     }
 
-    private func stopRecordingSegment() {
+    private func stopAndFinish() {
         guard isRecording else { return }
-
         stopTimer()
         isRecording = false
         cameraManager.stopRecording()
 
-        // Duration is finalized in the delegate callback,
-        // but we already tracked it via the timer for UI purposes.
-        let segmentDur = currentSegmentDuration
-        segmentDurations.append(segmentDur)
-        totalDuration = segmentDurations.reduce(0, +)
-        currentSegmentDuration = 0
-
-        // Check if we hit max
-        if totalDuration >= maxDuration {
-            finishRecording()
+        // Wait briefly for the file to be written, then export
+        isExporting = true
+        Task {
+            // Small delay to let the file output delegate fire
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            await finishRecording()
         }
     }
 
     private func startTimer() {
         recordTimer = Timer.scheduledTimer(withTimeInterval: timerInterval, repeats: true) { _ in
             DispatchQueue.main.async {
-                currentSegmentDuration += timerInterval
-                let running = segmentDurations.reduce(0, +) + currentSegmentDuration
-
-                if running >= maxDuration {
-                    currentSegmentDuration = maxDuration - segmentDurations.reduce(0, +)
-                    stopRecordingSegment()
+                recordedDuration += timerInterval
+                if recordedDuration >= maxDuration {
+                    stopAndFinish()
                 }
             }
         }
@@ -413,108 +351,16 @@ struct VineRecorderView: View {
         recordTimer = nil
     }
 
-    private func deleteLastSegment() {
-        guard !cameraManager.segments.isEmpty else { return }
-
-        let removed = cameraManager.segments.removeLast()
-        try? FileManager.default.removeItem(at: removed)
-
-        if !segmentDurations.isEmpty {
-            segmentDurations.removeLast()
-        }
-        totalDuration = segmentDurations.reduce(0, +)
-    }
-
-    private func finishRecording() {
-        guard !cameraManager.segments.isEmpty else { return }
-
-        // If currently recording, stop first
-        if isRecording {
-            stopRecordingSegment()
-        }
-
-        isExporting = true
-        Task {
-            do {
-                let (videoURL, thumbnail) = try await stitchSegments(cameraManager.segments)
-                await MainActor.run {
-                    isExporting = false
-                    onComplete(videoURL, thumbnail)
-                }
-            } catch {
-                await MainActor.run {
-                    isExporting = false
-                }
-            }
-        }
-    }
-
-    // MARK: - Segment Stitching
-
-    private func stitchSegments(_ segments: [URL]) async throws -> (URL, UIImage) {
-        let composition = AVMutableComposition()
-
-        guard let videoTrack = composition.addMutableTrack(
-            withMediaType: .video,
-            preferredTrackID: kCMPersistentTrackID_Invalid
-        ) else {
-            throw StitchError.failedToCreateTrack
-        }
-
-        let audioTrack = composition.addMutableTrack(
-            withMediaType: .audio,
-            preferredTrackID: kCMPersistentTrackID_Invalid
-        )
-
-        var insertTime = CMTime.zero
-
-        for segmentURL in segments {
-            let asset = AVURLAsset(url: segmentURL)
-            let duration = try await asset.load(.duration)
-            let timeRange = CMTimeRange(start: .zero, duration: duration)
-
-            // Insert video track
-            if let assetVideoTrack = try await asset.loadTracks(withMediaType: .video).first {
-                try videoTrack.insertTimeRange(timeRange, of: assetVideoTrack, at: insertTime)
-
-                // Apply the preferred transform from the first segment
-                if insertTime == .zero {
-                    let transform = try await assetVideoTrack.load(.preferredTransform)
-                    videoTrack.preferredTransform = transform
-                }
-            }
-
-            // Insert audio track
-            if let assetAudioTrack = try await asset.loadTracks(withMediaType: .audio).first {
-                try audioTrack?.insertTimeRange(timeRange, of: assetAudioTrack, at: insertTime)
-            }
-
-            insertTime = CMTimeAdd(insertTime, duration)
-        }
-
-        // Export
-        let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("vine_\(UUID().uuidString).mp4")
-
-        guard let exportSession = AVAssetExportSession(
-            asset: composition,
-            presetName: AVAssetExportPresetHighestQuality
-        ) else {
-            throw StitchError.exportSessionFailed
-        }
-
-        exportSession.outputURL = outputURL
-        exportSession.outputFileType = .mp4
-
-        await exportSession.export()
-
-        guard exportSession.status == .completed else {
-            throw exportSession.error ?? StitchError.exportSessionFailed
+    @MainActor
+    private func finishRecording() async {
+        guard let videoURL = cameraManager.recordedURL else {
+            isExporting = false
+            return
         }
 
         // Generate thumbnail
-        let thumbnailAsset = AVURLAsset(url: outputURL)
-        let generator = AVAssetImageGenerator(asset: thumbnailAsset)
+        let asset = AVURLAsset(url: videoURL)
+        let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 1024, height: 1024)
 
@@ -526,35 +372,20 @@ struct VineRecorderView: View {
             thumbnail = UIImage(systemName: "video.fill") ?? UIImage()
         }
 
-        // Clean up segment temp files
-        for segment in segments {
-            try? FileManager.default.removeItem(at: segment)
-        }
-
-        return (outputURL, thumbnail)
+        isExporting = false
+        onComplete(videoURL, thumbnail)
     }
 
-    private func cleanupSegments() {
-        for segment in cameraManager.segments {
-            try? FileManager.default.removeItem(at: segment)
+    private func cleanupRecording() {
+        if let url = cameraManager.recordedURL {
+            try? FileManager.default.removeItem(at: url)
         }
-        cameraManager.segments.removeAll()
     }
 
-    // MARK: - Errors
-
-    private enum StitchError: LocalizedError {
-        case failedToCreateTrack
-        case exportSessionFailed
-
-        var errorDescription: String? {
-            switch self {
-            case .failedToCreateTrack:
-                return "Failed to create video track for composition."
-            case .exportSessionFailed:
-                return "Failed to export the final video."
-            }
-        }
+    private func formatDuration(_ seconds: Double) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", mins, secs)
     }
 }
 
@@ -568,50 +399,35 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
     private var videoDeviceInput: AVCaptureDeviceInput?
 
     @Published var isTorchOn = false
-    @Published var segments: [URL] = []
+    @Published var recordedURL: URL?
 
-    private var currentRecordingURL: URL?
-
-    // MARK: - Session Setup
+    var hasRecording: Bool { recordedURL != nil }
 
     func setupSession() {
         session.beginConfiguration()
         session.sessionPreset = .high
 
-        // Video input
-        if let videoDevice = AVCaptureDevice.default(
-            .builtInWideAngleCamera,
-            for: .video,
-            position: .back
-        ) {
+        if let videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
             do {
                 let videoInput = try AVCaptureDeviceInput(device: videoDevice)
                 if session.canAddInput(videoInput) {
                     session.addInput(videoInput)
                     videoDeviceInput = videoInput
                 }
-            } catch {
-                // Video input failed
-            }
+            } catch {}
         }
 
-        // Audio input
         if let audioDevice = AVCaptureDevice.default(.builtInMicrophone, for: .audio, position: .unspecified) {
             do {
                 let audioInput = try AVCaptureDeviceInput(device: audioDevice)
                 if session.canAddInput(audioInput) {
                     session.addInput(audioInput)
                 }
-            } catch {
-                // Audio input failed
-            }
+            } catch {}
         }
 
-        // Movie file output
         if session.canAddOutput(movieOutput) {
             session.addOutput(movieOutput)
-
-            // Set video connection to portrait
             if let connection = movieOutput.connection(with: .video) {
                 setPortraitOrientation(on: connection)
             }
@@ -633,16 +449,13 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
         setTorch(on: false)
     }
 
-    // MARK: - Recording
-
     func startRecording() {
         guard !movieOutput.isRecording else { return }
 
         let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("segment_\(UUID().uuidString).mov")
-        currentRecordingURL = tempURL
+            .appendingPathComponent("vlog_\(UUID().uuidString).mov")
+        recordedURL = nil
 
-        // Ensure video connection orientation is correct before each recording
         if let connection = movieOutput.connection(with: .video) {
             setPortraitOrientation(on: connection)
         }
@@ -655,30 +468,19 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
         movieOutput.stopRecording()
     }
 
-    // MARK: - Switch Camera
-
     func switchCamera() {
         session.beginConfiguration()
 
-        // Remove current video input
         if let currentInput = videoDeviceInput {
             session.removeInput(currentInput)
         }
 
-        // Toggle position
         let newPosition: AVCaptureDevice.Position = (currentCameraPosition == .back) ? .front : .back
         currentCameraPosition = newPosition
 
-        // Turn off torch when switching to front
-        if newPosition == .front {
-            setTorch(on: false)
-        }
+        if newPosition == .front { setTorch(on: false) }
 
-        if let newDevice = AVCaptureDevice.default(
-            .builtInWideAngleCamera,
-            for: .video,
-            position: newPosition
-        ) {
+        if let newDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: newPosition) {
             do {
                 let newInput = try AVCaptureDeviceInput(device: newDevice)
                 if session.canAddInput(newInput) {
@@ -686,14 +488,12 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
                     videoDeviceInput = newInput
                 }
             } catch {
-                // Switch camera failed — re-add old input if possible
                 if let oldInput = videoDeviceInput, session.canAddInput(oldInput) {
                     session.addInput(oldInput)
                 }
             }
         }
 
-        // Re-apply video rotation on the new connection
         if let connection = movieOutput.connection(with: .video) {
             setPortraitOrientation(on: connection)
         }
@@ -701,15 +501,11 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
         session.commitConfiguration()
     }
 
-    // MARK: - Video Orientation Helper
-
     private func setPortraitOrientation(on connection: AVCaptureConnection) {
         if connection.isVideoOrientationSupported {
             connection.videoOrientation = .portrait
         }
     }
-
-    // MARK: - Torch
 
     func toggleTorch() {
         guard currentCameraPosition == .back else { return }
@@ -718,12 +514,10 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
 
     private func setTorch(on: Bool) {
         guard let device = videoDeviceInput?.device,
-              device.hasTorch,
-              device.isTorchAvailable else {
+              device.hasTorch, device.isTorchAvailable else {
             DispatchQueue.main.async { self.isTorchOn = false }
             return
         }
-
         do {
             try device.lockForConfiguration()
             device.torchMode = on ? .on : .off
@@ -743,22 +537,20 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
         error: Error?
     ) {
         if let error = error {
-            // Recording may still have saved usable data
             let nsError = error as NSError
-            let recordingSuccessful = nsError.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool ?? false
-            if !recordingSuccessful {
+            let success = nsError.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool ?? false
+            if !success {
                 try? FileManager.default.removeItem(at: outputFileURL)
                 return
             }
         }
-
         DispatchQueue.main.async {
-            self.segments.append(outputFileURL)
+            self.recordedURL = outputFileURL
         }
     }
 }
 
-// MARK: - Camera Preview (UIViewRepresentable)
+// MARK: - Camera Preview
 
 private struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
@@ -770,15 +562,11 @@ private struct CameraPreviewView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: CameraPreviewUIView, context: Context) {
-        // Session is managed externally; no updates needed here.
-    }
+    func updateUIView(_ uiView: CameraPreviewUIView, context: Context) {}
 }
 
 private class CameraPreviewUIView: UIView {
-    override class var layerClass: AnyClass {
-        AVCaptureVideoPreviewLayer.self
-    }
+    override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
 
     var previewLayer: AVCaptureVideoPreviewLayer {
         // swiftlint:disable:next force_cast
