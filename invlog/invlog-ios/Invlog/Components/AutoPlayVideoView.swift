@@ -10,6 +10,7 @@ struct AutoPlayVideoView: View {
 
     @State private var player: AVPlayer?
     @State private var isVisible = false
+    @State private var isInViewport = false
     @State private var isPlayerReady = false
     @State private var hasFailed = false
     @State private var statusObserver: AnyCancellable?
@@ -69,11 +70,29 @@ struct AutoPlayVideoView: View {
         }
         .onAppear {
             isVisible = true
-            setupPlayer()
+            if isInViewport { setupPlayer() }
         }
         .onDisappear {
             isVisible = false
             tearDownPlayer()
+        }
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .preference(key: ViewportVisibilityKey.self, value: geo.frame(in: .global))
+            }
+        )
+        .onPreferenceChange(ViewportVisibilityKey.self) { frame in
+            let screenHeight = UIScreen.main.bounds.height
+            let visible = frame.maxY > 0 && frame.minY < screenHeight
+            if visible != isInViewport {
+                isInViewport = visible
+                if visible && isVisible {
+                    setupPlayer()
+                } else if !visible {
+                    player?.pause()
+                }
+            }
         }
         .onChange(of: muteManager.isMuted) { muted in
             player?.isMuted = muted
@@ -102,7 +121,7 @@ struct AutoPlayVideoView: View {
 
     private func setupPlayer() {
         guard player == nil else {
-            if isVisible {
+            if isVisible && isInViewport {
                 player?.play()
             }
             return
@@ -149,7 +168,7 @@ struct AutoPlayVideoView: View {
             }
 
         player = avPlayer
-        if isVisible {
+        if isVisible && isInViewport {
             avPlayer.play()
         }
     }
@@ -169,6 +188,13 @@ struct AutoPlayVideoView: View {
             NotificationCenter.default.removeObserver(observer)
             loopObserver = nil
         }
+    }
+}
+
+private struct ViewportVisibilityKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
     }
 }
 
