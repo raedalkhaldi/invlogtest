@@ -21,6 +21,7 @@
 		43807BCA467AE9D06F13258C /* MediaUploadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04ABE1A136CF79ADB232244D /* MediaUploadService.swift */; };
 		VMUTE00200020002VMUTE0002 /* VideoMuteManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VMUTE00100010001VMUTE0001 /* VideoMuteManager.swift */; };
 		454F0DDE05E202777C6AEAE7 /* TripMapRouteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3B0234A0638927487979A9 /* TripMapRouteView.swift */; };
+		A1B2C3D4E5F607890A1B2C3D /* TripRoadmapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F607890A1B2C3DA1B2C3 /* TripRoadmapView.swift */; };
 		4D5E6F7A8B9C0D1E2F3A4B5C /* CheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B4C5 /* CheckInView.swift */; };
 		53A0E9136362C6F021A06C17 /* VideoFilterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3FCA70EB16732E81A2ACEC /* VideoFilterView.swift */; };
 		57AEC57B60E3067971834713 /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BA3C15947947A9C979B30A7 /* Post.swift */; };
@@ -115,6 +116,7 @@
 		31A0DA0EEA1CAEA10FEB340E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3556E1A7833246DEFF691229 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthViewModel.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		3F3B0234A0638927487979A9 /* TripMapRouteView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TripMapRouteView.swift; path = TripMapRouteView.swift; sourceTree = "<group>"; };
+		D4E5F607890A1B2C3DA1B2C3 /* TripRoadmapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TripRoadmapView.swift; path = TripRoadmapView.swift; sourceTree = "<group>"; };
 		4235931EC4BE2C0990FDAFBB /* Invlog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Invlog.app; path = Invlog.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		51126C8EC5AB4A0F2E8988C5 /* InvlogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InvlogApp.swift; path = InvlogApp.swift; sourceTree = "<group>"; };
 		67BDD01560992449865F3BE8 /* PostCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostCardView.swift; path = PostCardView.swift; sourceTree = "<group>"; };
@@ -713,6 +715,7 @@
 				T004A004B004C004D004E004 /* MyTripsView.swift */,
 				T006A006B006C006D006E006 /* TripDetailView.swift */,
 				3F3B0234A0638927487979A9 /* TripMapRouteView.swift */,
+				D4E5F607890A1B2C3DA1B2C3 /* TripRoadmapView.swift */,
 			);
 			name = Views;
 			path = Views;
@@ -869,6 +872,7 @@
 				757B07E554FD720C7881DCFB /* VineRecorderView.swift in Sources */,
 				53A0E9136362C6F021A06C17 /* VideoFilterView.swift in Sources */,
 				454F0DDE05E202777C6AEAE7 /* TripMapRouteView.swift in Sources */,
+				A1B2C3D4E5F607890A1B2C3D /* TripRoadmapView.swift in Sources */,
 				8BBE92F44D228A3318E88F9C /* PhotoCaptureView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
