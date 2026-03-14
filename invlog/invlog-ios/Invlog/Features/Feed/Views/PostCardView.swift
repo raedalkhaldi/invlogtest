@@ -55,34 +55,10 @@ struct PostCardView: View {
                     // Row 1: "username checked-in place name"
                     checkinHeaderText
 
-                    // Row 2: Stats + time
-                    HStack(spacing: 6) {
-                        Text(post.createdAt.shortRelativeString)
-                            .font(InvlogTheme.caption(11))
-                            .foregroundColor(Color.brandTextTertiary)
-
-                        if likeCount > 0 {
-                            HStack(spacing: 2) {
-                                Image(systemName: "heart.fill")
-                                    .font(.system(size: 9))
-                                    .foregroundColor(.red)
-                                Text("\(likeCount)")
-                                    .font(InvlogTheme.caption(11, weight: .semibold))
-                                    .foregroundColor(Color.brandTextSecondary)
-                            }
-                        }
-
-                        if commentCount > 0 {
-                            HStack(spacing: 2) {
-                                Image(systemName: "bubble.right.fill")
-                                    .font(.system(size: 9))
-                                    .foregroundColor(Color.brandTextTertiary)
-                                Text("\(commentCount)")
-                                    .font(InvlogTheme.caption(11, weight: .semibold))
-                                    .foregroundColor(Color.brandTextSecondary)
-                            }
-                        }
-                    }
+                    // Row 2: Time
+                    Text(post.createdAt.shortRelativeString)
+                        .font(InvlogTheme.caption(11))
+                        .foregroundColor(Color.brandTextTertiary)
 
                     // Trip badge
                     if let tripId = post.tripId, let tripTitle = post.tripTitle {
@@ -102,52 +78,39 @@ struct PostCardView: View {
 
                 Spacer(minLength: 0)
 
-                VStack(alignment: .trailing, spacing: 8) {
-                    HStack(spacing: 8) {
-                        if let visibility = post.visibility, visibility != "public" {
-                            Image(systemName: visibility == "followers" ? "person.2.fill" : "lock.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(Color.brandTextTertiary)
-                        }
+                HStack(spacing: 8) {
+                    if let visibility = post.visibility, visibility != "public" {
+                        Image(systemName: visibility == "followers" ? "person.2.fill" : "lock.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
 
-                        Menu {
-                            if isOwnPost {
-                                Button {
-                                    showEditSheet = true
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button(role: .destructive) {
-                                    showDeleteConfirm = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            } else {
-                                Button(role: .destructive) {
-                                    showBlockConfirm = true
-                                } label: {
-                                    Label("Block User", systemImage: "slash.circle")
-                                }
+                    Menu {
+                        if isOwnPost {
+                            Button {
+                                showEditSheet = true
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
                             }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color.brandTextSecondary)
-                                .frame(width: 32, height: 32)
+                            Button(role: .destructive) {
+                                showDeleteConfirm = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        } else {
+                            Button(role: .destructive) {
+                                showBlockConfirm = true
+                            } label: {
+                                Label("Block User", systemImage: "slash.circle")
+                            }
                         }
-                        .accessibilityLabel("Post options")
-                    }
-
-                    // Heart button in top-right
-                    Button {
-                        toggleLike()
                     } label: {
-                        Image(systemName: isLiked ? "heart.fill" : "heart")
-                            .font(.system(size: 20))
-                            .foregroundColor(isLiked ? .red : Color.brandTextTertiary)
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                            .frame(width: 32, height: 32)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+                    .accessibilityLabel("Post options")
                 }
             }
             .padding(.horizontal, InvlogTheme.Card.padding)
@@ -185,6 +148,22 @@ struct PostCardView: View {
 
             // Actions Bar
             HStack(spacing: 0) {
+                Button {
+                    toggleLike()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isLiked ? "heart.fill" : "heart")
+                            .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
+                        Text(likeCount > 0 ? "\(likeCount)" : "")
+                            .font(InvlogTheme.caption(13, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderless)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+
                 Button {
                     showComments = true
                 } label: {
@@ -323,7 +302,7 @@ struct PostCardView: View {
                 )
                 .lineLimit(1)
 
-                NavigationLink(value: restaurant) {
+                NavigationLink(destination: RestaurantDetailView(restaurantSlug: restaurant.slug)) {
                     Text(placeName)
                         .font(InvlogTheme.body(14, weight: .bold))
                         .foregroundColor(Color.brandPrimary)
