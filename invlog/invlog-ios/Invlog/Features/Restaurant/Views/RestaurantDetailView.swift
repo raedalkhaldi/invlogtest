@@ -79,7 +79,7 @@ struct RestaurantDetailView: View {
     @ViewBuilder
     private func restaurantContent(_ restaurant: Restaurant) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            LazyVStack(alignment: .leading, spacing: 16) {
                 LazyImage(url: restaurant.coverUrl ?? restaurantMedia.first.flatMap { URL(string: $0.mediumUrl ?? $0.url) }) { state in
                     if let image = state.image {
                         image.resizable().scaledToFill()
