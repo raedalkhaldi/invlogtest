@@ -9,22 +9,27 @@ struct AutoPlayVideoView: View {
     let blurhash: String?
 
     @State private var player: AVPlayer?
-    @State private var isVisible = false
     @State private var isPlayerReady = false
     @State private var hasFailed = false
     @State private var statusObserver: AnyCancellable?
     @State private var loopObserver: Any?
+    @State private var isInViewport = false
     @ObservedObject private var muteManager = VideoMuteManager.shared
 
     var body: some View {
         ZStack {
             // Video player (behind thumbnail, always present when player exists)
             if let player {
-                VideoPlayerView(player: player)
-                    .opacity(isPlayerReady ? 1 : 0)
-                    .onDisappear {
+                VideoPlayerView(player: player, onVisibilityChanged: { visible in
+                    guard visible != isInViewport else { return }
+                    isInViewport = visible
+                    if visible {
+                        setupPlayer()
+                    } else {
                         player.pause()
                     }
+                })
+                .opacity(isPlayerReady ? 1 : 0)
             }
 
             // Thumbnail / placeholder (shown while video buffers, fades out)
@@ -68,11 +73,10 @@ struct AutoPlayVideoView: View {
             }
         }
         .onAppear {
-            isVisible = true
+            // Defer to UIKit visibility tracking via VideoPlayerView
             setupPlayer()
         }
         .onDisappear {
-            isVisible = false
             tearDownPlayer()
         }
         .onChange(of: muteManager.isMuted) { muted in
@@ -102,7 +106,7 @@ struct AutoPlayVideoView: View {
 
     private func setupPlayer() {
         guard player == nil else {
-            if isVisible {
+            if isInViewport {
                 player?.play()
             }
             return
@@ -149,9 +153,7 @@ struct AutoPlayVideoView: View {
             }
 
         player = avPlayer
-        if isVisible {
-            avPlayer.play()
-        }
+        // Don't auto-play here — wait for UIKit visibility callback
     }
 
     private func tearDownPlayer() {
@@ -160,6 +162,7 @@ struct AutoPlayVideoView: View {
         player = nil
         isPlayerReady = false
         hasFailed = false
+        isInViewport = false
     }
 
     private func cleanupObservers() {
@@ -172,21 +175,28 @@ struct AutoPlayVideoView: View {
     }
 }
 
-// UIKit wrapper for AVPlayerLayer (better performance than VideoPlayer)
+// UIKit wrapper for AVPlayerLayer with scroll visibility tracking
 private struct VideoPlayerView: UIViewRepresentable {
     let player: AVPlayer
+    let onVisibilityChanged: (Bool) -> Void
 
     func makeUIView(context: Context) -> PlayerUIView {
-        PlayerUIView(player: player)
+        let view = PlayerUIView(player: player)
+        view.onVisibilityChanged = onVisibilityChanged
+        return view
     }
 
     func updateUIView(_ uiView: PlayerUIView, context: Context) {
         uiView.playerLayer.player = player
+        uiView.onVisibilityChanged = onVisibilityChanged
     }
 }
 
 private class PlayerUIView: UIView {
     let playerLayer: AVPlayerLayer
+    var onVisibilityChanged: ((Bool) -> Void)?
+    private var displayLink: CADisplayLink?
+    private var wasVisible = false
 
     init(player: AVPlayer) {
         playerLayer = AVPlayerLayer(player: player)
@@ -200,5 +210,56 @@ private class PlayerUIView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         playerLayer.frame = bounds
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil {
+            startTracking()
+        } else {
+            stopTracking()
+            if wasVisible {
+                wasVisible = false
+                onVisibilityChanged?(false)
+            }
+        }
+    }
+
+    private func startTracking() {
+        guard displayLink == nil else { return }
+        displayLink = CADisplayLink(target: self, selector: #selector(checkVisibility))
+        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 5, maximum: 15, preferred: 10)
+        displayLink?.add(to: .main, forMode: .common)
+    }
+
+    private func stopTracking() {
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+
+    @objc private func checkVisibility() {
+        guard let window else {
+            if wasVisible {
+                wasVisible = false
+                onVisibilityChanged?(false)
+            }
+            return
+        }
+
+        let frameInWindow = convert(bounds, to: window)
+        let screenBounds = window.bounds
+        let viewMidY = frameInWindow.midY
+        // Video is "visible" when its center is within the screen bounds
+        let isVisible = viewMidY >= screenBounds.minY && viewMidY <= screenBounds.maxY
+            && frameInWindow.maxY > screenBounds.minY && frameInWindow.minY < screenBounds.maxY
+
+        if isVisible != wasVisible {
+            wasVisible = isVisible
+            onVisibilityChanged?(isVisible)
+        }
+    }
+
+    deinit {
+        displayLink?.invalidate()
     }
 }
