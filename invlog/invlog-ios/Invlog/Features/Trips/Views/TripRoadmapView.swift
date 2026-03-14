@@ -16,7 +16,20 @@ struct TripRoadmapView: View {
         } else {
             filtered = stops
         }
-        return filtered.sorted { ($0.dayNumber, $0.sortOrder) < ($1.dayNumber, $1.sortOrder) }
+        return filtered.sorted {
+            if $0.dayNumber != $1.dayNumber {
+                return $0.dayNumber < $1.dayNumber
+            }
+            // Sort by startTime within the same day, falls back to sortOrder
+            let time0 = $0.startTime ?? ""
+            let time1 = $1.startTime ?? ""
+            if !time0.isEmpty || !time1.isEmpty {
+                if time0.isEmpty { return false }
+                if time1.isEmpty { return true }
+                if time0 != time1 { return time0 < time1 }
+            }
+            return $0.sortOrder < $1.sortOrder
+        }
     }
 
     var body: some View {
