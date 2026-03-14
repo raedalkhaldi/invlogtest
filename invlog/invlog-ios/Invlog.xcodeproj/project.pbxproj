@@ -48,6 +48,7 @@
 		A003B003C003D003E003F001 /* BookmarksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A003B003C003D003E003F002 /* BookmarksView.swift */; };
 		A004B004C004D004E004F001 /* Story.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004B004C004D004E004F002 /* Story.swift */; };
 		A005B005C005D005E005F001 /* StoriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A005B005C005D005E005F002 /* StoriesViewModel.swift */; };
+		B001B001C001D001E001F001 /* StoryUploadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001B001C001D001E001F002 /* StoryUploadManager.swift */; };
 		A006B006C006D006E006F001 /* StoriesBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A006B006C006D006E006F002 /* StoriesBarView.swift */; };
 		A007B007C007D007E007F001 /* StoryViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A007B007C007D007E007F002 /* StoryViewerView.swift */; };
 		A008B008C008D008E008F001 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A008B008C008D008E008F002 /* Conversation.swift */; };
@@ -135,6 +136,7 @@
 		A003B003C003D003E003F002 /* BookmarksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BookmarksView.swift; path = BookmarksView.swift; sourceTree = "<group>"; };
 		A004B004C004D004E004F002 /* Story.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Story.swift; path = Story.swift; sourceTree = "<group>"; };
 		A005B005C005D005E005F002 /* StoriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoriesViewModel.swift; path = StoriesViewModel.swift; sourceTree = "<group>"; };
+		B001B001C001D001E001F002 /* StoryUploadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoryUploadManager.swift; path = StoryUploadManager.swift; sourceTree = "<group>"; };
 		A006B006C006D006E006F002 /* StoriesBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoriesBarView.swift; path = StoriesBarView.swift; sourceTree = "<group>"; };
 		A007B007C007D007E007F002 /* StoryViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoryViewerView.swift; path = StoryViewerView.swift; sourceTree = "<group>"; };
 		A008B008C008D008E008F002 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Conversation.swift; path = Conversation.swift; sourceTree = "<group>"; };
@@ -453,6 +455,7 @@
 			isa = PBXGroup;
 			children = (
 				A005B005C005D005E005F002 /* StoriesViewModel.swift */,
+				B001B001C001D001E001F002 /* StoryUploadManager.swift */,
 			);
 			name = ViewModels;
 			path = ViewModels;
@@ -840,6 +843,7 @@
 				A003B003C003D003E003F001 /* BookmarksView.swift in Sources */,
 				A004B004C004D004E004F001 /* Story.swift in Sources */,
 				A005B005C005D005E005F001 /* StoriesViewModel.swift in Sources */,
+				B001B001C001D001E001F001 /* StoryUploadManager.swift in Sources */,
 				A006B006C006D006E006F001 /* StoriesBarView.swift in Sources */,
 				A007B007C007D007E007F001 /* StoryViewerView.swift in Sources */,
 				A008B008C008D008E008F001 /* Conversation.swift in Sources */,

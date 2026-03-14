@@ -5,6 +5,7 @@ import Nuke
 struct FeedView: View {
     @StateObject private var viewModel = FeedViewModel()
     @StateObject private var storiesViewModel = StoriesViewModel()
+    @ObservedObject private var storyUploader = StoryUploadManager.shared
     @EnvironmentObject private var appState: AppState
     private let prefetcher = ImagePrefetcher()
 
@@ -42,6 +43,16 @@ struct FeedView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
+
+                    // Vlog upload progress bar
+                    if storyUploader.isActive || storyUploader.status == .completed {
+                        Section {
+                            StoryUploadProgressBar(status: storyUploader.status)
+                        }
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    }
 
                     ForEach(viewModel.posts) { post in
                         PostCardView(post: post)
@@ -112,6 +123,93 @@ struct FeedView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .didCreateStory)) { _ in
             Task { await storiesViewModel.loadStories() }
+        }
+    }
+}
+
+// MARK: - Story Upload Progress Bar
+
+private struct StoryUploadProgressBar: View {
+    let status: StoryUploadManager.UploadStatus
+
+    var body: some View {
+        HStack(spacing: 10) {
+            statusIcon
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(iconColor)
+
+            Text(statusText)
+                .font(InvlogTheme.caption(13, weight: .medium))
+                .foregroundColor(Color.brandText)
+
+            Spacer()
+
+            if case .uploading = status {
+                ProgressView()
+                    .scaleEffect(0.7)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.brandCard)
+        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+        .overlay(alignment: .bottom) {
+            GeometryReader { geo in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(progressColor)
+                    .frame(width: geo.size.width * progressValue, height: 2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .animation(.easeInOut(duration: 0.3), value: progressValue)
+            }
+            .frame(height: 2)
+            .clipShape(RoundedRectangle(cornerRadius: 1))
+        }
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch status {
+        case .completed:
+            Image(systemName: "checkmark.circle.fill")
+        case .failed:
+            Image(systemName: "exclamationmark.circle.fill")
+        default:
+            Image(systemName: "arrow.up.circle.fill")
+        }
+    }
+
+    private var statusText: String {
+        switch status {
+        case .uploading: return "Uploading vlog..."
+        case .processing: return "Processing..."
+        case .completed: return "Vlog shared!"
+        case .failed(let msg): return "Failed: \(msg)"
+        default: return ""
+        }
+    }
+
+    private var iconColor: Color {
+        switch status {
+        case .completed: return .green
+        case .failed: return .red
+        default: return Color.brandPrimary
+        }
+    }
+
+    private var progressColor: Color {
+        switch status {
+        case .completed: return .green
+        case .failed: return .red
+        default: return Color.brandPrimary
+        }
+    }
+
+    private var progressValue: Double {
+        switch status {
+        case .uploading(let p): return max(0.05, p)
+        case .processing: return 0.9
+        case .completed: return 1.0
+        default: return 0
         }
     }
 }

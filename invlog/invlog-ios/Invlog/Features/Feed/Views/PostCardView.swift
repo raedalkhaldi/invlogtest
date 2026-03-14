@@ -305,12 +305,12 @@ struct PostCardView: View {
     }
 
     @ViewBuilder
+    @ViewBuilder
     private var checkinHeaderText: some View {
         let username = post.author?.username ?? "unknown"
         let isVerified = post.author?.isVerified == true
         let placeName = post.restaurant?.name ?? post.locationName
 
-        // Build as a flowing text with tappable place
         if let placeName, let restaurant = post.restaurant {
             VStack(alignment: .leading, spacing: 2) {
                 (
@@ -329,12 +329,13 @@ struct PostCardView: View {
                         .font(InvlogTheme.body(14, weight: .bold))
                         .foregroundColor(Color.brandPrimary)
                         .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .buttonStyle(.plain)
             }
             .accessibilityLabel("\(username) checked in at \(placeName)")
         } else if let placeName {
-            // username checked-in locationName (no navigation)
             (
                 Text(username)
                     .font(InvlogTheme.body(14, weight: .bold))
@@ -348,8 +349,8 @@ struct PostCardView: View {
                     .foregroundColor(Color.brandText)
             )
             .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
         } else {
-            // No place — just username
             HStack(spacing: 4) {
                 Text(username)
                     .font(InvlogTheme.body(14, weight: .bold))

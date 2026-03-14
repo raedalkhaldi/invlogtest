@@ -46,7 +46,7 @@ enum InvlogTheme {
     // MARK: - Tab Bar
 
     enum TabBar {
-        static let contentHeight: CGFloat = 80
+        static let contentHeight: CGFloat = 96
         static let safeAreaBottom: CGFloat = 34
         static let createButtonSize: CGFloat = 52
     }

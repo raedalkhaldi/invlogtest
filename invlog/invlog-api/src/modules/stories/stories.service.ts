@@ -38,17 +38,38 @@ export class StoriesService {
     });
     if (!media) throw new BadRequestException('Media not found or not owned');
 
+    // Wait for media processing to complete (polls every 2s, up to 120s)
+    const readyMedia = await this.waitForProcessing(media.id);
+
     const story = this.storyRepo.create({
       authorId: userId,
-      mediaType: media.mediaType,
-      url: media.url,
-      thumbnailUrl: media.thumbnailUrl,
-      blurhash: media.blurhash,
-      durationSecs: media.durationSecs,
+      mediaType: readyMedia.mediaType,
+      url: readyMedia.url,
+      thumbnailUrl: readyMedia.thumbnailUrl,
+      blurhash: readyMedia.blurhash,
+      durationSecs: readyMedia.durationSecs,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
     });
 
     return this.storyRepo.save(story);
+  }
+
+  private async waitForProcessing(
+    mediaId: string,
+    maxWaitMs = 120_000,
+    intervalMs = 2_000,
+  ): Promise<PostMedia> {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      const media = await this.mediaRepo.findOne({ where: { id: mediaId } });
+      if (!media) throw new BadRequestException('Media not found');
+      if (media.processingStatus === 'ready') return media;
+      if (media.processingStatus === 'failed') {
+        throw new BadRequestException('Media processing failed');
+      }
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    throw new BadRequestException('Media processing timed out');
   }
 
   async getFeed(userId: string): Promise<StoryGroup[]> {
