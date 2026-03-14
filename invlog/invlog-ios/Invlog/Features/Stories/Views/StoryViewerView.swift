@@ -14,6 +14,7 @@ struct StoryViewerView: View {
     @State private var progress: CGFloat = 0
     @State private var timer: Timer?
     @State private var showDeleteConfirm = false
+    @State private var isDismissing = false
 
     init(storyGroups: [StoryGroup], initialGroup: StoryGroup, selectedUsername: Binding<String?> = .constant(nil), storiesViewModel: StoriesViewModel) {
         self.storyGroups = storyGroups
@@ -48,7 +49,7 @@ struct StoryViewerView: View {
             if let story = currentStory, let group = currentGroup {
                 // Story content
                 GeometryReader { geometry in
-                    if story.mediaType == "video", let videoUrl = URL(string: story.url) {
+                    if story.mediaType == "video", let videoUrl = URL(string: story.url), !isDismissing {
                         AutoPlayVideoView(
                             url: videoUrl,
                             thumbnailUrl: story.thumbnailUrl.flatMap { URL(string: $0) },
@@ -111,6 +112,7 @@ struct StoryViewerView: View {
                     HStack(spacing: 10) {
                         Button {
                             selectedUsername = group.user.username
+                            isDismissing = true
                             dismiss()
                         } label: {
                             HStack(spacing: 10) {
@@ -153,6 +155,7 @@ struct StoryViewerView: View {
                         }
 
                         Button {
+                            isDismissing = true
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -172,6 +175,7 @@ struct StoryViewerView: View {
             DragGesture(minimumDistance: 50)
                 .onEnded { value in
                     if value.translation.height > 100 {
+                        isDismissing = true
                         dismiss()
                     }
                 }
@@ -181,6 +185,7 @@ struct StoryViewerView: View {
             markCurrentAsViewed()
         }
         .onDisappear {
+            isDismissing = true
             timer?.invalidate()
         }
         .statusBarHidden()
@@ -193,6 +198,7 @@ struct StoryViewerView: View {
                         // Move to next story or dismiss if none left
                         if let group = currentGroup, group.stories.isEmpty {
                             if storyGroups.isEmpty {
+                                isDismissing = true
                                 dismiss()
                             } else {
                                 // Group was removed, adjust index
@@ -257,6 +263,7 @@ struct StoryViewerView: View {
             markCurrentAsViewed()
             startTimer()
         } else {
+            isDismissing = true
             dismiss()
         }
     }
