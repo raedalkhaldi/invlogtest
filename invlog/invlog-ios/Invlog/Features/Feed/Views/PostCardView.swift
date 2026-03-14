@@ -16,6 +16,7 @@ struct PostCardView: View {
     @State private var showEditSheet = false
     @State private var showBlockConfirm = false
     @State private var isDeleted = false
+    @State private var navigateToProfile = false
 
     private var isOwnPost: Bool {
         post.authorId == appState.currentUser?.id
@@ -35,7 +36,9 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Author Header
             HStack(alignment: .top, spacing: 10) {
-                NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId)) {
+                Button {
+                    navigateToProfile = true
+                } label: {
                     LazyImage(url: post.author?.avatarUrl) { state in
                         if let image = state.image {
                             image.resizable().scaledToFill()
@@ -249,6 +252,12 @@ struct PostCardView: View {
                 .padding(.bottom, InvlogTheme.Spacing.xs)
             }
         }
+        .background(
+            NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId), isActive: $navigateToProfile) {
+                EmptyView()
+            }
+            .hidden()
+        )
         .invlogCard()
         .opacity(isDeleted ? 0 : 1)
         .frame(height: isDeleted ? 0 : nil)
