@@ -252,17 +252,17 @@ struct TripDetailView: View {
 
             case .map:
                 if let stops = trip.stops, !stops.isEmpty {
-                    TripMapRouteView(stops: stops)
+                    TripRoadmapView(stops: stops)
                 } else {
                     Spacer()
                     VStack(spacing: InvlogTheme.Spacing.sm) {
-                        Image(systemName: "map")
+                        Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
                             .font(.system(size: 32))
                             .foregroundColor(Color.brandTextTertiary)
-                        Text("No stops to map")
+                        Text("No stops yet")
                             .font(InvlogTheme.body(14))
                             .foregroundColor(Color.brandTextSecondary)
-                        Text("Add stops to see them on the route map.")
+                        Text("Add stops to see the roadmap.")
                             .font(InvlogTheme.caption(12))
                             .foregroundColor(Color.brandTextTertiary)
                     }
@@ -713,7 +713,7 @@ struct TripDetailView: View {
 
 enum TripViewMode: String, CaseIterable {
     case plan = "Plan"
-    case map = "Map"
+    case map = "Roadmap"
 }
 
 // MARK: - Stop Restaurant Destination
