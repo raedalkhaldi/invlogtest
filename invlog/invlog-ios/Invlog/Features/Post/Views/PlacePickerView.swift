@@ -488,41 +488,63 @@ struct PlacePickerView: View {
             return
         }
 
-        // Fetch from both Apple Maps and our DB in parallel
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { @MainActor in
-                // Apple Maps nearby search - no restrictive query, show all POIs
-                let request = MKLocalSearch.Request()
-                request.resultTypes = .pointOfInterest
-                request.region = MKCoordinateRegion(
-                    center: coord,
-                    latitudinalMeters: 5000,
-                    longitudinalMeters: 5000
-                )
+        let region = MKCoordinateRegion(
+            center: coord,
+            latitudinalMeters: 5000,
+            longitudinalMeters: 5000
+        )
 
-                do {
-                    let search = MKLocalSearch(request: request)
-                    let response = try await search.start()
-                    searchResults = response.mapItems
-                } catch {
-                    searchResults = []
+        // MKLocalSearch requires a query string — search multiple categories in parallel
+        let queries = ["restaurant", "cafe coffee", "bar lounge", "bakery", "grocery", "food"]
+
+        await withTaskGroup(of: [MKMapItem].self) { group in
+            for query in queries {
+                group.addTask {
+                    let request = MKLocalSearch.Request()
+                    request.naturalLanguageQuery = query
+                    request.resultTypes = .pointOfInterest
+                    request.region = region
+                    do {
+                        let search = MKLocalSearch(request: request)
+                        let response = try await search.start()
+                        return response.mapItems
+                    } catch {
+                        return []
+                    }
                 }
             }
 
-            group.addTask { @MainActor in
-                // Our DB nearby restaurants
+            // Also fetch from our DB
+            group.addTask {
                 do {
                     let (data, _) = try await APIClient.shared.requestWrapped(
                         .nearbyRestaurants(lat: coord.latitude, lng: coord.longitude, radiusKm: 5, limit: 30),
                         responseType: [Restaurant].self
                     )
-                    dbRestaurants = data.sorted {
-                        ($0.distance ?? .greatestFiniteMagnitude) < ($1.distance ?? .greatestFiniteMagnitude)
+                    await MainActor.run {
+                        self.dbRestaurants = data.sorted {
+                            ($0.distance ?? .greatestFiniteMagnitude) < ($1.distance ?? .greatestFiniteMagnitude)
+                        }
                     }
                 } catch {
-                    dbRestaurants = []
+                    await MainActor.run { self.dbRestaurants = [] }
+                }
+                return [] // DB results go to dbRestaurants, not mapItems
+            }
+
+            // Collect and deduplicate Apple Maps results
+            var allItems: [MKMapItem] = []
+            var seenNames = Set<String>()
+            for await items in group {
+                for item in items {
+                    let name = (item.name ?? "").lowercased()
+                    if !seenNames.contains(name) {
+                        seenNames.insert(name)
+                        allItems.append(item)
+                    }
                 }
             }
+            searchResults = allItems
         }
 
         isSearching = false

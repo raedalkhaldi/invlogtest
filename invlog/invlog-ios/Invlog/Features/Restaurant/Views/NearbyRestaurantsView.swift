@@ -6,6 +6,9 @@ struct NearbyRestaurantsView: View {
     @StateObject private var viewModel = NearbyRestaurantsViewModel()
     @StateObject private var locationManager = LocationManager()
     @State private var viewMode: ViewMode = .list
+    @State private var selectedCategory: NearbyCategoryFilter = .all
+    @State private var mapkitResults: [MKMapItem] = []
+    @State private var isLoadingCategory = false
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
         span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
@@ -14,6 +17,30 @@ struct NearbyRestaurantsView: View {
     enum ViewMode: String, CaseIterable {
         case list = "List"
         case map = "Map"
+    }
+
+    enum NearbyCategoryFilter: String, CaseIterable, Identifiable {
+        case all = "All"
+        case restaurants = "Restaurants"
+        case coffee = "Coffee"
+        case bars = "Bars"
+        case desserts = "Desserts"
+        case bakery = "Bakery"
+        case fastFood = "Fast Food"
+
+        var id: String { rawValue }
+
+        var mapkitQuery: String? {
+            switch self {
+            case .all: return nil
+            case .restaurants: return "restaurant"
+            case .coffee: return "cafe coffee"
+            case .bars: return "bar lounge pub"
+            case .desserts: return "dessert ice cream"
+            case .bakery: return "bakery"
+            case .fastFood: return "fast food"
+            }
+        }
     }
 
     var body: some View {
@@ -27,6 +54,34 @@ struct NearbyRestaurantsView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             .accessibilityLabel("Toggle between list and map view")
+
+            // Category filter chips
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(NearbyCategoryFilter.allCases) { category in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedCategory = category
+                            }
+                        } label: {
+                            Text(category.rawValue)
+                                .font(InvlogTheme.caption(12, weight: .bold))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(selectedCategory == category ? Color.brandPrimary : Color.brandCard)
+                                .foregroundColor(selectedCategory == category ? .white : Color.brandText)
+                                .clipShape(Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(selectedCategory == category ? Color.clear : Color.brandBorder, lineWidth: 1)
+                                )
+                        }
+                        .frame(minHeight: 36)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
 
             Group {
                 if !isLocationAuthorized {
@@ -70,6 +125,14 @@ struct NearbyRestaurantsView: View {
         .onAppear {
             requestLocationIfNeeded()
         }
+        .onChange(of: selectedCategory) { newCategory in
+            guard newCategory != .all, let query = newCategory.mapkitQuery else {
+                mapkitResults = []
+                return
+            }
+            guard let coord = locationManager.location else { return }
+            Task { await searchCategory(query: query, coord: coord) }
+        }
         .onChange(of: locationManager.location) { newLocation in
             guard let coord = newLocation else { return }
             region = MKCoordinateRegion(
@@ -83,20 +146,78 @@ struct NearbyRestaurantsView: View {
     // MARK: - List View
 
     private var listView: some View {
-        List {
-            ForEach(viewModel.restaurants) { restaurant in
-                NavigationLink(value: restaurant) {
-                    NearbyRestaurantRow(restaurant: restaurant)
+        Group {
+            if selectedCategory == .all {
+                List {
+                    ForEach(viewModel.restaurants) { restaurant in
+                        NavigationLink(value: restaurant) {
+                            NearbyRestaurantRow(restaurant: restaurant)
+                        }
+                        .frame(minHeight: 44)
+                        .listRowBackground(Color.clear)
+                    }
                 }
-                .frame(minHeight: 44)
-                .listRowBackground(Color.clear)
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .refreshable {
+                    await refreshData()
+                }
+            } else if isLoadingCategory {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if mapkitResults.isEmpty {
+                VStack(spacing: 12) {
+                    Spacer()
+                    Image(systemName: "mappin.slash")
+                        .font(.largeTitle)
+                        .foregroundColor(Color.brandTextTertiary)
+                    Text("No \(selectedCategory.rawValue.lowercased()) found nearby")
+                        .font(InvlogTheme.body(14))
+                        .foregroundColor(Color.brandTextSecondary)
+                    Spacer()
+                }
+            } else {
+                List {
+                    ForEach(mapkitResults, id: \.self) { item in
+                        HStack(spacing: 12) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(Color.brandPrimary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name ?? "Unknown")
+                                    .font(InvlogTheme.body(14, weight: .bold))
+                                    .foregroundColor(Color.brandText)
+                                if let addr = item.placemark.thoroughfare {
+                                    Text(addr)
+                                        .font(InvlogTheme.caption(12))
+                                        .foregroundColor(Color.brandTextSecondary)
+                                }
+                                if let cat = item.pointOfInterestCategory?.rawValue {
+                                    Text(formatPOI(cat))
+                                        .font(InvlogTheme.caption(10))
+                                        .foregroundColor(Color.brandPrimary)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(minHeight: 44)
+                        .listRowBackground(Color.clear)
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .refreshable {
-            await refreshData()
+    }
+
+    private func formatPOI(_ raw: String) -> String {
+        let cleaned = raw.replacingOccurrences(of: "MKPOICategory", with: "")
+        var result = ""
+        for char in cleaned {
+            if char.isUppercase && !result.isEmpty { result += " " }
+            result.append(char)
         }
+        return result
     }
 
     // MARK: - Map View
@@ -152,6 +273,26 @@ struct NearbyRestaurantsView: View {
         } else if status == .authorizedWhenInUse || status == .authorizedAlways {
             locationManager.startUpdating()
         }
+    }
+
+    private func searchCategory(query: String, coord: CLLocationCoordinate2D) async {
+        isLoadingCategory = true
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        request.resultTypes = .pointOfInterest
+        request.region = MKCoordinateRegion(
+            center: coord,
+            latitudinalMeters: 5000,
+            longitudinalMeters: 5000
+        )
+        do {
+            let search = MKLocalSearch(request: request)
+            let response = try await search.start()
+            mapkitResults = response.mapItems
+        } catch {
+            mapkitResults = []
+        }
+        isLoadingCategory = false
     }
 
     private func refreshData() async {
