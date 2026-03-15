@@ -31,7 +31,7 @@ struct PlacePickerView: View {
                                 HStack(spacing: 12) {
                                     Image(systemName: "location.fill")
                                         .foregroundColor(Color.brandPrimary)
-                                    Text("Search nearby restaurants")
+                                    Text("Search nearby places")
                                         .font(InvlogTheme.body(14))
                                         .foregroundColor(Color.brandText)
                                 }
@@ -79,7 +79,39 @@ struct PlacePickerView: View {
                                     Text("Add \"\(searchText)\"")
                                         .font(InvlogTheme.body(14, weight: .bold))
                                         .foregroundColor(Color.brandText)
-                                    Text("as a new place")
+                                    Text("as a new place at your current location")
+                                        .font(InvlogTheme.caption(12))
+                                        .foregroundColor(Color.brandTextSecondary)
+                                }
+                            }
+                        }
+                        .frame(minHeight: 44)
+                    }
+                }
+
+                // "Use Current Location" option — always show when location is available
+                if searchText.isEmpty, let coord = locationManager.location {
+                    Section {
+                        Button {
+                            let place = SelectedPlace(
+                                name: "Current Location",
+                                address: "",
+                                latitude: coord.latitude,
+                                longitude: coord.longitude,
+                                restaurantId: nil
+                            )
+                            selectedPlace = place
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "location.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(Color.brandAccent)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Use Current Location")
+                                        .font(InvlogTheme.body(14, weight: .bold))
+                                        .foregroundColor(Color.brandText)
+                                    Text("Drop a pin where you are")
                                         .font(InvlogTheme.caption(12))
                                         .foregroundColor(Color.brandTextSecondary)
                                 }
@@ -185,8 +217,35 @@ struct PlacePickerView: View {
 
     private func searchNearby() {
         Task {
-            await performSearch(query: "restaurant")
+            await performNearbySearch()
         }
+    }
+
+    @MainActor
+    private func performNearbySearch() async {
+        isSearching = true
+        guard let coord = locationManager.location else {
+            isSearching = false
+            return
+        }
+
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = ""
+        request.resultTypes = .pointOfInterest
+        request.region = MKCoordinateRegion(
+            center: coord,
+            latitudinalMeters: 2000,
+            longitudinalMeters: 2000
+        )
+
+        do {
+            let search = MKLocalSearch(request: request)
+            let response = try await search.start()
+            searchResults = response.mapItems
+        } catch {
+            searchResults = []
+        }
+        isSearching = false
     }
 
     @MainActor
@@ -195,7 +254,8 @@ struct PlacePickerView: View {
 
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
-        request.resultTypes = .pointOfInterest
+        // Allow all result types: POIs, addresses, neighborhoods, cities
+        request.resultTypes = [.pointOfInterest, .address]
 
         if let coord = locationManager.location {
             request.region = MKCoordinateRegion(
