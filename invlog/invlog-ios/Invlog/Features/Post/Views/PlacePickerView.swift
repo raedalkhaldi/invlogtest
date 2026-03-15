@@ -10,20 +10,172 @@ struct SelectedPlace: Equatable {
     let restaurantId: String?
 }
 
+// MARK: - Place Category
+
+enum PlaceCategory: String, CaseIterable, Identifiable {
+    case restaurant = "Restaurant"
+    case cafeCoffee = "Cafe/Coffee"
+    case barLounge = "Bar/Lounge"
+    case desserts = "Desserts"
+    case bakery = "Bakery"
+    case fastFood = "Fast Food"
+    case streetFood = "Street Food"
+    case fineDining = "Fine Dining"
+    case grocery = "Grocery"
+    case other = "Other"
+
+    var id: String { rawValue }
+}
+
+// MARK: - New Place Form Sheet
+
+struct NewPlaceFormView: View {
+    let initialName: String
+    let latitude: Double
+    let longitude: Double
+    let address: String
+    let onSave: (String, [String]) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var placeName: String = ""
+    @State private var selectedCategory: PlaceCategory = .restaurant
+    @State private var customCategoryText: String = ""
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section {
+                    TextField("Place name", text: $placeName)
+                        .font(InvlogTheme.body(14))
+                        .frame(minHeight: 44)
+                } header: {
+                    Text("Name")
+                        .font(InvlogTheme.caption(12, weight: .bold))
+                        .foregroundColor(Color.brandTextSecondary)
+                }
+
+                Section {
+                    ForEach(PlaceCategory.allCases) { category in
+                        Button {
+                            selectedCategory = category
+                        } label: {
+                            HStack {
+                                Text(category.rawValue)
+                                    .font(InvlogTheme.body(14))
+                                    .foregroundColor(Color.brandText)
+                                Spacer()
+                                if selectedCategory == category {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(Color.brandPrimary)
+                                        .font(.caption)
+                                }
+                            }
+                        }
+                        .frame(minHeight: 44)
+                    }
+
+                    if selectedCategory == .other {
+                        TextField("Custom category", text: $customCategoryText)
+                            .font(InvlogTheme.body(14))
+                            .frame(minHeight: 44)
+                    }
+                } header: {
+                    Text("Category")
+                        .font(InvlogTheme.caption(12, weight: .bold))
+                        .foregroundColor(Color.brandTextSecondary)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .invlogScreenBackground()
+            .navigationTitle("New Place")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let name = placeName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !name.isEmpty else { return }
+
+                        let cuisineType: [String]
+                        if selectedCategory == .other {
+                            let custom = customCategoryText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            cuisineType = custom.isEmpty ? [] : [custom]
+                        } else {
+                            cuisineType = [selectedCategory.rawValue]
+                        }
+
+                        dismiss()
+                        onSave(name, cuisineType)
+                    }
+                    .disabled(placeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .frame(minWidth: 44, minHeight: 44)
+                }
+            }
+            .onAppear {
+                placeName = initialName
+            }
+        }
+    }
+}
+
+// MARK: - Place Picker View
+
 struct PlacePickerView: View {
     @Binding var selectedPlace: SelectedPlace?
     @Environment(\.dismiss) private var dismiss
     @StateObject private var locationManager = LocationManager()
     @State private var searchText = ""
     @State private var searchResults: [MKMapItem] = []
+    @State private var dbRestaurants: [Restaurant] = []
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
     @State private var isCreatingPlace = false
+    @State private var showNewPlaceForm = false
+    @State private var pendingPlaceName = ""
+    @State private var pendingPlaceAddress = ""
+    @State private var pendingPlaceLat: Double = 0
+    @State private var pendingPlaceLng: Double = 0
+
+    /// Merged results: DB restaurants first, then Apple Maps results (excluding duplicates)
+    private var mergedResults: [PlaceResult] {
+        var results: [PlaceResult] = []
+
+        // Add DB restaurants first
+        for restaurant in dbRestaurants {
+            results.append(.dbRestaurant(restaurant))
+        }
+
+        // Add Apple Maps results, excluding those that likely match a DB restaurant
+        let dbNames = Set(dbRestaurants.map { $0.name.lowercased() })
+        for item in searchResults {
+            let name = (item.name ?? "").lowercased()
+            if !dbNames.contains(name) {
+                results.append(.mapItem(item))
+            }
+        }
+
+        return results
+    }
+
+    private enum PlaceResult: Identifiable {
+        case dbRestaurant(Restaurant)
+        case mapItem(MKMapItem)
+
+        var id: String {
+            switch self {
+            case .dbRestaurant(let r): return "db-\(r.id)"
+            case .mapItem(let item): return "map-\(item.name ?? "")-\(item.placemark.coordinate.latitude)"
+            }
+        }
+    }
 
     var body: some View {
         NavigationView {
             List {
-                if searchText.isEmpty && searchResults.isEmpty {
+                if searchText.isEmpty && mergedResults.isEmpty && !isSearching {
                     Section {
                         if locationManager.location != nil {
                             Button {
@@ -53,22 +205,22 @@ struct PlacePickerView: View {
                             .frame(minHeight: 44)
                         }
                     }
-                } else if isSearching {
+                } else if isSearching && mergedResults.isEmpty {
                     HStack {
                         Spacer()
                         ProgressView()
                         Spacer()
                     }
                     .listRowSeparator(.hidden)
-                } else if searchResults.isEmpty && !searchText.isEmpty {
+                } else if mergedResults.isEmpty && !searchText.isEmpty && !isSearching {
                     Section {
                         Button {
-                            Task { await createAndSelectPlace(
+                            presentNewPlaceForm(
                                 name: searchText,
                                 address: "",
                                 lat: locationManager.location?.latitude ?? 0,
                                 lng: locationManager.location?.longitude ?? 0
-                            )}
+                            )
                         } label: {
                             HStack(spacing: 12) {
                                 if isCreatingPlace {
@@ -96,12 +248,12 @@ struct PlacePickerView: View {
                 if searchText.isEmpty, let coord = locationManager.location {
                     Section {
                         Button {
-                            Task { await createAndSelectPlace(
+                            presentNewPlaceForm(
                                 name: "My Location",
                                 address: "",
                                 lat: coord.latitude,
                                 lng: coord.longitude
-                            )}
+                            )
                         } label: {
                             HStack(spacing: 12) {
                                 if isCreatingPlace {
@@ -126,45 +278,116 @@ struct PlacePickerView: View {
                     }
                 }
 
-                if !searchResults.isEmpty {
+                if !mergedResults.isEmpty {
                     Section {
-                        ForEach(searchResults, id: \.self) { item in
-                            Button {
-                                selectMapItem(item)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "mappin.circle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(Color.brandPrimary)
+                        ForEach(mergedResults) { result in
+                            switch result {
+                            case .dbRestaurant(let restaurant):
+                                Button {
+                                    selectDBRestaurant(restaurant)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "mappin.circle.fill")
+                                            .font(.title2)
+                                            .foregroundColor(Color.brandAccent)
 
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.name ?? "Unknown Place")
-                                            .font(InvlogTheme.body(14, weight: .bold))
-                                            .foregroundColor(Color.brandText)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            HStack(spacing: 4) {
+                                                Text(restaurant.name)
+                                                    .font(InvlogTheme.body(14, weight: .bold))
+                                                    .foregroundColor(Color.brandText)
 
-                                        if let address = formatAddress(item.placemark) {
-                                            Text(address)
-                                                .font(InvlogTheme.caption(12))
-                                                .foregroundColor(Color.brandTextSecondary)
-                                                .lineLimit(2)
+                                                Image(systemName: "checkmark.seal.fill")
+                                                    .font(.caption2)
+                                                    .foregroundColor(Color.brandPrimary)
+                                            }
+
+                                            if let address = restaurant.addressLine1, !address.isEmpty {
+                                                Text(address)
+                                                    .font(InvlogTheme.caption(12))
+                                                    .foregroundColor(Color.brandTextSecondary)
+                                                    .lineLimit(2)
+                                            }
+
+                                            if let cuisines = restaurant.cuisineType, !cuisines.isEmpty {
+                                                Text(cuisines.joined(separator: " · "))
+                                                    .font(InvlogTheme.caption(10))
+                                                    .foregroundColor(Color.brandPrimary)
+                                            }
                                         }
 
-                                        if let category = item.pointOfInterestCategory?.rawValue {
-                                            Text(formatCategory(category))
-                                                .font(InvlogTheme.caption(10))
-                                                .foregroundColor(Color.brandPrimary)
-                                        }
+                                        Spacer()
                                     }
-
-                                    Spacer()
                                 }
+                                .frame(minHeight: 44)
+
+                            case .mapItem(let item):
+                                Button {
+                                    selectMapItem(item)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "mappin.circle.fill")
+                                            .font(.title2)
+                                            .foregroundColor(Color.brandPrimary)
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(item.name ?? "Unknown Place")
+                                                .font(InvlogTheme.body(14, weight: .bold))
+                                                .foregroundColor(Color.brandText)
+
+                                            if let address = formatAddress(item.placemark) {
+                                                Text(address)
+                                                    .font(InvlogTheme.caption(12))
+                                                    .foregroundColor(Color.brandTextSecondary)
+                                                    .lineLimit(2)
+                                            }
+
+                                            if let category = item.pointOfInterestCategory?.rawValue {
+                                                Text(formatCategory(category))
+                                                    .font(InvlogTheme.caption(10))
+                                                    .foregroundColor(Color.brandPrimary)
+                                            }
+                                        }
+
+                                        Spacer()
+                                    }
+                                }
+                                .frame(minHeight: 44)
                             }
-                            .frame(minHeight: 44)
                         }
                     } header: {
                         Text("Results")
                             .font(InvlogTheme.caption(12, weight: .bold))
                             .foregroundColor(Color.brandTextSecondary)
+                    }
+
+                    // "Add new" option at the bottom of results when searching
+                    if !searchText.isEmpty {
+                        Section {
+                            Button {
+                                presentNewPlaceForm(
+                                    name: searchText,
+                                    address: "",
+                                    lat: locationManager.location?.latitude ?? 0,
+                                    lng: locationManager.location?.longitude ?? 0
+                                )
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundColor(Color.brandPrimary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Add \"\(searchText)\"")
+                                            .font(InvlogTheme.body(14, weight: .bold))
+                                            .foregroundColor(Color.brandText)
+                                        Text("Not listed? Save as a new place")
+                                            .font(InvlogTheme.caption(12))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                    }
+                                }
+                            }
+                            .disabled(isCreatingPlace)
+                            .frame(minHeight: 44)
+                        }
                     }
                 }
             }
@@ -193,6 +416,24 @@ struct PlacePickerView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showNewPlaceForm) {
+                NewPlaceFormView(
+                    initialName: pendingPlaceName,
+                    latitude: pendingPlaceLat,
+                    longitude: pendingPlaceLng,
+                    address: pendingPlaceAddress
+                ) { name, cuisineType in
+                    Task {
+                        await createAndSelectPlace(
+                            name: name,
+                            address: pendingPlaceAddress,
+                            lat: pendingPlaceLat,
+                            lng: pendingPlaceLng,
+                            cuisineType: cuisineType
+                        )
+                    }
+                }
+            }
             .onAppear {
                 let status = locationManager.authorizationStatus
                 if status == .authorizedWhenInUse || status == .authorizedAlways {
@@ -205,10 +446,23 @@ struct PlacePickerView: View {
         }
     }
 
+    // MARK: - New Place Form
+
+    private func presentNewPlaceForm(name: String, address: String, lat: Double, lng: Double) {
+        pendingPlaceName = name
+        pendingPlaceAddress = address
+        pendingPlaceLat = lat
+        pendingPlaceLng = lng
+        showNewPlaceForm = true
+    }
+
+    // MARK: - Search
+
     private func triggerSearch() {
         searchTask?.cancel()
         guard !searchText.isEmpty else {
             searchResults = []
+            dbRestaurants = []
             return
         }
 
@@ -234,22 +488,43 @@ struct PlacePickerView: View {
             return
         }
 
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = "food coffee restaurant cafe"
-        request.resultTypes = .pointOfInterest
-        request.region = MKCoordinateRegion(
-            center: coord,
-            latitudinalMeters: 2000,
-            longitudinalMeters: 2000
-        )
+        // Fetch from both Apple Maps and our DB in parallel
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { @MainActor in
+                // Apple Maps nearby search - no restrictive query, show all POIs
+                let request = MKLocalSearch.Request()
+                request.resultTypes = .pointOfInterest
+                request.region = MKCoordinateRegion(
+                    center: coord,
+                    latitudinalMeters: 5000,
+                    longitudinalMeters: 5000
+                )
 
-        do {
-            let search = MKLocalSearch(request: request)
-            let response = try await search.start()
-            searchResults = response.mapItems
-        } catch {
-            searchResults = []
+                do {
+                    let search = MKLocalSearch(request: request)
+                    let response = try await search.start()
+                    searchResults = response.mapItems
+                } catch {
+                    searchResults = []
+                }
+            }
+
+            group.addTask { @MainActor in
+                // Our DB nearby restaurants
+                do {
+                    let (data, _) = try await APIClient.shared.requestWrapped(
+                        .nearbyRestaurants(lat: coord.latitude, lng: coord.longitude, radiusKm: 5, limit: 30),
+                        responseType: [Restaurant].self
+                    )
+                    dbRestaurants = data.sorted {
+                        ($0.distance ?? .greatestFiniteMagnitude) < ($1.distance ?? .greatestFiniteMagnitude)
+                    }
+                } catch {
+                    dbRestaurants = []
+                }
+            }
         }
+
         isSearching = false
     }
 
@@ -257,28 +532,66 @@ struct PlacePickerView: View {
     private func performSearch(query: String) async {
         isSearching = true
 
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-        // Allow all result types: POIs, addresses, neighborhoods, cities
-        request.resultTypes = [.pointOfInterest, .address]
+        // Search both Apple Maps and our DB in parallel
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { @MainActor in
+                let request = MKLocalSearch.Request()
+                request.naturalLanguageQuery = query
+                request.resultTypes = [.pointOfInterest, .address]
 
-        if let coord = locationManager.location {
-            request.region = MKCoordinateRegion(
-                center: coord,
-                latitudinalMeters: 5000,
-                longitudinalMeters: 5000
-            )
-        }
+                if let coord = locationManager.location {
+                    request.region = MKCoordinateRegion(
+                        center: coord,
+                        latitudinalMeters: 5000,
+                        longitudinalMeters: 5000
+                    )
+                }
 
-        do {
-            let search = MKLocalSearch(request: request)
-            let response = try await search.start()
-            searchResults = response.mapItems
-        } catch {
-            searchResults = []
+                do {
+                    let search = MKLocalSearch(request: request)
+                    let response = try await search.start()
+                    searchResults = response.mapItems
+                } catch {
+                    searchResults = []
+                }
+            }
+
+            group.addTask { @MainActor in
+                // Search our DB too
+                if let coord = locationManager.location {
+                    do {
+                        let (data, _) = try await APIClient.shared.requestWrapped(
+                            .nearbyRestaurants(lat: coord.latitude, lng: coord.longitude, radiusKm: 5, limit: 30),
+                            responseType: [Restaurant].self
+                        )
+                        // Filter DB results by query
+                        let q = query.lowercased()
+                        dbRestaurants = data.filter { restaurant in
+                            restaurant.name.lowercased().contains(q) ||
+                            (restaurant.cuisineType ?? []).contains(where: { $0.lowercased().contains(q) }) ||
+                            (restaurant.addressLine1 ?? "").lowercased().contains(q)
+                        }
+                    } catch {
+                        dbRestaurants = []
+                    }
+                }
+            }
         }
 
         isSearching = false
+    }
+
+    // MARK: - Selection
+
+    private func selectDBRestaurant(_ restaurant: Restaurant) {
+        selectedPlace = SelectedPlace(
+            name: restaurant.name,
+            address: restaurant.addressLine1 ?? "",
+            latitude: restaurant.latitude ?? 0,
+            longitude: restaurant.longitude ?? 0,
+            restaurantId: restaurant.id
+        )
+        dismiss()
     }
 
     private func selectMapItem(_ item: MKMapItem) {
@@ -287,22 +600,28 @@ struct PlacePickerView: View {
                 name: item.name ?? "Unknown Place",
                 address: formatAddress(item.placemark) ?? "",
                 lat: item.placemark.coordinate.latitude,
-                lng: item.placemark.coordinate.longitude
+                lng: item.placemark.coordinate.longitude,
+                cuisineType: nil
             )
         }
     }
 
     @MainActor
-    private func createAndSelectPlace(name: String, address: String, lat: Double, lng: Double) async {
+    private func createAndSelectPlace(name: String, address: String, lat: Double, lng: Double, cuisineType: [String]?) async {
         isCreatingPlace = true
         do {
+            var data: [String: Any] = [
+                "name": name,
+                "latitude": lat,
+                "longitude": lng,
+                "addressLine1": address,
+            ]
+            if let cuisineType, !cuisineType.isEmpty {
+                data["cuisineType"] = cuisineType
+            }
+
             let (restaurant, _) = try await APIClient.shared.requestWrapped(
-                .createRestaurant(data: [
-                    "name": name,
-                    "latitude": lat,
-                    "longitude": lng,
-                    "addressLine1": address,
-                ]),
+                .createRestaurant(data: data),
                 responseType: Restaurant.self
             )
             selectedPlace = SelectedPlace(
@@ -325,6 +644,8 @@ struct PlacePickerView: View {
         isCreatingPlace = false
         dismiss()
     }
+
+    // MARK: - Formatting
 
     private func formatAddress(_ placemark: MKPlacemark) -> String? {
         var parts: [String] = []
