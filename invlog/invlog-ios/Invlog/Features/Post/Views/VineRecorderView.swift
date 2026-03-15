@@ -1,7 +1,7 @@
 import SwiftUI
 import AVFoundation
 
-// MARK: - VineRecorderView (Vine-style: hold to record, release to stop)
+// MARK: - VineRecorderView (Vine-style: hold to record, release to pause, hold again to continue)
 
 struct VineRecorderView: View {
     var maxSeconds: Double = 10.0
@@ -13,6 +13,7 @@ struct VineRecorderView: View {
     @State private var isRecording = false
     @State private var recordedDuration: Double = 0
     @State private var recordTimer: Timer?
+    @State private var hasStartedRecording = false
 
     @State private var isExporting = false
     @State private var showDiscardAlert = false
@@ -49,7 +50,7 @@ struct VineRecorderView: View {
         }
         .alert("Discard Recording?", isPresented: $showDiscardAlert) {
             Button("Discard", role: .destructive) {
-                cleanupRecording()
+                cameraManager.cleanupSegments()
                 dismiss()
             }
             Button("Keep", role: .cancel) {}
@@ -77,7 +78,7 @@ struct VineRecorderView: View {
 
                 // Duration label
                 if isRecording || recordedDuration > 0 {
-                    Text(formatDuration(isRecording ? recordedDuration : recordedDuration))
+                    Text(formatDuration(recordedDuration))
                         .font(.system(size: 16, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
@@ -117,7 +118,7 @@ struct VineRecorderView: View {
     private var topControls: some View {
         HStack {
             Button {
-                if cameraManager.hasRecording {
+                if hasStartedRecording {
                     showDiscardAlert = true
                 } else {
                     dismiss()
@@ -178,8 +179,27 @@ struct VineRecorderView: View {
 
             Spacer()
 
-            // Empty space for symmetry
-            Color.clear.frame(width: 60)
+            // Done button (visible when paused with recorded segments)
+            VStack {
+                Spacer()
+                if hasStartedRecording && !isRecording {
+                    Button {
+                        finishAndExport()
+                    } label: {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.brandPrimary)
+                            .clipShape(Circle())
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    Color.clear.frame(width: 44, height: 44)
+                }
+            }
+            .frame(width: 60)
+            .animation(.easeInOut(duration: 0.2), value: hasStartedRecording && !isRecording)
         }
         .padding(.horizontal, InvlogTheme.Spacing.md)
     }
@@ -197,8 +217,8 @@ struct VineRecorderView: View {
                 .animation(.easeInOut(duration: 0.3), value: isRecording)
 
             if isRecording {
-                // Stop icon (rounded square)
-                RoundedRectangle(cornerRadius: 8)
+                // Recording indicator (smaller red circle, pulsing)
+                Circle()
                     .fill(Color.red)
                     .frame(width: 36, height: 36)
             } else {
@@ -212,17 +232,17 @@ struct VineRecorderView: View {
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
-                    if !isRecording {
-                        startRecording()
+                    if !isRecording && recordedDuration < maxDuration {
+                        resumeRecording()
                     }
                 }
                 .onEnded { _ in
                     if isRecording {
-                        stopAndFinish()
+                        pauseRecording()
                     }
                 }
         )
-        .accessibilityLabel(isRecording ? "Recording... release to stop" : "Hold to record")
+        .accessibilityLabel(isRecording ? "Recording... release to pause" : "Hold to record")
     }
 
     // MARK: - Permission Denied View
@@ -317,27 +337,29 @@ struct VineRecorderView: View {
         }
     }
 
-    // MARK: - Recording
+    // MARK: - Recording (multi-segment)
 
-    private func startRecording() {
-        recordedDuration = 0
+    private func resumeRecording() {
+        hasStartedRecording = true
         cameraManager.startRecording()
         isRecording = true
         startTimer()
     }
 
-    private func stopAndFinish() {
+    private func pauseRecording() {
         guard isRecording else { return }
         stopTimer()
         isRecording = false
         cameraManager.stopRecording()
+    }
 
-        // Wait briefly for the file to be written, then export
+    private func finishAndExport() {
+        guard hasStartedRecording else { return }
         isExporting = true
         Task {
-            // Small delay to let the file output delegate fire
+            // Small delay to ensure last segment file is written
             try? await Task.sleep(nanoseconds: 500_000_000)
-            await finishRecording()
+            await mergeAndFinish()
         }
     }
 
@@ -346,7 +368,8 @@ struct VineRecorderView: View {
             DispatchQueue.main.async {
                 recordedDuration += timerInterval
                 if recordedDuration >= maxDuration {
-                    stopAndFinish()
+                    pauseRecording()
+                    finishAndExport()
                 }
             }
         }
@@ -358,14 +381,66 @@ struct VineRecorderView: View {
     }
 
     @MainActor
-    private func finishRecording() async {
-        guard let videoURL = cameraManager.recordedURL else {
+    private func mergeAndFinish() async {
+        let segments = cameraManager.segmentURLs
+        guard !segments.isEmpty else {
             isExporting = false
             return
         }
 
+        let outputURL: URL
+        if segments.count == 1 {
+            // Single segment — no merge needed
+            outputURL = segments[0]
+        } else {
+            // Merge multiple segments
+            let composition = AVMutableComposition()
+            guard let videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
+                  let audioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+                isExporting = false
+                return
+            }
+
+            var insertTime = CMTime.zero
+            for segmentURL in segments {
+                let asset = AVURLAsset(url: segmentURL)
+                let duration = asset.duration
+
+                if let videoSource = asset.tracks(withMediaType: .video).first {
+                    try? videoTrack.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: videoSource, at: insertTime)
+                    // Apply the transform from the first video track
+                    if insertTime == .zero {
+                        videoTrack.preferredTransform = videoSource.preferredTransform
+                    }
+                }
+                if let audioSource = asset.tracks(withMediaType: .audio).first {
+                    try? audioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: audioSource, at: insertTime)
+                }
+                insertTime = CMTimeAdd(insertTime, duration)
+            }
+
+            let mergedURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("vlog_merged_\(UUID().uuidString).mov")
+
+            guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+                isExporting = false
+                return
+            }
+            exporter.outputURL = mergedURL
+            exporter.outputFileType = .mov
+
+            await exporter.export()
+
+            guard exporter.status == .completed else {
+                isExporting = false
+                return
+            }
+
+            outputURL = mergedURL
+        }
+
         // Generate thumbnail
-        let asset = AVURLAsset(url: videoURL)
+        let asset = AVURLAsset(url: outputURL)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 1024, height: 1024)
@@ -378,14 +453,11 @@ struct VineRecorderView: View {
             thumbnail = UIImage(systemName: "video.fill") ?? UIImage()
         }
 
-        isExporting = false
-        onComplete(videoURL, thumbnail)
-    }
+        // Clean up segment files
+        cameraManager.cleanupSegments()
 
-    private func cleanupRecording() {
-        if let url = cameraManager.recordedURL {
-            try? FileManager.default.removeItem(at: url)
-        }
+        isExporting = false
+        onComplete(outputURL, thumbnail)
     }
 
     private func formatDuration(_ seconds: Double) -> String {
@@ -395,7 +467,7 @@ struct VineRecorderView: View {
     }
 }
 
-// MARK: - CameraManager
+// MARK: - CameraManager (multi-segment)
 
 private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputRecordingDelegate {
     let session = AVCaptureSession()
@@ -405,9 +477,9 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
     private var videoDeviceInput: AVCaptureDeviceInput?
 
     @Published var isTorchOn = false
-    @Published var recordedURL: URL?
+    @Published var segmentURLs: [URL] = []
 
-    var hasRecording: Bool { recordedURL != nil }
+    var hasRecording: Bool { !segmentURLs.isEmpty }
 
     func setupSession() {
         session.beginConfiguration()
@@ -459,8 +531,7 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
         guard !movieOutput.isRecording else { return }
 
         let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("vlog_\(UUID().uuidString).mov")
-        recordedURL = nil
+            .appendingPathComponent("vlog_seg_\(UUID().uuidString).mov")
 
         if let connection = movieOutput.connection(with: .video) {
             setPortraitOrientation(on: connection)
@@ -472,6 +543,13 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
     func stopRecording() {
         guard movieOutput.isRecording else { return }
         movieOutput.stopRecording()
+    }
+
+    func cleanupSegments() {
+        for url in segmentURLs {
+            try? FileManager.default.removeItem(at: url)
+        }
+        segmentURLs.removeAll()
     }
 
     func switchCamera() {
@@ -551,7 +629,7 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
             }
         }
         DispatchQueue.main.async {
-            self.recordedURL = outputFileURL
+            self.segmentURLs.append(outputFileURL)
         }
     }
 }
