@@ -1,7 +1,7 @@
 import SwiftUI
 import AVFoundation
 
-// MARK: - VineRecorderView (Reels-style: tap to start, tap to stop)
+// MARK: - VineRecorderView (Vine-style: hold to record, release to stop)
 
 struct VineRecorderView: View {
     var maxSeconds: Double = 10.0
@@ -209,14 +209,20 @@ struct VineRecorderView: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: isRecording)
-        .onTapGesture {
-            if isRecording {
-                stopAndFinish()
-            } else {
-                startRecording()
-            }
-        }
-        .accessibilityLabel(isRecording ? "Stop recording" : "Start recording")
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isRecording {
+                        startRecording()
+                    }
+                }
+                .onEnded { _ in
+                    if isRecording {
+                        stopAndFinish()
+                    }
+                }
+        )
+        .accessibilityLabel(isRecording ? "Recording... release to stop" : "Hold to record")
     }
 
     // MARK: - Permission Denied View
