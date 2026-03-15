@@ -17,6 +17,7 @@ struct PostCardView: View {
     @State private var showBlockConfirm = false
     @State private var isDeleted = false
     @State private var navigateToProfile = false
+    @State private var isLikeInFlight = false
 
     private var isOwnPost: Bool {
         post.authorId == appState.currentUser?.id
@@ -463,19 +464,30 @@ struct PostCardView: View {
     }
 
     private func toggleLike() {
+        guard !isLikeInFlight else { return }
         let wasLiked = isLiked
+        let wasCount = likeCount
         isLiked.toggle()
         likeCount += isLiked ? 1 : -1
+        isLikeInFlight = true
         Task {
+            defer { isLikeInFlight = false }
             do {
                 if isLiked {
                     try await APIClient.shared.requestVoid(.likePost(id: post.id))
                 } else {
                     try await APIClient.shared.requestVoid(.unlikePost(id: post.id))
                 }
+            } catch let error as APIError {
+                // 409 = already liked/unliked — keep the optimistic state
+                if case .httpError(let code, _) = error, code == 409 {
+                    return
+                }
+                isLiked = wasLiked
+                likeCount = wasCount
             } catch {
                 isLiked = wasLiked
-                likeCount = post.likeCount
+                likeCount = wasCount
             }
         }
     }
