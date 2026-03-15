@@ -22,6 +22,10 @@ struct PostCardView: View {
         post.authorId == appState.currentUser?.id
     }
 
+    private var hasVideo: Bool {
+        post.media?.contains(where: { $0.mediaType == "video" }) == true
+    }
+
     init(post: Post, onCommentAdded: (() -> Void)? = nil, onDeleted: (() -> Void)? = nil) {
         self.post = post
         self.onCommentAdded = onCommentAdded
@@ -146,67 +150,86 @@ struct PostCardView: View {
 
             // Media
             if let media = post.media, !media.isEmpty {
-                MediaCarouselView(media: media)
-            }
+                if hasVideo {
+                    // Video post: overlay action buttons on the right side (Reels-style)
+                    ZStack(alignment: .trailing) {
+                        MediaCarouselView(media: media)
 
-            // Actions Bar
-            HStack(spacing: 0) {
-                Button {
-                    toggleLike()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: isLiked ? "heart.fill" : "heart")
-                            .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
-                        Text(likeCount > 0 ? "\(likeCount)" : "")
-                            .font(InvlogTheme.caption(13, weight: .semibold))
-                            .foregroundColor(Color.brandTextSecondary)
+                        // Vertical action buttons overlay
+                        VStack(spacing: 20) {
+                            Spacer()
+
+                            // Like
+                            Button {
+                                toggleLike()
+                            } label: {
+                                VStack(spacing: 2) {
+                                    Image(systemName: isLiked ? "heart.fill" : "heart")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(isLiked ? .red : .white)
+                                    if likeCount > 0 {
+                                        Text("\(likeCount)")
+                                            .font(InvlogTheme.caption(11, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+
+                            // Comment
+                            Button {
+                                showComments = true
+                            } label: {
+                                VStack(spacing: 2) {
+                                    Image(systemName: "bubble.right")
+                                        .font(.system(size: 22))
+                                        .foregroundColor(.white)
+                                    if commentCount > 0 {
+                                        Text("\(commentCount)")
+                                            .font(InvlogTheme.caption(11, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(commentCount > 0 ? "\(commentCount) comments" : "Add a comment")
+
+                            // Share
+                            Button {
+                                showShareSheet = true
+                            } label: {
+                                Image(systemName: "paperplane")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(.white)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Share post")
+
+                            // Bookmark
+                            Button {
+                                toggleBookmark()
+                            } label: {
+                                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(isBookmarked ? Color.brandPrimary : .white)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark post")
+                        }
+                        .padding(.trailing, 12)
+                        .padding(.bottom, 16)
+                        .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
                     }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+                } else {
+                    MediaCarouselView(media: media)
 
-                Button {
-                    showComments = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "bubble.right")
-                        Text(commentCount > 0 ? "\(commentCount)" : "")
-                            .font(InvlogTheme.caption(13, weight: .semibold))
-                    }
-                    .foregroundColor(Color.brandTextSecondary)
-                    .frame(maxWidth: .infinity)
+                    // Image post: horizontal action bar below
+                    actionsBar
                 }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel(commentCount > 0 ? "\(commentCount) comments" : "Add a comment")
-
-                Button {
-                    showShareSheet = true
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundColor(Color.brandTextSecondary)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel("Share post")
-
-                Button {
-                    toggleBookmark()
-                } label: {
-                    Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                        .foregroundColor(isBookmarked ? Color.brandPrimary : Color.brandTextSecondary)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark post")
-            }
-            .padding(.top, InvlogTheme.Spacing.xs)
-            .overlay(alignment: .top) {
-                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+            } else {
+                // No media: horizontal action bar
+                actionsBar
             }
 
             // Inline Comments (first 2)
@@ -289,6 +312,67 @@ struct PostCardView: View {
             }
         } message: {
             Text("They won't be able to see your posts, and you won't see theirs.")
+        }
+    }
+
+    private var actionsBar: some View {
+        HStack(spacing: 0) {
+            Button {
+                toggleLike()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: isLiked ? "heart.fill" : "heart")
+                        .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
+                    Text(likeCount > 0 ? "\(likeCount)" : "")
+                        .font(InvlogTheme.caption(13, weight: .semibold))
+                        .foregroundColor(Color.brandTextSecondary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+
+            Button {
+                showComments = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "bubble.right")
+                    Text(commentCount > 0 ? "\(commentCount)" : "")
+                        .font(InvlogTheme.caption(13, weight: .semibold))
+                }
+                .foregroundColor(Color.brandTextSecondary)
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel(commentCount > 0 ? "\(commentCount) comments" : "Add a comment")
+
+            Button {
+                showShareSheet = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .foregroundColor(Color.brandTextSecondary)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel("Share post")
+
+            Button {
+                toggleBookmark()
+            } label: {
+                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                    .foregroundColor(isBookmarked ? Color.brandPrimary : Color.brandTextSecondary)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark post")
+        }
+        .padding(.top, InvlogTheme.Spacing.xs)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
         }
     }
 
