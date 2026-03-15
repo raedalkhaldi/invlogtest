@@ -116,6 +116,7 @@ actor APIClient {
                 return try decoder.decode(T.self, from: data)
             } catch let error as APIError {
                 // Don't retry client errors (except 429 handled above)
+                ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: error)
                 throw error
             } catch is CancellationError {
                 throw CancellationError()
@@ -126,10 +127,12 @@ actor APIClient {
                     try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt + 1))) * 500_000_000)
                     continue
                 }
+                ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: error)
                 throw error
             }
         }
 
+        ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: lastError)
         throw lastError
     }
 
@@ -183,6 +186,7 @@ actor APIClient {
 
                 return
             } catch let error as APIError {
+                ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: error)
                 throw error
             } catch is CancellationError {
                 throw CancellationError()
@@ -192,10 +196,12 @@ actor APIClient {
                     try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt + 1))) * 500_000_000)
                     continue
                 }
+                ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: error)
                 throw error
             }
         }
 
+        ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: lastError)
         throw lastError
     }
 

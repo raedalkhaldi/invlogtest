@@ -11,6 +11,7 @@ struct InvlogApp: App {
     init() {
         ImagePipelineConfig.setup()
         Self.configureAppearance()
+        ErrorLogger.shared.logEvent("App launched — \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"))")
     }
 
     private static func configureAppearance() {
