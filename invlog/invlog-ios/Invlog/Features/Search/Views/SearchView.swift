@@ -122,8 +122,9 @@ struct SearchView: View {
                         .padding(.horizontal)
                         .padding(.top, 8)
 
-                        // Nearby Restaurants Section
+                        // Nearby Places — categorized
                         if !nearbyRestaurants.isEmpty {
+                            // All nearby
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
                                     Text("Nearby Places")
@@ -157,6 +158,34 @@ struct SearchView: View {
                                 }
                             }
                             .padding(.vertical, 8)
+
+                            // Categorized sections
+                            ForEach(categorizedPlaces, id: \.category) { group in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: group.icon)
+                                            .font(.caption)
+                                            .foregroundColor(Color.brandPrimary)
+                                        Text(group.category)
+                                            .font(InvlogTheme.heading(14, weight: .bold))
+                                            .foregroundColor(Color.brandText)
+                                    }
+                                    .padding(.horizontal)
+
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 12) {
+                                            ForEach(group.restaurants) { restaurant in
+                                                NavigationLink(value: restaurant) {
+                                                    NearbyRestaurantCard(restaurant: restaurant)
+                                                }
+                                                .frame(minWidth: 44, minHeight: 44)
+                                            }
+                                        }
+                                        .padding(.horizontal)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
                         } else if isLoadingNearby {
                             HStack {
                                 Spacer()
@@ -317,6 +346,34 @@ struct SearchView: View {
             guard let coord = newLocation else { return }
             Task { await loadNearbyRestaurants(lat: coord.latitude, lng: coord.longitude) }
         }
+    }
+
+    private struct PlaceCategory {
+        let category: String
+        let icon: String
+        let restaurants: [Restaurant]
+    }
+
+    private var categorizedPlaces: [PlaceCategory] {
+        let categoryMap: [(keywords: [String], label: String, icon: String)] = [
+            (["restaurant", "dining", "food"], "Restaurants", "fork.knife"),
+            (["cafe", "coffee", "bakery"], "Coffee & Cafes", "cup.and.saucer.fill"),
+            (["bar", "lounge", "pub", "nightlife"], "Bars & Lounges", "wineglass.fill"),
+            (["dessert", "ice cream", "sweet", "chocolate"], "Desserts", "birthday.cake.fill"),
+        ]
+
+        var result: [PlaceCategory] = []
+        for cat in categoryMap {
+            let matched = nearbyRestaurants.filter { restaurant in
+                let cuisines = (restaurant.cuisineType ?? []).joined(separator: " ").lowercased()
+                let name = restaurant.name.lowercased()
+                return cat.keywords.contains(where: { cuisines.contains($0) || name.contains($0) })
+            }
+            if !matched.isEmpty {
+                result.append(PlaceCategory(category: cat.label, icon: cat.icon, restaurants: matched))
+            }
+        }
+        return result
     }
 
     private func loadNearbyRestaurants(lat: Double, lng: Double) async {

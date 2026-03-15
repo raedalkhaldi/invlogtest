@@ -7,9 +7,23 @@ final class AppState: ObservableObject {
     @Published var unreadNotificationCount = 0
 
     private let keychainManager = KeychainManager()
+    private var sessionExpiredObserver: Any?
 
     init() {
         checkAuthState()
+        sessionExpiredObserver = NotificationCenter.default.addObserver(
+            forName: .sessionExpired,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.signOut()
+        }
+    }
+
+    deinit {
+        if let observer = sessionExpiredObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     func checkAuthState() {
