@@ -38,6 +38,8 @@ struct CreatePostView: View {
     @State private var showPhotoCapture = false
     @State private var showVineRecorder = false
     @State private var showVideoFilter = false
+    @State private var showVideoTrim = false
+    @State private var showVideoOverlay = false
     @State private var recordedVideoURL: URL?
     @State private var recordedVideoThumbnail: UIImage?
     @State private var imagesToCrop: [UIImage] = []
@@ -171,12 +173,47 @@ struct CreatePostView: View {
             if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
                 NavigationStack {
                     VideoFilterView(videoURL: videoURL, thumbnail: thumb) { filteredURL, filteredThumb in
-                        mediaItems.append(.video(filteredURL, filteredThumb))
-                        selectedImages.append(filteredThumb)
+                        recordedVideoURL = filteredURL
+                        recordedVideoThumbnail = filteredThumb
                         showVideoFilter = false
-                        recordedVideoURL = nil
-                        recordedVideoThumbnail = nil
+                        // Chain to trim view
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showVideoTrim = true
+                        }
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $showVideoTrim) {
+            if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
+                NavigationStack {
+                    VideoTrimView(videoURL: videoURL, thumbnail: thumb) { trimmedURL, trimmedThumb in
+                        recordedVideoURL = trimmedURL
+                        recordedVideoThumbnail = trimmedThumb
+                        showVideoTrim = false
+                        // Chain to overlay editor
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showVideoOverlay = true
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showVideoOverlay) {
+            if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
+                NavigationStack {
+                    VideoOverlayEditorView(
+                        videoURL: videoURL,
+                        thumbnail: thumb,
+                        placeName: selectedPlace?.name,
+                        onComplete: { finalURL, finalThumb in
+                            mediaItems.append(.video(finalURL, finalThumb))
+                            selectedImages.append(finalThumb)
+                            showVideoOverlay = false
+                            recordedVideoURL = nil
+                            recordedVideoThumbnail = nil
+                        }
+                    )
                 }
             }
         }

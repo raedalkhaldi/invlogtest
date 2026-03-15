@@ -25,6 +25,8 @@
 		A1B2C3D4E5F607890A1B2C3D /* TripRoadmapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F607890A1B2C3DA1B2C3 /* TripRoadmapView.swift */; };
 		4D5E6F7A8B9C0D1E2F3A4B5C /* CheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B4C5 /* CheckInView.swift */; };
 		53A0E9136362C6F021A06C17 /* VideoFilterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3FCA70EB16732E81A2ACEC /* VideoFilterView.swift */; };
+		5B7E2A1F3C9D4E0A6B8F1C3D /* VideoOverlayEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C8F3B2A4D0E5F1B7C9A2D4E /* VideoOverlayEditorView.swift */; };
+		7D9F4C3B5E1A6F2C8D0B3E5F /* VideoTrimView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E0A5D4C6F2B7A3D9E1C4F6A /* VideoTrimView.swift */; };
 		57AEC57B60E3067971834713 /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BA3C15947947A9C979B30A7 /* Post.swift */; };
 		5C288622958A53306B1B0C10 /* Color+Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27773FA5EF1234C638831A18 /* Color+Theme.swift */; };
 		5E6F7A8B9C0D1E2F3A4B5C6D /* CheckInHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D0E1F2A3B4C5D6 /* CheckInHistoryView.swift */; };
@@ -128,6 +130,8 @@
 		898E77DBAC491AB8B133A45F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoginView.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		89EC8F1FA0C405A2FBD20255 /* Date+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Date+Extensions.swift"; path = "Date+Extensions.swift"; sourceTree = "<group>"; };
 		8A3FCA70EB16732E81A2ACEC /* VideoFilterView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoFilterView.swift; sourceTree = "<group>"; };
+		6C8F3B2A4D0E5F1B7C9A2D4E /* VideoOverlayEditorView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoOverlayEditorView.swift; sourceTree = "<group>"; };
+		8E0A5D4C6F2B7A3D9E1C4F6A /* VideoTrimView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoTrimView.swift; sourceTree = "<group>"; };
 		8B3BB13031B3809C3F2DE7A0 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthService.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		8D4BD0F68E8CCA6702A9B344 /* FeedViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeedViewModel.swift; path = FeedViewModel.swift; sourceTree = "<group>"; };
 		91CA224CCBD38F5BFA7F067F /* PhotoCaptureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhotoCaptureView.swift; sourceTree = "<group>"; };
@@ -255,6 +259,8 @@
 				B9C0D1E2F3A4B5C6D7E8FA01 /* PlacePickerView.swift */,
 				ECA004DD212204D818DE84AE /* VineRecorderView.swift */,
 				8A3FCA70EB16732E81A2ACEC /* VideoFilterView.swift */,
+				6C8F3B2A4D0E5F1B7C9A2D4E /* VideoOverlayEditorView.swift */,
+				8E0A5D4C6F2B7A3D9E1C4F6A /* VideoTrimView.swift */,
 				91CA224CCBD38F5BFA7F067F /* PhotoCaptureView.swift */,
 			);
 			name = Views;
@@ -875,6 +881,8 @@
 				T009A009B009C009D009F001 /* InviteCollaboratorView.swift in Sources */,
 				757B07E554FD720C7881DCFB /* VineRecorderView.swift in Sources */,
 				53A0E9136362C6F021A06C17 /* VideoFilterView.swift in Sources */,
+				5B7E2A1F3C9D4E0A6B8F1C3D /* VideoOverlayEditorView.swift in Sources */,
+				7D9F4C3B5E1A6F2C8D0B3E5F /* VideoTrimView.swift in Sources */,
 				454F0DDE05E202777C6AEAE7 /* TripMapRouteView.swift in Sources */,
 				A1B2C3D4E5F607890A1B2C3D /* TripRoadmapView.swift in Sources */,
 				8BBE92F44D228A3318E88F9C /* PhotoCaptureView.swift in Sources */,

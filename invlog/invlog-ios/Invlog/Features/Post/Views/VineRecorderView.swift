@@ -1,5 +1,7 @@
 import SwiftUI
 import AVFoundation
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 // MARK: - VineRecorderView (Vine-style: hold to record, release to pause, hold again to continue)
 
@@ -20,8 +22,23 @@ struct VineRecorderView: View {
     @State private var showPermissionDenied = false
     @State private var permissionGranted = false
 
+    // Segment tracking for progress bar markers
+    @State private var segmentStartTimes: [Double] = []
+    @State private var segmentEndTimes: [Double] = []
+
+    // Speed control
+    @State private var selectedSpeed: RecordingSpeed = .normal
+
+    // Live filter preview
+    @State private var selectedFilter: VideoFilter = .original
+    @State private var showFilterSelector = false
+
     private var maxDuration: Double { maxSeconds }
     private let timerInterval: Double = 0.05
+
+    private var remainingSeconds: Double {
+        max(0, maxDuration - recordedDuration)
+    }
 
     var body: some View {
         ZStack {
@@ -63,12 +80,22 @@ struct VineRecorderView: View {
 
     private var cameraContent: some View {
         ZStack {
-            CameraPreviewView(session: cameraManager.session)
+            // Live filtered camera preview
+            FilteredCameraPreviewView(cameraManager: cameraManager, filter: selectedFilter)
                 .ignoresSafeArea()
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { scale in
+                            cameraManager.setZoom(scale: scale)
+                        }
+                        .onEnded { _ in
+                            cameraManager.finalizeZoom()
+                        }
+                )
 
             VStack(spacing: 0) {
-                // Progress bar
-                progressBar
+                // Progress bar with segment markers
+                segmentedProgressBar
 
                 // Top controls
                 topControls
@@ -76,16 +103,23 @@ struct VineRecorderView: View {
 
                 Spacer()
 
-                // Duration label
+                // Countdown timer label
                 if isRecording || recordedDuration > 0 {
-                    Text(formatDuration(recordedDuration))
-                        .font(.system(size: 16, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.black.opacity(0.5))
-                        .clipShape(Capsule())
+                    countdownLabel
+                        .padding(.bottom, 8)
+                }
+
+                // Speed control buttons
+                if !isRecording || !hasStartedRecording {
+                    speedControlButtons
                         .padding(.bottom, 12)
+                }
+
+                // Filter selector strip
+                if showFilterSelector {
+                    filterSelectorStrip
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.bottom, 8)
                 }
 
                 // Bottom controls
@@ -95,22 +129,103 @@ struct VineRecorderView: View {
         }
     }
 
-    // MARK: - Progress Bar
+    // MARK: - Segmented Progress Bar
 
-    private var progressBar: some View {
+    private var segmentedProgressBar: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
+                // Background track
                 Rectangle()
                     .fill(Color.white.opacity(0.3))
                     .frame(height: 4)
 
+                // Current progress fill
                 Rectangle()
                     .fill(Color.brandPrimary)
                     .frame(width: geo.size.width * (recordedDuration / maxDuration), height: 4)
                     .animation(.linear(duration: timerInterval), value: recordedDuration)
+
+                // Segment boundary markers (white dividers between segments)
+                ForEach(Array(segmentEndTimes.enumerated()), id: \.offset) { _, endTime in
+                    if endTime < recordedDuration {
+                        Rectangle()
+                            .fill(Color.white)
+                            .frame(width: 2, height: 6)
+                            .offset(x: geo.size.width * (endTime / maxDuration) - 1)
+                    }
+                }
             }
         }
-        .frame(height: 4)
+        .frame(height: 6)
+    }
+
+    // MARK: - Countdown Label
+
+    private var countdownLabel: some View {
+        HStack(spacing: 8) {
+            // Remaining time
+            Text(String(format: "%.1fs", remainingSeconds))
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                .foregroundColor(remainingSeconds <= 3.0 ? .red : .white)
+
+            // Elapsed / total
+            Text(formatDuration(recordedDuration))
+                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                .foregroundColor(.white.opacity(0.7))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.black.opacity(0.5))
+        .clipShape(Capsule())
+    }
+
+    // MARK: - Speed Control Buttons
+
+    private var speedControlButtons: some View {
+        HStack(spacing: 12) {
+            ForEach(RecordingSpeed.allCases, id: \.self) { speed in
+                Button {
+                    selectedSpeed = speed
+                    cameraManager.setRecordingSpeed(speed)
+                } label: {
+                    Text(speed.label)
+                        .font(.system(size: 13, weight: selectedSpeed == speed ? .bold : .medium))
+                        .foregroundColor(selectedSpeed == speed ? .black : .white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(selectedSpeed == speed ? Color.white : Color.white.opacity(0.2))
+                        .clipShape(Capsule())
+                }
+            }
+        }
+    }
+
+    // MARK: - Filter Selector Strip
+
+    private var filterSelectorStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(VideoFilter.allCases, id: \.self) { filter in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedFilter = filter
+                        }
+                    } label: {
+                        Text(filter.rawValue)
+                            .font(InvlogTheme.caption(12, weight: selectedFilter == filter ? .bold : .regular))
+                            .foregroundColor(selectedFilter == filter ? Color.brandPrimary : .white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(selectedFilter == filter ? Color.white.opacity(0.25) : Color.black.opacity(0.4))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, InvlogTheme.Spacing.md)
+        }
     }
 
     // MARK: - Top Controls
@@ -174,8 +289,32 @@ struct VineRecorderView: View {
 
             Spacer()
 
-            // Record button
-            recordButton
+            // Record button + filter toggle
+            VStack(spacing: 12) {
+                recordButton
+
+                // Filter toggle button
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showFilterSelector.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "camera.filters")
+                            .font(.system(size: 14, weight: .semibold))
+                        if selectedFilter != .original {
+                            Text(selectedFilter.rawValue)
+                                .font(InvlogTheme.caption(11, weight: .semibold))
+                        }
+                    }
+                    .foregroundColor(selectedFilter != .original ? Color.brandPrimary : .white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.4))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
 
             Spacer()
 
@@ -341,6 +480,7 @@ struct VineRecorderView: View {
 
     private func resumeRecording() {
         hasStartedRecording = true
+        segmentStartTimes.append(recordedDuration)
         cameraManager.startRecording()
         isRecording = true
         startTimer()
@@ -349,6 +489,7 @@ struct VineRecorderView: View {
     private func pauseRecording() {
         guard isRecording else { return }
         stopTimer()
+        segmentEndTimes.append(recordedDuration)
         isRecording = false
         cameraManager.stopRecording()
     }
@@ -467,26 +608,96 @@ struct VineRecorderView: View {
     }
 }
 
-// MARK: - CameraManager (multi-segment)
+// MARK: - Recording Speed
 
-private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputRecordingDelegate {
+enum RecordingSpeed: CaseIterable {
+    case half
+    case normal
+    case double
+
+    var label: String {
+        switch self {
+        case .half: return "0.5x"
+        case .normal: return "1x"
+        case .double: return "2x"
+        }
+    }
+
+    var frameRateDivisor: Int {
+        switch self {
+        case .half: return 2     // half speed = double frame duration
+        case .normal: return 1
+        case .double: return 1   // double speed handled via minFrameDuration
+        }
+    }
+
+    var targetFPS: Double {
+        switch self {
+        case .half: return 15    // 15fps capture -> plays back at 30fps = 0.5x speed
+        case .normal: return 30
+        case .double: return 60  // 60fps capture -> plays back at 30fps = 2x speed (or we drop frames)
+        }
+    }
+}
+
+// MARK: - CameraManager (multi-segment with video data output for live filter preview)
+
+private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputRecordingDelegate, AVCaptureVideoDataOutputSampleBufferDelegate {
     let session = AVCaptureSession()
     private let movieOutput = AVCaptureMovieFileOutput()
+    private let videoDataOutput = AVCaptureVideoDataOutput()
+    private let videoDataQueue = DispatchQueue(label: "com.invlog.videoDataOutput", qos: .userInitiated)
 
     private var currentCameraPosition: AVCaptureDevice.Position = .back
     private var videoDeviceInput: AVCaptureDeviceInput?
 
     @Published var isTorchOn = false
     @Published var segmentURLs: [URL] = []
+    @Published var currentPixelBuffer: CVPixelBuffer?
+
+    // Zoom state
+    private var lastZoomFactor: CGFloat = 1.0
 
     var hasRecording: Bool { !segmentURLs.isEmpty }
 
     func setupSession() {
         session.beginConfiguration()
-        session.sessionPreset = .high
+
+        // Use 1920x1080 resolution
+        session.sessionPreset = .hd1920x1080
 
         if let videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
             do {
+                // Configure the device for best quality
+                try videoDevice.lockForConfiguration()
+
+                // Select the best 1080p format available
+                let targetWidth: Int32 = 1920
+                let targetHeight: Int32 = 1080
+                var bestFormat: AVCaptureDevice.Format?
+                var bestFrameRate: AVFrameRateRange?
+
+                for format in videoDevice.formats {
+                    let desc = format.formatDescription
+                    let dimensions = CMVideoFormatDescriptionGetDimensions(desc)
+                    if dimensions.width == targetWidth && dimensions.height == targetHeight {
+                        for range in format.videoSupportedFrameRateRanges {
+                            if bestFrameRate == nil || range.maxFrameRate > bestFrameRate!.maxFrameRate {
+                                bestFormat = format
+                                bestFrameRate = range
+                            }
+                        }
+                    }
+                }
+
+                if let format = bestFormat, let frameRate = bestFrameRate {
+                    videoDevice.activeFormat = format
+                    videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(min(frameRate.maxFrameRate, 30)))
+                    videoDevice.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(min(frameRate.maxFrameRate, 30)))
+                }
+
+                videoDevice.unlockForConfiguration()
+
                 let videoInput = try AVCaptureDeviceInput(device: videoDevice)
                 if session.canAddInput(videoInput) {
                     session.addInput(videoInput)
@@ -495,8 +706,30 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
             } catch {}
         }
 
+        // Audio input - select best built-in mic configuration
         if let audioDevice = AVCaptureDevice.default(.builtInMicrophone, for: .audio, position: .unspecified) {
             do {
+                try audioDevice.lockForConfiguration()
+
+                // Select the highest sample rate format available
+                var bestAudioFormat: AVCaptureDevice.Format?
+                var bestSampleRate: Float64 = 0
+
+                for format in audioDevice.formats {
+                    let desc = format.formatDescription
+                    let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc)
+                    if let sampleRate = asbd?.pointee.mSampleRate, sampleRate > bestSampleRate {
+                        bestSampleRate = sampleRate
+                        bestAudioFormat = format
+                    }
+                }
+
+                if let format = bestAudioFormat {
+                    audioDevice.activeFormat = format
+                }
+
+                audioDevice.unlockForConfiguration()
+
                 let audioInput = try AVCaptureDeviceInput(device: audioDevice)
                 if session.canAddInput(audioInput) {
                     session.addInput(audioInput)
@@ -507,6 +740,24 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
         if session.canAddOutput(movieOutput) {
             session.addOutput(movieOutput)
             if let connection = movieOutput.connection(with: .video) {
+                setPortraitOrientation(on: connection)
+
+                // Enable video stabilization
+                if connection.isVideoStabilizationSupported {
+                    connection.preferredVideoStabilizationMode = .cinematic
+                }
+            }
+        }
+
+        // Add video data output for live preview filtering
+        videoDataOutput.setSampleBufferDelegate(self, queue: videoDataQueue)
+        videoDataOutput.alwaysDiscardsLateVideoFrames = true
+        videoDataOutput.videoSettings = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+        ]
+        if session.canAddOutput(videoDataOutput) {
+            session.addOutput(videoDataOutput)
+            if let connection = videoDataOutput.connection(with: .video) {
                 setPortraitOrientation(on: connection)
             }
         }
@@ -535,6 +786,11 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
 
         if let connection = movieOutput.connection(with: .video) {
             setPortraitOrientation(on: connection)
+
+            // Ensure stabilization is enabled for each segment
+            if connection.isVideoStabilizationSupported {
+                connection.preferredVideoStabilizationMode = .cinematic
+            }
         }
 
         movieOutput.startRecording(to: tempURL, recordingDelegate: self)
@@ -566,6 +822,35 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
 
         if let newDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: newPosition) {
             do {
+                // Configure 1080p on the new device too
+                try newDevice.lockForConfiguration()
+
+                let targetWidth: Int32 = 1920
+                let targetHeight: Int32 = 1080
+                var bestFormat: AVCaptureDevice.Format?
+                var bestFrameRate: AVFrameRateRange?
+
+                for format in newDevice.formats {
+                    let desc = format.formatDescription
+                    let dimensions = CMVideoFormatDescriptionGetDimensions(desc)
+                    if dimensions.width == targetWidth && dimensions.height == targetHeight {
+                        for range in format.videoSupportedFrameRateRanges {
+                            if bestFrameRate == nil || range.maxFrameRate > bestFrameRate!.maxFrameRate {
+                                bestFormat = format
+                                bestFrameRate = range
+                            }
+                        }
+                    }
+                }
+
+                if let format = bestFormat, let frameRate = bestFrameRate {
+                    newDevice.activeFormat = format
+                    newDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(min(frameRate.maxFrameRate, 30)))
+                    newDevice.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(min(frameRate.maxFrameRate, 30)))
+                }
+
+                newDevice.unlockForConfiguration()
+
                 let newInput = try AVCaptureDeviceInput(device: newDevice)
                 if session.canAddInput(newInput) {
                     session.addInput(newInput)
@@ -580,7 +865,19 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
 
         if let connection = movieOutput.connection(with: .video) {
             setPortraitOrientation(on: connection)
+
+            // Re-enable stabilization after camera switch
+            if connection.isVideoStabilizationSupported {
+                connection.preferredVideoStabilizationMode = .cinematic
+            }
         }
+
+        if let connection = videoDataOutput.connection(with: .video) {
+            setPortraitOrientation(on: connection)
+        }
+
+        // Reset zoom on camera switch
+        lastZoomFactor = 1.0
 
         session.commitConfiguration()
     }
@@ -589,6 +886,64 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
         if connection.isVideoOrientationSupported {
             connection.videoOrientation = .portrait
         }
+    }
+
+    // MARK: - Zoom
+
+    func setZoom(scale: CGFloat) {
+        guard let device = videoDeviceInput?.device else { return }
+        do {
+            try device.lockForConfiguration()
+            let maxZoom = min(device.activeFormat.videoMaxZoomFactor, 6.0)
+            let newFactor = min(max(lastZoomFactor * scale, 1.0), maxZoom)
+            device.videoZoomFactor = newFactor
+            device.unlockForConfiguration()
+        } catch {}
+    }
+
+    func finalizeZoom() {
+        guard let device = videoDeviceInput?.device else { return }
+        lastZoomFactor = device.videoZoomFactor
+    }
+
+    // MARK: - Recording Speed
+
+    func setRecordingSpeed(_ speed: RecordingSpeed) {
+        guard let device = videoDeviceInput?.device else { return }
+        do {
+            try device.lockForConfiguration()
+            let targetFPS = speed.targetFPS
+
+            // Find a format that supports the target FPS at 1080p
+            var bestFormat: AVCaptureDevice.Format?
+            var bestRange: AVFrameRateRange?
+
+            for format in device.formats {
+                let desc = format.formatDescription
+                let dimensions = CMVideoFormatDescriptionGetDimensions(desc)
+                if dimensions.width == 1920 && dimensions.height == 1080 {
+                    for range in format.videoSupportedFrameRateRanges {
+                        if range.maxFrameRate >= targetFPS {
+                            if bestRange == nil || range.maxFrameRate < bestRange!.maxFrameRate {
+                                // Prefer the format with the smallest max that still meets our target
+                                bestFormat = format
+                                bestRange = range
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let format = bestFormat {
+                device.activeFormat = format
+            }
+
+            let clampedFPS = min(targetFPS, bestRange?.maxFrameRate ?? 30)
+            device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(clampedFPS))
+            device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(clampedFPS))
+
+            device.unlockForConfiguration()
+        } catch {}
     }
 
     func toggleTorch() {
@@ -609,6 +964,15 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
             DispatchQueue.main.async { self.isTorchOn = on }
         } catch {
             DispatchQueue.main.async { self.isTorchOn = false }
+        }
+    }
+
+    // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
+
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        DispatchQueue.main.async {
+            self.currentPixelBuffer = pixelBuffer
         }
     }
 
@@ -634,7 +998,182 @@ private class CameraManager: NSObject, ObservableObject, AVCaptureFileOutputReco
     }
 }
 
-// MARK: - Camera Preview
+// MARK: - Filtered Camera Preview (renders CIFilter on live camera frames via Metal)
+
+private struct FilteredCameraPreviewView: UIViewRepresentable {
+    @ObservedObject var cameraManager: CameraManager
+    let filter: VideoFilter
+
+    func makeUIView(context: Context) -> FilteredCameraUIView {
+        FilteredCameraUIView()
+    }
+
+    func updateUIView(_ uiView: FilteredCameraUIView, context: Context) {
+        uiView.currentFilter = filter
+        if let pixelBuffer = cameraManager.currentPixelBuffer {
+            uiView.renderFilteredFrame(pixelBuffer)
+        }
+    }
+}
+
+private class FilteredCameraUIView: UIView {
+    private let metalLayer: CAMetalLayer?
+    private let ciContext: CIContext
+    private let commandQueue: MTLCommandQueue?
+    private let colorSpace = CGColorSpaceCreateDeviceRGB()
+    var currentFilter: VideoFilter = .original
+
+    override init(frame: CGRect) {
+        let device = MTLCreateSystemDefaultDevice()
+        commandQueue = device?.makeCommandQueue()
+
+        if let device {
+            ciContext = CIContext(mtlDevice: device, options: [.cacheIntermediates: false])
+            let ml = CAMetalLayer()
+            ml.device = device
+            ml.pixelFormat = .bgra8Unorm
+            ml.framebufferOnly = false
+            ml.contentsScale = UIScreen.main.scale
+            metalLayer = ml
+        } else {
+            ciContext = CIContext()
+            metalLayer = nil
+        }
+
+        super.init(frame: frame)
+
+        if let metalLayer {
+            layer.addSublayer(metalLayer)
+        }
+        backgroundColor = .black
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        metalLayer?.frame = bounds
+        metalLayer?.drawableSize = CGSize(
+            width: bounds.width * contentScaleFactor,
+            height: bounds.height * contentScaleFactor
+        )
+    }
+
+    func renderFilteredFrame(_ pixelBuffer: CVPixelBuffer) {
+        guard let metalLayer, let commandQueue else { return }
+
+        var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+
+        // Apply the selected filter
+        if currentFilter != .original {
+            ciImage = applyFilter(to: ciImage, filter: currentFilter)
+        }
+
+        // Scale to fill the drawable
+        guard let drawable = metalLayer.nextDrawable() else { return }
+        let drawableSize = metalLayer.drawableSize
+
+        let scaleX = drawableSize.width / ciImage.extent.width
+        let scaleY = drawableSize.height / ciImage.extent.height
+        let scale = max(scaleX, scaleY)
+
+        let scaledImage = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let offsetX = (drawableSize.width - scaledImage.extent.width) / 2
+        let offsetY = (drawableSize.height - scaledImage.extent.height) / 2
+        let finalImage = scaledImage.transformed(by: CGAffineTransform(translationX: offsetX - scaledImage.extent.origin.x, y: offsetY - scaledImage.extent.origin.y))
+
+        guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
+
+        let destination = CIRenderDestination(
+            width: Int(drawableSize.width),
+            height: Int(drawableSize.height),
+            pixelFormat: metalLayer.pixelFormat,
+            commandBuffer: commandBuffer,
+            mtlTextureProvider: { drawable.texture }
+        )
+
+        do {
+            try ciContext.startTask(toRender: finalImage, to: destination)
+        } catch {
+            return
+        }
+
+        commandBuffer.present(drawable)
+        commandBuffer.commit()
+    }
+
+    private func applyFilter(to image: CIImage, filter: VideoFilter) -> CIImage {
+        switch filter {
+        case .original:
+            return image
+
+        case .vivid:
+            let f = CIFilter(name: "CIColorControls")!
+            f.setValue(image, forKey: kCIInputImageKey)
+            f.setValue(1.5, forKey: "inputSaturation")
+            f.setValue(1.1, forKey: "inputContrast")
+            return f.outputImage ?? image
+
+        case .warm:
+            let f = CIFilter(name: "CITemperatureAndTint")!
+            f.setValue(image, forKey: kCIInputImageKey)
+            f.setValue(CIVector(x: 5500, y: 0), forKey: "inputNeutral")
+            return f.outputImage ?? image
+
+        case .cool:
+            let f = CIFilter(name: "CITemperatureAndTint")!
+            f.setValue(image, forKey: kCIInputImageKey)
+            f.setValue(CIVector(x: 8000, y: 0), forKey: "inputNeutral")
+            return f.outputImage ?? image
+
+        case .noir:
+            let f = CIFilter(name: "CIPhotoEffectNoir")!
+            f.setValue(image, forKey: kCIInputImageKey)
+            return f.outputImage ?? image
+
+        case .fade:
+            let f = CIFilter(name: "CIPhotoEffectFade")!
+            f.setValue(image, forKey: kCIInputImageKey)
+            return f.outputImage ?? image
+
+        case .beauty:
+            let blurFilter = CIFilter(name: "CIGaussianBlur")!
+            blurFilter.setValue(image, forKey: kCIInputImageKey)
+            blurFilter.setValue(3.0, forKey: kCIInputRadiusKey)
+            guard let blurred = blurFilter.outputImage else { return image }
+            let croppedBlur = blurred.cropped(to: image.extent)
+
+            let alphaFilter = CIFilter(name: "CIColorMatrix")!
+            alphaFilter.setValue(croppedBlur, forKey: kCIInputImageKey)
+            alphaFilter.setValue(CIVector(x: 1, y: 0, z: 0, w: 0), forKey: "inputRVector")
+            alphaFilter.setValue(CIVector(x: 0, y: 1, z: 0, w: 0), forKey: "inputGVector")
+            alphaFilter.setValue(CIVector(x: 0, y: 0, z: 1, w: 0), forKey: "inputBVector")
+            alphaFilter.setValue(CIVector(x: 0, y: 0, z: 0, w: 0.4), forKey: "inputAVector")
+            guard let semiBlur = alphaFilter.outputImage else { return image }
+
+            let origAlpha = CIFilter(name: "CIColorMatrix")!
+            origAlpha.setValue(image, forKey: kCIInputImageKey)
+            origAlpha.setValue(CIVector(x: 1, y: 0, z: 0, w: 0), forKey: "inputRVector")
+            origAlpha.setValue(CIVector(x: 0, y: 1, z: 0, w: 0), forKey: "inputGVector")
+            origAlpha.setValue(CIVector(x: 0, y: 0, z: 1, w: 0), forKey: "inputBVector")
+            origAlpha.setValue(CIVector(x: 0, y: 0, z: 0, w: 0.6), forKey: "inputAVector")
+            guard let semiOrig = origAlpha.outputImage else { return image }
+
+            let composite = CIFilter(name: "CIAdditionCompositing")!
+            composite.setValue(semiBlur, forKey: kCIInputImageKey)
+            composite.setValue(semiOrig, forKey: kCIInputBackgroundImageKey)
+            guard let blended = composite.outputImage else { return image }
+
+            let brighten = CIFilter(name: "CIColorControls")!
+            brighten.setValue(blended, forKey: kCIInputImageKey)
+            brighten.setValue(0.03, forKey: kCIInputBrightnessKey)
+            brighten.setValue(1.05, forKey: "inputContrast")
+            return brighten.outputImage ?? blended
+        }
+    }
+}
+
+// MARK: - Camera Preview (kept as fallback)
 
 private struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession

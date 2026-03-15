@@ -7,6 +7,7 @@ struct AutoPlayVideoView: View {
     let url: URL
     let thumbnailUrl: URL?
     let blurhash: String?
+    var durationSecs: Double?
 
     @State private var player: AVPlayer?
     @State private var isPlayerReady = false
@@ -14,6 +15,8 @@ struct AutoPlayVideoView: View {
     @State private var statusObserver: AnyCancellable?
     @State private var loopObserver: Any?
     @State private var isInViewport = false
+    @State private var playbackProgress: Double = 0
+    @State private var timeObserverToken: Any?
     @ObservedObject private var muteManager = VideoMuteManager.shared
 
     var body: some View {
@@ -50,9 +53,27 @@ struct AutoPlayVideoView: View {
                 .transition(.opacity)
             }
 
-            // Mute/unmute button
-            if isPlayerReady {
+            // Duration badge (top-right corner)
+            if let duration = durationSecs, duration > 0 {
                 VStack {
+                    HStack {
+                        Spacer()
+                        Text(formatDuration(duration))
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .padding(8)
+                    }
+                    Spacer()
+                }
+            }
+
+            // Mute/unmute button and progress bar overlay
+            if isPlayerReady {
+                VStack(spacing: 0) {
                     Spacer()
                     HStack {
                         Spacer()
@@ -69,6 +90,18 @@ struct AutoPlayVideoView: View {
                         .buttonStyle(.borderless)
                         .padding(8)
                     }
+
+                    // Thin progress bar at the bottom
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.3))
+                            Rectangle()
+                                .fill(Color.white.opacity(0.8))
+                                .frame(width: geo.size.width * playbackProgress)
+                        }
+                    }
+                    .frame(height: 2)
                 }
             }
         }
@@ -104,6 +137,13 @@ struct AutoPlayVideoView: View {
         }
     }
 
+    private func formatDuration(_ seconds: Double) -> String {
+        let totalSeconds = Int(seconds)
+        let mins = totalSeconds / 60
+        let secs = totalSeconds % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+
     private func setupPlayer() {
         guard player == nil else {
             if isInViewport {
@@ -127,6 +167,19 @@ struct AutoPlayVideoView: View {
                     avPlayer?.play()
                 }
             }
+        }
+
+        // Periodic time observer for progress bar
+        let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
+        timeObserverToken = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak avPlayer] time in
+            guard let duration = avPlayer?.currentItem?.duration,
+                  duration.isNumeric, !duration.isIndefinite,
+                  CMTimeGetSeconds(duration) > 0 else {
+                return
+            }
+            let currentSeconds = CMTimeGetSeconds(time)
+            let totalSeconds = CMTimeGetSeconds(duration)
+            playbackProgress = currentSeconds / totalSeconds
         }
 
         // Observe player item status to know when video is ready
@@ -163,6 +216,7 @@ struct AutoPlayVideoView: View {
         isPlayerReady = false
         hasFailed = false
         isInViewport = false
+        playbackProgress = 0
     }
 
     private func cleanupObservers() {
@@ -171,6 +225,10 @@ struct AutoPlayVideoView: View {
         if let observer = loopObserver {
             NotificationCenter.default.removeObserver(observer)
             loopObserver = nil
+        }
+        if let token = timeObserverToken, let player {
+            player.removeTimeObserver(token)
+            timeObserverToken = nil
         }
     }
 }

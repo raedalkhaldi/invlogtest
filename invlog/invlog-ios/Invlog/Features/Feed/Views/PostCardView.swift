@@ -18,6 +18,7 @@ struct PostCardView: View {
     @State private var isDeleted = false
     @State private var navigateToProfile = false
     @State private var isLikeInFlight = false
+    @State private var showHeartBurst = false
 
     private var isOwnPost: Bool {
         post.authorId == appState.currentUser?.id
@@ -154,7 +155,7 @@ struct PostCardView: View {
                 if hasVideo {
                     // Video post: overlay action buttons on the right side (Reels-style)
                     ZStack(alignment: .trailing) {
-                        MediaCarouselView(media: media)
+                        mediaWithDoubleTap(media: media)
 
                         // Vertical action buttons overlay
                         VStack(spacing: 20) {
@@ -223,7 +224,7 @@ struct PostCardView: View {
                         .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
                     }
                 } else {
-                    MediaCarouselView(media: media)
+                    mediaWithDoubleTap(media: media)
 
                     // Image post: horizontal action bar below
                     actionsBar
@@ -313,6 +314,48 @@ struct PostCardView: View {
             }
         } message: {
             Text("They won't be able to see your posts, and you won't see theirs.")
+        }
+    }
+
+    // MARK: - Media with Double-Tap to Like
+
+    @ViewBuilder
+    private func mediaWithDoubleTap(media: [PostMedia]) -> some View {
+        ZStack {
+            MediaCarouselView(media: media)
+
+            // Heart burst animation overlay
+            if showHeartBurst {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 2)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.5).combined(with: .opacity),
+                        removal: .scale(scale: 1.5).combined(with: .opacity)
+                    ))
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            doubleTapLike()
+        }
+    }
+
+    private func doubleTapLike() {
+        // Only like, never unlike on double-tap
+        if !isLiked {
+            toggleLike()
+        }
+
+        // Show heart burst animation
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            showHeartBurst = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(.easeOut(duration: 0.3)) {
+                showHeartBurst = false
+            }
         }
     }
 
@@ -471,7 +514,6 @@ struct PostCardView: View {
         likeCount += isLiked ? 1 : -1
         isLikeInFlight = true
         Task {
-            defer { isLikeInFlight = false }
             do {
                 if isLiked {
                     try await APIClient.shared.requestVoid(.likePost(id: post.id))
@@ -481,14 +523,20 @@ struct PostCardView: View {
             } catch let error as APIError {
                 // 409 = already liked/unliked — keep the optimistic state
                 if case .httpError(let code, _) = error, code == 409 {
+                    await MainActor.run { isLikeInFlight = false }
                     return
                 }
-                isLiked = wasLiked
-                likeCount = wasCount
+                await MainActor.run {
+                    isLiked = wasLiked
+                    likeCount = wasCount
+                }
             } catch {
-                isLiked = wasLiked
-                likeCount = wasCount
+                await MainActor.run {
+                    isLiked = wasLiked
+                    likeCount = wasCount
+                }
             }
+            await MainActor.run { isLikeInFlight = false }
         }
     }
 

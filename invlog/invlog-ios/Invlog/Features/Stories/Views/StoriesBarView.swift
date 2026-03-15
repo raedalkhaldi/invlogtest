@@ -76,9 +76,12 @@ struct StoriesBarView: View {
                         .overlay(
                             Circle()
                                 .strokeBorder(
-                                    style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                                    AngularGradient(
+                                        colors: [Color.brandPrimary, Color.brandSecondary, Color.brandPrimary],
+                                        center: .center
+                                    ),
+                                    style: StrokeStyle(lineWidth: 2.5, dash: [6, 4])
                                 )
-                                .foregroundColor(Color.brandBorder)
                                 .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
                         )
                     } else {
@@ -86,24 +89,33 @@ struct StoriesBarView: View {
                             .overlay(
                                 Circle()
                                     .strokeBorder(
-                                        style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                                        AngularGradient(
+                                            colors: [Color.brandPrimary, Color.brandSecondary, Color.brandPrimary],
+                                            center: .center
+                                        ),
+                                        style: StrokeStyle(lineWidth: 2.5, dash: [6, 4])
                                     )
-                                    .foregroundColor(Color.brandBorder)
                                     .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
                             )
                     }
 
-                    // Plus badge
+                    // Plus badge - more prominent with branded gradient background
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(Color.brandPrimary)
-                        .background(Circle().fill(Color.brandCard).frame(width: 18, height: 18))
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.brandPrimary, Color.brandSecondary],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .background(Circle().fill(Color.brandCard).frame(width: 22, height: 22))
                 }
                 .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
 
                 Text("Add Vlog")
-                    .font(InvlogTheme.caption(10, weight: .medium))
-                    .foregroundColor(Color.brandTextSecondary)
+                    .font(InvlogTheme.caption(10, weight: .semibold))
+                    .foregroundColor(Color.brandPrimary)
                     .lineLimit(1)
                     .frame(width: 68)
             }
@@ -124,22 +136,26 @@ struct StoriesBarView: View {
     private func storyAvatarView(for group: StoryGroup) -> some View {
         VStack(spacing: 4) {
             ZStack {
-                Circle()
-                    .strokeBorder(
-                        group.hasUnviewed
-                            ? LinearGradient(
-                                colors: [Color.brandPrimary, Color.brandSecondary],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                            : LinearGradient(
-                                colors: [Color.brandBorder],
-                                startPoint: .top,
-                                endPoint: .bottom
+                if group.hasUnviewed {
+                    // Vibrant angular gradient ring for unwatched stories
+                    Circle()
+                        .strokeBorder(
+                            AngularGradient(
+                                colors: [Color.brandPrimary, Color.brandSecondary, Color.brandPrimary],
+                                center: .center
                             ),
-                        lineWidth: 2.5
-                    )
-                    .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
+                            lineWidth: 2.5
+                        )
+                        .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
+                } else {
+                    // Dimmed gray ring for already-watched stories
+                    Circle()
+                        .strokeBorder(
+                            Color.brandBorder.opacity(0.5),
+                            lineWidth: 1.5
+                        )
+                        .frame(width: InvlogTheme.Avatar.storyRing, height: InvlogTheme.Avatar.storyRing)
+                }
 
                 LazyImage(url: group.user.avatarUrl) { state in
                     if let image = state.image {

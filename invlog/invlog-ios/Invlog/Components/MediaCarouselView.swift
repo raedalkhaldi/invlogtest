@@ -61,7 +61,8 @@ struct MediaCarouselView: View {
             AutoPlayVideoView(
                 url: videoUrl,
                 thumbnailUrl: URL(string: item.thumbnailUrl ?? item.url),
-                blurhash: item.blurhash
+                blurhash: item.blurhash,
+                durationSecs: item.durationSecs
             )
         } else {
             LazyImage(url: URL(string: {

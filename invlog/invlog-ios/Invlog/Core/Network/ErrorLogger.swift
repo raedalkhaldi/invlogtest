@@ -101,11 +101,11 @@ final class ErrorLogger {
 
     private func append(_ entry: String) {
         queue.async { [weak self] in
-            guard let self else { return }
+            guard let self = self else { return }
             let line = entry + "\n"
 
-            if FileManager.default.fileExists(atPath: fileURL.path) {
-                if let handle = try? FileHandle(forWritingTo: fileURL) {
+            if FileManager.default.fileExists(atPath: self.fileURL.path) {
+                if let handle = try? FileHandle(forWritingTo: self.fileURL) {
                     handle.seekToEndOfFile()
                     if let data = line.data(using: .utf8) {
                         handle.write(data)
@@ -113,11 +113,11 @@ final class ErrorLogger {
                     handle.closeFile()
                 }
             } else {
-                try? line.write(to: fileURL, atomically: true, encoding: .utf8)
+                try? line.write(to: self.fileURL, atomically: true, encoding: .utf8)
             }
 
             // Auto-trim if file is too large
-            trimIfNeeded()
+            self.trimIfNeeded()
         }
     }
 
