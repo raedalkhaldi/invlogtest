@@ -36,4 +36,5 @@ extension Notification.Name {
     static let didCreateTrip = Notification.Name("didCreateTrip")
     static let didUpdateTrip = Notification.Name("didUpdateTrip")
     static let didDeleteTrip = Notification.Name("didDeleteTrip")
+    static let sessionExpired = Notification.Name("sessionExpired")
 }

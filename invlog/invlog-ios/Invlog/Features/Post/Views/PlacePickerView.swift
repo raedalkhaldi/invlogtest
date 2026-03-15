@@ -18,6 +18,7 @@ struct PlacePickerView: View {
     @State private var searchResults: [MKMapItem] = []
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
+    @State private var isCreatingPlace = false
 
     var body: some View {
         NavigationView {
@@ -62,61 +63,65 @@ struct PlacePickerView: View {
                 } else if searchResults.isEmpty && !searchText.isEmpty {
                     Section {
                         Button {
-                            let place = SelectedPlace(
+                            Task { await createAndSelectPlace(
                                 name: searchText,
                                 address: "",
-                                latitude: locationManager.location?.latitude ?? 0,
-                                longitude: locationManager.location?.longitude ?? 0,
-                                restaurantId: nil
-                            )
-                            selectedPlace = place
-                            dismiss()
+                                lat: locationManager.location?.latitude ?? 0,
+                                lng: locationManager.location?.longitude ?? 0
+                            )}
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(Color.brandPrimary)
+                                if isCreatingPlace {
+                                    ProgressView()
+                                } else {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundColor(Color.brandPrimary)
+                                }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Add \"\(searchText)\"")
                                         .font(InvlogTheme.body(14, weight: .bold))
                                         .foregroundColor(Color.brandText)
-                                    Text("as a new place at your current location")
+                                    Text("Save as a new place for everyone")
                                         .font(InvlogTheme.caption(12))
                                         .foregroundColor(Color.brandTextSecondary)
                                 }
                             }
                         }
+                        .disabled(isCreatingPlace)
                         .frame(minHeight: 44)
                     }
                 }
 
-                // "Use Current Location" option — always show when location is available
+                // "Use Current Location" option
                 if searchText.isEmpty, let coord = locationManager.location {
                     Section {
                         Button {
-                            let place = SelectedPlace(
-                                name: "Current Location",
+                            Task { await createAndSelectPlace(
+                                name: "My Location",
                                 address: "",
-                                latitude: coord.latitude,
-                                longitude: coord.longitude,
-                                restaurantId: nil
-                            )
-                            selectedPlace = place
-                            dismiss()
+                                lat: coord.latitude,
+                                lng: coord.longitude
+                            )}
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: "location.circle.fill")
-                                    .font(.title2)
-                                    .foregroundColor(Color.brandAccent)
+                                if isCreatingPlace {
+                                    ProgressView()
+                                } else {
+                                    Image(systemName: "location.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(Color.brandAccent)
+                                }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Use Current Location")
                                         .font(InvlogTheme.body(14, weight: .bold))
                                         .foregroundColor(Color.brandText)
-                                    Text("Drop a pin where you are")
+                                    Text("Save as a new place for everyone")
                                         .font(InvlogTheme.caption(12))
                                         .foregroundColor(Color.brandTextSecondary)
                                 }
                             }
                         }
+                        .disabled(isCreatingPlace)
                         .frame(minHeight: 44)
                     }
                 }
@@ -230,7 +235,7 @@ struct PlacePickerView: View {
         }
 
         let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = ""
+        request.naturalLanguageQuery = "food coffee restaurant cafe"
         request.resultTypes = .pointOfInterest
         request.region = MKCoordinateRegion(
             center: coord,
@@ -277,14 +282,47 @@ struct PlacePickerView: View {
     }
 
     private func selectMapItem(_ item: MKMapItem) {
-        let place = SelectedPlace(
-            name: item.name ?? "Unknown Place",
-            address: formatAddress(item.placemark) ?? "",
-            latitude: item.placemark.coordinate.latitude,
-            longitude: item.placemark.coordinate.longitude,
-            restaurantId: nil
-        )
-        selectedPlace = place
+        Task {
+            await createAndSelectPlace(
+                name: item.name ?? "Unknown Place",
+                address: formatAddress(item.placemark) ?? "",
+                lat: item.placemark.coordinate.latitude,
+                lng: item.placemark.coordinate.longitude
+            )
+        }
+    }
+
+    @MainActor
+    private func createAndSelectPlace(name: String, address: String, lat: Double, lng: Double) async {
+        isCreatingPlace = true
+        do {
+            let (restaurant, _) = try await APIClient.shared.requestWrapped(
+                .createRestaurant(data: [
+                    "name": name,
+                    "latitude": lat,
+                    "longitude": lng,
+                    "addressLine1": address,
+                ]),
+                responseType: Restaurant.self
+            )
+            selectedPlace = SelectedPlace(
+                name: name,
+                address: address,
+                latitude: lat,
+                longitude: lng,
+                restaurantId: restaurant.id
+            )
+        } catch {
+            // Fallback: select without DB entry
+            selectedPlace = SelectedPlace(
+                name: name,
+                address: address,
+                latitude: lat,
+                longitude: lng,
+                restaurantId: nil
+            )
+        }
+        isCreatingPlace = false
         dismiss()
     }
 
