@@ -190,18 +190,21 @@ struct CreateStoryView: View {
 
                 // Caption + Place section
                 VStack(spacing: 12) {
-                    // Caption field
-                    TextField("Add a caption...", text: $caption, axis: .vertical)
-                        .font(InvlogTheme.body(15))
-                        .foregroundColor(.white)
-                        .lineLimit(2...5)
-                        .padding(12)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
+                    // Caption field with mention support
+                    MentionableTextField(
+                        text: $caption,
+                        placeholder: "Add a caption...",
+                        lineLimit: 2...5,
+                        foregroundColor: .white
+                    )
+                    .font(InvlogTheme.body(15))
+                    .padding(12)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
 
                     // Place picker
                     Button {

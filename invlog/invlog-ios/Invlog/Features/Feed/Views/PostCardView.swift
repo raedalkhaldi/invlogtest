@@ -19,6 +19,7 @@ struct PostCardView: View {
     @State private var navigateToProfile = false
     @State private var isLikeInFlight = false
     @State private var showHeartBurst = false
+    @State private var showLikedBy = false
 
     private var isOwnPost: Bool {
         post.authorId == appState.currentUser?.id
@@ -173,6 +174,7 @@ struct PostCardView: View {
                                         Text("\(likeCount)")
                                             .font(InvlogTheme.caption(11, weight: .bold))
                                             .foregroundColor(.white)
+                                            .onTapGesture { showLikedBy = true }
                                     }
                                 }
                             }
@@ -296,6 +298,11 @@ struct PostCardView: View {
         .sheet(isPresented: $showEditSheet) {
             EditPostSheet(post: post)
         }
+        .sheet(isPresented: $showLikedBy) {
+            LikedBySheet(postId: post.id)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
         .alert("Delete Post", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -367,9 +374,16 @@ struct PostCardView: View {
                 HStack(spacing: 4) {
                     Image(systemName: isLiked ? "heart.fill" : "heart")
                         .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
-                    Text(likeCount > 0 ? "\(likeCount)" : "")
-                        .font(InvlogTheme.caption(13, weight: .semibold))
-                        .foregroundColor(Color.brandTextSecondary)
+                    if likeCount > 0 {
+                        Button {
+                            showLikedBy = true
+                        } label: {
+                            Text("\(likeCount)")
+                                .font(InvlogTheme.caption(13, weight: .semibold))
+                                .foregroundColor(Color.brandTextSecondary)
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -795,13 +809,18 @@ struct CommentsSheetView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 8) {
-                    TextField("Add a comment...", text: $newComment)
-                        .font(InvlogTheme.body(15))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.brandBorder.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .accessibilityLabel("Write a comment")
+                    MentionableTextField(
+                        text: $newComment,
+                        placeholder: "Add a comment...",
+                        axis: .horizontal,
+                        lineLimit: 1...3
+                    )
+                    .font(InvlogTheme.body(15))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.brandBorder.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .accessibilityLabel("Write a comment")
 
                     Button {
                         Task { await submitComment() }

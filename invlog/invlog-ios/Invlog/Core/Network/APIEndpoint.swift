@@ -37,6 +37,11 @@ enum APIEndpoint {
     case unlikePost(id: String)
     case likeComment(id: String)
     case unlikeComment(id: String)
+    case postLikes(id: String, page: Int, perPage: Int)
+
+    // Story Comments
+    case storyComments(storyId: String, page: Int, perPage: Int)
+    case createStoryComment(storyId: String, content: String, parentId: String?)
 
     // Follows
     case followUser(id: String)
@@ -133,7 +138,8 @@ enum APIEndpoint {
              .startConversation, .sendMessage,
              .createTrip, .addTripStop, .reorderTripStops,
              .inviteCollaborator, .cloneTrip,
-             .avatarPresign:
+             .avatarPresign,
+             .createStoryComment:
             return .post
         case .updateProfile, .updatePost, .updateComment, .updateRestaurant,
              .markNotificationRead, .markAllNotificationsRead,
@@ -181,6 +187,11 @@ enum APIEndpoint {
         case .unlikePost(let id): return "/posts/\(id)/like"
         case .likeComment(let id): return "/comments/\(id)/like"
         case .unlikeComment(let id): return "/comments/\(id)/like"
+        case .postLikes(let id, _, _): return "/posts/\(id)/likes"
+
+        // Story Comments
+        case .storyComments(let storyId, _, _): return "/stories/\(storyId)/comments"
+        case .createStoryComment(let storyId, _, _): return "/stories/\(storyId)/comments"
 
         // Follows
         case .followUser(let id): return "/users/\(id)/follow"
@@ -283,7 +294,9 @@ enum APIEndpoint {
             return items
         case .comments(_, let page, let perPage),
              .followers(_, let page, let perPage), .following(_, let page, let perPage),
-             .restaurantCheckins(_, let page, let perPage), .restaurantPosts(_, let page, let perPage), .userCheckins(_, let page, let perPage):
+             .restaurantCheckins(_, let page, let perPage), .restaurantPosts(_, let page, let perPage), .userCheckins(_, let page, let perPage),
+             .postLikes(_, let page, let perPage),
+             .storyComments(_, let page, let perPage):
             return [
                 URLQueryItem(name: "page", value: "\(page)"),
                 URLQueryItem(name: "perPage", value: "\(perPage)"),
@@ -335,7 +348,8 @@ enum APIEndpoint {
             if let visibility { body["visibility"] = visibility }
             if let tripId { body["tripId"] = tripId }
             return body
-        case .createComment(_, let content, let parentId):
+        case .createComment(_, let content, let parentId),
+             .createStoryComment(_, let content, let parentId):
             var body: [String: Any] = ["content": content]
             if let parentId { body["parentId"] = parentId }
             return body

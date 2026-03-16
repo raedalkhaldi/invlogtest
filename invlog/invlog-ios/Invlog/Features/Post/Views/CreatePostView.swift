@@ -260,11 +260,14 @@ struct CreatePostView: View {
 
     @ViewBuilder
     private var textInputSection: some View {
-        TextField("Share your experience...", text: $content, axis: .vertical)
-            .font(InvlogTheme.body(15))
-            .lineLimit(5...10)
-            .padding()
-            .accessibilityLabel("Post content")
+        MentionableTextField(
+            text: $content,
+            placeholder: "Share your experience...",
+            lineLimit: 5...10
+        )
+        .font(InvlogTheme.body(15))
+        .padding()
+        .accessibilityLabel("Post content")
     }
 
     @ViewBuilder

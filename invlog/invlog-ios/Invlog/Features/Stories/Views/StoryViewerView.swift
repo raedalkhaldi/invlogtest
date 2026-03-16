@@ -35,6 +35,7 @@ struct StoryViewerView: View {
     // Vertical snap scroll offset
     @State private var dragOffsetY: CGFloat = 0
     @State private var showComments = false
+    @State private var showLikedBy = false
 
     // Caption expansion
     @State private var isCaptionExpanded = false
@@ -129,6 +130,13 @@ struct StoryViewerView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showLikedBy) {
+            if let entry = currentEntry {
+                LikedBySheet(postId: entry.story.id)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
         }
     }
 
@@ -306,7 +314,8 @@ struct StoryViewerView: View {
                 icon: isLiked ? "heart.fill" : "heart",
                 iconColor: isLiked ? Color(hex: "FF4D4D") : .white,
                 count: entry.story.viewCount > 0 ? "\(entry.story.viewCount)" : nil,
-                accessibilityLabel: isLiked ? "Unlike" : "Like"
+                accessibilityLabel: isLiked ? "Unlike" : "Like",
+                onLongPress: { showLikedBy = true }
             ) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                     if isLiked {
@@ -355,7 +364,7 @@ struct StoryViewerView: View {
         }
     }
 
-    private func actionRailButton(icon: String, iconColor: Color, count: String?, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
+    private func actionRailButton(icon: String, iconColor: Color, count: String?, accessibilityLabel: String, onLongPress: (() -> Void)? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 2) {
                 Image(systemName: icon)
@@ -364,10 +373,15 @@ struct StoryViewerView: View {
                     .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
 
                 if let count = count {
-                    Text(count)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    Button {
+                        onLongPress?()
+                    } label: {
+                        Text(count)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -627,74 +641,81 @@ struct VlogReplySheet: View {
     let username: String
     let storyId: String
 
+    @EnvironmentObject private var appState: AppState
     @State private var replyText = ""
-    @State private var sentReplies: [(id: UUID, text: String, date: Date)] = []
+    @State private var comments: [Comment] = []
+    @State private var isLoading = true
     @State private var isSending = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if sentReplies.isEmpty {
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                        .tint(Color.brandPrimary)
+                    Spacer()
+                } else if comments.isEmpty {
                     Spacer()
                     VStack(spacing: 12) {
                         Image(systemName: "bubble.right")
                             .font(.system(size: 40))
                             .foregroundColor(Color.brandTextTertiary)
-                        Text("No replies yet")
+                        Text("No comments yet")
                             .font(InvlogTheme.body(15, weight: .semibold))
                             .foregroundColor(Color.brandTextSecondary)
-                        Text("Be the first to reply to @\(username)'s vlog")
+                        Text("Be the first to comment on @\(username)'s vlog")
                             .font(InvlogTheme.caption(13))
                             .foregroundColor(Color.brandTextTertiary)
                     }
                     Spacer()
                 } else {
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(sentReplies, id: \.id) { reply in
-                                HStack(alignment: .top, spacing: 10) {
-                                    Image(systemName: "person.circle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(Color.brandTextTertiary)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("You")
-                                            .font(InvlogTheme.caption(12, weight: .bold))
-                                            .foregroundColor(Color.brandText)
-                                        Text(reply.text)
-                                            .font(InvlogTheme.body(14))
-                                            .foregroundColor(Color.brandText)
-                                        Text(reply.date, style: .relative)
-                                            .font(InvlogTheme.caption(11))
-                                            .foregroundColor(Color.brandTextTertiary)
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(comments) { comment in
+                                CommentRowView(comment: comment)
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 8)
+                                    .contextMenu {
+                                        if comment.authorId == appState.currentUser?.id {
+                                            Button(role: .destructive) {
+                                                Task { await deleteComment(comment) }
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
                                     }
-                                    Spacer()
-                                }
-                                .padding(.horizontal)
+                                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                                    .padding(.horizontal)
                             }
                         }
-                        .padding(.top, 12)
+                        .padding(.top, 8)
                     }
                 }
 
                 Divider()
 
-                // Reply input
+                // Reply input with mention support
                 HStack(spacing: 10) {
-                    TextField("Reply to @\(username)...", text: $replyText)
-                        .font(InvlogTheme.body(14))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.brandCard)
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule().stroke(Color.brandBorder, lineWidth: 1)
-                        )
-                        .focused($isFocused)
+                    MentionableTextField(
+                        text: $replyText,
+                        placeholder: "Reply to @\(username)...",
+                        lineLimit: 1...3,
+                        foregroundColor: Color.brandText
+                    )
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color.brandCard)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(Color.brandBorder, lineWidth: 1)
+                    )
+                    .focused($isFocused)
 
                     if !replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Button {
-                            sendReply()
+                            Task { await sendReply() }
                         } label: {
                             Image(systemName: "paperplane.fill")
                                 .font(.body)
@@ -709,20 +730,52 @@ struct VlogReplySheet: View {
                 .animation(.easeInOut(duration: 0.2), value: replyText.isEmpty)
             }
             .invlogScreenBackground()
-            .navigationTitle("Replies")
+            .navigationTitle("Comments")
             .navigationBarTitleDisplayMode(.inline)
+            .task { await loadComments() }
             .onAppear { isFocused = true }
         }
     }
 
-    private func sendReply() {
+    private func loadComments() async {
+        do {
+            let (data, _) = try await APIClient.shared.requestWrapped(
+                .storyComments(storyId: storyId, page: 1, perPage: 50),
+                responseType: [Comment].self
+            )
+            comments = data
+        } catch {
+            // Non-blocking — show empty state
+        }
+        isLoading = false
+    }
+
+    private func sendReply() async {
         let text = replyText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         isSending = true
-        sentReplies.append((id: UUID(), text: text, date: Date()))
         replyText = ""
+
+        do {
+            let (comment, _) = try await APIClient.shared.requestWrapped(
+                .createStoryComment(storyId: storyId, content: text, parentId: nil),
+                responseType: Comment.self
+            )
+            comments.append(comment)
+        } catch {
+            // Restore text on failure
+            replyText = text
+        }
         isSending = false
-        // TODO: Send reply via API when story comments endpoint is available
+    }
+
+    private func deleteComment(_ comment: Comment) async {
+        do {
+            try await APIClient.shared.requestVoid(.deleteComment(id: comment.id))
+            comments.removeAll { $0.id == comment.id }
+        } catch {
+            // Silent fail
+        }
     }
 }
 

@@ -63,13 +63,18 @@ struct PostDetailView: View {
 
                 // Comment Input
                 HStack(spacing: 8) {
-                    TextField("Add a comment...", text: $newComment)
-                        .font(InvlogTheme.body(15))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.brandBorder.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .accessibilityLabel("Write a comment")
+                    MentionableTextField(
+                        text: $newComment,
+                        placeholder: "Add a comment...",
+                        axis: .horizontal,
+                        lineLimit: 1...3
+                    )
+                    .font(InvlogTheme.body(15))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.brandBorder.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .accessibilityLabel("Write a comment")
 
                     Button {
                         Task { await submitComment() }
