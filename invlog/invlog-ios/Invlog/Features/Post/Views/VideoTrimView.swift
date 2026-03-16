@@ -87,7 +87,7 @@ struct VideoTrimView: View {
                 Color.black
 
                 if let player {
-                    TrimVideoPlayerView(player: player)
+                    SimpleVideoPlayerView(player: player)
                         .frame(width: width, height: height)
                         .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
                 }
@@ -279,17 +279,19 @@ struct VideoTrimView: View {
     }
 
     private func cleanUpPlayer() {
+        // Invalidate timer first to stop accessing player
         playbackTimer?.invalidate()
         playbackTimer = nil
-        player?.pause()
-        if let currentItem = player?.currentItem {
+        let playerRef = player
+        player = nil
+        playerRef?.pause()
+        if let currentItem = playerRef?.currentItem {
             NotificationCenter.default.removeObserver(
                 self,
                 name: .AVPlayerItemDidPlayToEndTime,
                 object: currentItem
             )
         }
-        player = nil
     }
 
     private func seekToTrimStart() {
@@ -426,35 +428,4 @@ struct VideoTrimView: View {
     }
 }
 
-// MARK: - Trim Video Player (UIViewRepresentable)
-
-private struct TrimVideoPlayerView: UIViewRepresentable {
-    let player: AVPlayer
-
-    func makeUIView(context: Context) -> TrimPlayerUIView {
-        TrimPlayerUIView(player: player)
-    }
-
-    func updateUIView(_ uiView: TrimPlayerUIView, context: Context) {
-        uiView.playerLayer.player = player
-    }
-}
-
-private class TrimPlayerUIView: UIView {
-    let playerLayer: AVPlayerLayer
-
-    init(player: AVPlayer) {
-        playerLayer = AVPlayerLayer(player: player)
-        super.init(frame: .zero)
-        playerLayer.videoGravity = .resizeAspect
-        playerLayer.backgroundColor = UIColor.black.cgColor
-        layer.addSublayer(playerLayer)
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        playerLayer.frame = bounds
-    }
-}
+// Uses shared SimpleVideoPlayerView from Components/

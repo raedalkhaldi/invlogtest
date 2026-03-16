@@ -125,7 +125,7 @@ struct CreatePostView: View {
                 for item in newItems {
                     if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
                         if let video = try? await item.loadTransferable(type: VideoTransferable.self) {
-                            let thumbnail = await generateThumbnail(for: video.url)
+                            let thumbnail = await VideoThumbnailGenerator.generateThumbnail(from: video.url, maxSize: CGSize(width: 512, height: 512))
                             let thumbImage = thumbnail ?? UIImage(systemName: "video.fill")!
                             selectedImages.append(thumbImage)
                             mediaItems.append(.video(video.url, thumbImage))
@@ -618,18 +618,7 @@ struct CreatePostView: View {
         }
     }
 
-    private func generateThumbnail(for url: URL) async -> UIImage? {
-        let asset = AVURLAsset(url: url)
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 512, height: 512)
-        do {
-            let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
-            return UIImage(cgImage: cgImage)
-        } catch {
-            return nil
-        }
-    }
+    // Uses shared VideoThumbnailGenerator
 
     @ViewBuilder
     private func uploadOverlay(for state: MediaUploadService.UploadState) -> some View {

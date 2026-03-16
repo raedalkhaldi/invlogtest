@@ -166,7 +166,7 @@ struct VideoOverlayEditorView: View {
                 Color.black
 
                 if let player {
-                    OverlayVideoPlayerView(player: player)
+                    SimpleVideoPlayerView(player: player)
                         .frame(width: width, height: height)
                         .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
                 }
@@ -650,34 +650,4 @@ struct VideoOverlayEditorView: View {
     }
 }
 
-// MARK: - Overlay Video Player (UIViewRepresentable)
-
-private struct OverlayVideoPlayerView: UIViewRepresentable {
-    let player: AVPlayer
-
-    func makeUIView(context: Context) -> OverlayPlayerUIView {
-        OverlayPlayerUIView(player: player)
-    }
-
-    func updateUIView(_ uiView: OverlayPlayerUIView, context: Context) {
-        uiView.playerLayer.player = player
-    }
-}
-
-private class OverlayPlayerUIView: UIView {
-    let playerLayer: AVPlayerLayer
-
-    init(player: AVPlayer) {
-        playerLayer = AVPlayerLayer(player: player)
-        super.init(frame: .zero)
-        playerLayer.videoGravity = .resizeAspectFill
-        layer.addSublayer(playerLayer)
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        playerLayer.frame = bounds
-    }
-}
+// Uses shared SimpleVideoPlayerView from Components/

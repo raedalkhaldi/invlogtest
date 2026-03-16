@@ -13,11 +13,14 @@ struct AutoPlayVideoView: View {
     @State private var isPlayerReady = false
     @State private var hasFailed = false
     @State private var statusObserver: AnyCancellable?
-    @State private var loopObserver: Any?
+    @State private var loopObserver: NSObjectProtocol?
     @State private var isInViewport = false
     @State private var playbackProgress: Double = 0
     @State private var timeObserverToken: Any?
     @State private var detectedDuration: Double?
+
+    // Used to distinguish time observer tokens for type-safe removal
+    private typealias TimeObserverToken = Any
     @ObservedObject private var muteManager = VideoMuteManager.shared
 
     var body: some View {
@@ -119,6 +122,13 @@ struct AutoPlayVideoView: View {
         .onChange(of: muteManager.isMuted) { muted in
             player?.isMuted = muted
         }
+        .onChange(of: muteManager.isPaused) { paused in
+            if paused {
+                player?.pause()
+            } else if isInViewport {
+                player?.play()
+            }
+        }
     }
 
     @ViewBuilder
@@ -165,6 +175,8 @@ struct AutoPlayVideoView: View {
             object: avPlayer.currentItem,
             queue: .main
         ) { [weak avPlayer] _ in
+            // Reset progress bar before seeking to start
+            playbackProgress = 0
             avPlayer?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
                 if finished {
                     avPlayer?.play()

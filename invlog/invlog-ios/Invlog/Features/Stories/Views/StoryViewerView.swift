@@ -23,6 +23,7 @@ struct StoryViewerView: View {
     // Double-tap like
     @State private var showHeartBurst = false
     @State private var heartPosition: CGPoint = .zero
+    @State private var heartBurstWorkItem: DispatchWorkItem?
 
     // Action rail state
     @State private var likedStoryIds: Set<String> = []
@@ -95,6 +96,10 @@ struct StoryViewerView: View {
         }
         .onDisappear {
             isDismissing = true
+            // Reset pause state so other videos aren't stuck paused
+            muteManager.isPaused = false
+            isPaused = false
+            heartBurstWorkItem?.cancel()
         }
         .statusBarHidden()
         .alert("Delete Vlog", isPresented: $showDeleteConfirm) {
@@ -463,7 +468,7 @@ struct StoryViewerView: View {
             }
             .onLongPressGesture(minimumDuration: 0.2, pressing: { pressing in
                 isPaused = pressing
-                // TODO: Pause/resume the AVPlayer when long-pressing
+                muteManager.isPaused = pressing
             }, perform: {})
     }
 
@@ -491,15 +496,21 @@ struct StoryViewerView: View {
     }
 
     private func triggerHeartBurst() {
+        // Cancel any pending dismiss from a previous double-tap
+        heartBurstWorkItem?.cancel()
+
         showHeartBurst = false
         DispatchQueue.main.async {
             withAnimation {
                 showHeartBurst = true
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+
+        let workItem = DispatchWorkItem { [self] in
             showHeartBurst = false
         }
+        heartBurstWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
     }
 
     // MARK: - Vertical Swipe Gesture (Snap Scroll)

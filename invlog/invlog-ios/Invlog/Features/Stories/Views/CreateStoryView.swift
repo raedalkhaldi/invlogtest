@@ -462,7 +462,7 @@ struct CreateStoryView: View {
             .appendingPathComponent("filtered_\(UUID().uuidString).mp4")
 
         let videoComposition = AVVideoComposition(asset: asset, applyingCIFiltersWithHandler: { request in
-            let output = VideoFilterView.applyCIFilterPublic(to: request.sourceImage, filter: filter)
+            let output = VideoFilterView.applyCIFilter(to: request.sourceImage, filter: filter)
             request.finish(with: output, context: nil)
         })
 
@@ -485,7 +485,7 @@ struct CreateStoryView: View {
         generator.maximumSize = CGSize(width: 512, height: 512)
         let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
         let ciImage = CIImage(cgImage: cgImage)
-        let filteredCI = VideoFilterView.applyCIFilterPublic(to: ciImage, filter: filter)
+        let filteredCI = VideoFilterView.applyCIFilter(to: ciImage, filter: filter)
         let context = CIContext()
         guard let filteredCG = context.createCGImage(filteredCI, from: filteredCI.extent) else {
             throw NSError(domain: "VideoFilter", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to generate thumbnail."])
@@ -507,7 +507,7 @@ struct CreateStoryView: View {
         selectedFilterIndex = 0
 
         if let movie = try? await item.loadTransferable(type: VideoTransferable.self) {
-            let thumbnail = await generateThumbnail(from: movie.url)
+            let thumbnail = await VideoThumbnailGenerator.generateThumbnail(from: movie.url)
             selectedImage = thumbnail
             selectedVideoURL = movie.url
             isVideo = true
@@ -520,18 +520,7 @@ struct CreateStoryView: View {
         isLoadingMedia = false
     }
 
-    private func generateThumbnail(from url: URL) async -> UIImage? {
-        let asset = AVURLAsset(url: url)
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 1024, height: 1024)
-        do {
-            let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
-            return UIImage(cgImage: cgImage)
-        } catch {
-            return nil
-        }
-    }
+    // Uses shared VideoThumbnailGenerator
 
     private func generateFilterThumbnails() {
         guard let url = selectedVideoURL else { return }
@@ -550,7 +539,7 @@ struct CreateStoryView: View {
                 var thumbs: [VideoFilter: UIImage] = [:]
 
                 for filter in VideoFilter.allCases {
-                    let filteredCI = VideoFilterView.applyCIFilterPublic(to: sourceCI, filter: filter)
+                    let filteredCI = VideoFilterView.applyCIFilter(to: sourceCI, filter: filter)
                     if let filteredCG = context.createCGImage(filteredCI, from: filteredCI.extent) {
                         thumbs[filter] = UIImage(cgImage: filteredCG)
                     }
@@ -563,61 +552,42 @@ struct CreateStoryView: View {
     }
 }
 
-// MARK: - Video Preview (black background, proper aspect ratio)
+// MARK: - Story Video Preview (lightweight looping player)
 
-private struct StoryVideoPreview: UIViewRepresentable {
+private struct StoryVideoPreview: View {
     let url: URL
+    @State private var player: AVPlayer?
+    @State private var loopObserver: NSObjectProtocol?
 
-    func makeUIView(context: Context) -> PlayerContainerView {
-        let view = PlayerContainerView()
-        view.backgroundColor = .black
-        let player = AVPlayer(url: url)
-        player.isMuted = true
-        let playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspect
-        playerLayer.backgroundColor = UIColor.black.cgColor
-        view.layer.addSublayer(playerLayer)
-        view.playerLayer = playerLayer
-        player.play()
-
-        NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: player.currentItem,
-            queue: .main
-        ) { _ in
-            player.seek(to: .zero)
-            player.play()
-        }
-
-        context.coordinator.player = player
-        context.coordinator.playerLayer = playerLayer
-        return view
-    }
-
-    func updateUIView(_ uiView: PlayerContainerView, context: Context) {
-        context.coordinator.playerLayer?.frame = uiView.bounds
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    class PlayerContainerView: UIView {
-        var playerLayer: AVPlayerLayer?
-
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            playerLayer?.frame = bounds
-        }
-    }
-
-    class Coordinator {
-        var player: AVPlayer?
-        var playerLayer: AVPlayerLayer?
-
-        deinit {
-            if let item = player?.currentItem {
-                NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: item)
+    var body: some View {
+        ZStack {
+            Color.black
+            if let player {
+                SimpleVideoPlayerView(player: player)
             }
+        }
+        .onAppear {
+            let avPlayer = AVPlayer(url: url)
+            avPlayer.isMuted = true
+            avPlayer.actionAtItemEnd = .none
+            loopObserver = NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: avPlayer.currentItem,
+                queue: .main
+            ) { [weak avPlayer] _ in
+                avPlayer?.seek(to: .zero)
+                avPlayer?.play()
+            }
+            player = avPlayer
+            avPlayer.play()
+        }
+        .onDisappear {
             player?.pause()
+            if let observer = loopObserver {
+                NotificationCenter.default.removeObserver(observer)
+                loopObserver = nil
+            }
+            player = nil
         }
     }
 }

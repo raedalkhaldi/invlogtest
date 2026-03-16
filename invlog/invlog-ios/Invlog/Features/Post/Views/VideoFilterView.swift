@@ -105,7 +105,7 @@ struct VideoFilterView: View {
                 Color.black
 
                 if let player {
-                    FilteredVideoPlayerView(player: player)
+                    SimpleVideoPlayerView(player: player)
                         .frame(width: width, height: height)
                         .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
                 }
@@ -312,7 +312,7 @@ struct VideoFilterView: View {
             playerItem.videoComposition = nil
         } else {
             let composition = AVVideoComposition(asset: asset, applyingCIFiltersWithHandler: { request in
-                let output = self.applyCIFilter(to: request.sourceImage, filter: filter)
+                let output = Self.applyCIFilter(to: request.sourceImage, filter: filter)
                 request.finish(with: output, context: nil)
             })
             playerItem.videoComposition = composition
@@ -366,7 +366,7 @@ struct VideoFilterView: View {
                 var thumbs: [VideoFilter: UIImage] = [:]
 
                 for filter in VideoFilter.allCases {
-                    let filteredCI = Self.applyCIFilterStatic(to: sourceCI, filter: filter)
+                    let filteredCI = Self.applyCIFilter(to: sourceCI, filter: filter)
                     if let filteredCG = context.createCGImage(filteredCI, from: filteredCI.extent) {
                         thumbs[filter] = UIImage(cgImage: filteredCG)
                     }
@@ -413,7 +413,7 @@ struct VideoFilterView: View {
             .appendingPathComponent("filtered_\(UUID().uuidString).mp4")
 
         let videoComposition = AVVideoComposition(asset: asset, applyingCIFiltersWithHandler: { request in
-            let output = self.applyCIFilter(to: request.sourceImage, filter: self.selectedFilter)
+            let output = Self.applyCIFilter(to: request.sourceImage, filter: self.selectedFilter)
             request.finish(with: output, context: nil)
         })
 
@@ -448,7 +448,7 @@ struct VideoFilterView: View {
         generator.maximumSize = CGSize(width: 512, height: 512)
         let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
         let ciImage = CIImage(cgImage: cgImage)
-        let filteredCI = applyCIFilter(to: ciImage, filter: selectedFilter)
+        let filteredCI = Self.applyCIFilter(to: ciImage, filter: selectedFilter)
         guard let filteredCG = ciContext.createCGImage(filteredCI, from: filteredCI.extent) else {
             throw NSError(
                 domain: "VideoFilter",
@@ -463,20 +463,9 @@ struct VideoFilterView: View {
 
     // MARK: - CIFilter Application
 
-    private static func applyCIFilterStatic(to image: CIImage, filter: VideoFilter) -> CIImage {
-        applyCIFilterImpl(to: image, filter: filter)
-    }
-
-    private func applyCIFilter(to image: CIImage, filter: VideoFilter) -> CIImage {
-        Self.applyCIFilterImpl(to: image, filter: filter)
-    }
-
-    /// Public access for reuse in CreateStoryView inline filter export
-    static func applyCIFilterPublic(to image: CIImage, filter: VideoFilter) -> CIImage {
-        applyCIFilterImpl(to: image, filter: filter)
-    }
-
-    private static func applyCIFilterImpl(to image: CIImage, filter: VideoFilter) -> CIImage {
+    /// Single public entry point for applying CI filters. Used by VideoFilterView itself,
+    /// CreateStoryView inline filter export, and filter thumbnail generation.
+    static func applyCIFilter(to image: CIImage, filter: VideoFilter) -> CIImage {
         switch filter {
         case .original:
             return image
@@ -520,12 +509,7 @@ struct VideoFilterView: View {
             // Crop blurred to original extent (CIGaussianBlur extends the image)
             let croppedBlur = blurred.cropped(to: image.extent)
 
-            // Blend: mix 40% blurred with 60% original for a subtle skin-smoothing effect
-            let blendFilter = CIFilter(name: "CILinearDodgeBlendMode") // We'll use source-atop with opacity
-            // Use CISourceOverCompositing with a semi-transparent blur on top
-            // Better approach: use CIBlendWithAlphaMask or manual alpha blend
-
-            // Use CISourceAtopCompositing approach: blend via color matrix to reduce opacity of blur
+            // Blend via color matrix to reduce opacity of blur (40%) and original (60%)
             let alphaFilter = CIFilter(name: "CIColorMatrix")!
             alphaFilter.setValue(croppedBlur, forKey: kCIInputImageKey)
             alphaFilter.setValue(CIVector(x: 1, y: 0, z: 0, w: 0), forKey: "inputRVector")
@@ -559,35 +543,4 @@ struct VideoFilterView: View {
     }
 }
 
-// MARK: - Filtered Video Player (UIViewRepresentable)
-
-private struct FilteredVideoPlayerView: UIViewRepresentable {
-    let player: AVPlayer
-
-    func makeUIView(context: Context) -> FilteredPlayerUIView {
-        FilteredPlayerUIView(player: player)
-    }
-
-    func updateUIView(_ uiView: FilteredPlayerUIView, context: Context) {
-        uiView.playerLayer.player = player
-    }
-}
-
-private class FilteredPlayerUIView: UIView {
-    let playerLayer: AVPlayerLayer
-
-    init(player: AVPlayer) {
-        playerLayer = AVPlayerLayer(player: player)
-        super.init(frame: .zero)
-        playerLayer.videoGravity = .resizeAspect
-        playerLayer.backgroundColor = UIColor.black.cgColor
-        layer.addSublayer(playerLayer)
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        playerLayer.frame = bounds
-    }
-}
+// Uses shared SimpleVideoPlayerView from Components/
