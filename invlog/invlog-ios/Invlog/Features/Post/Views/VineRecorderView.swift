@@ -7,6 +7,9 @@ import CoreImage.CIFilterBuiltins
 
 struct VineRecorderView: View {
     var maxSeconds: Double = 10.0
+    /// When false, recording uses tap-to-start / tap-to-stop (for vlogs).
+    /// When true, uses hold-to-record (Vine-style, for posts).
+    var holdToRecord: Bool = true
     let onComplete: (URL, UIImage) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -21,6 +24,10 @@ struct VineRecorderView: View {
     @State private var showDiscardAlert = false
     @State private var showPermissionDenied = false
     @State private var permissionGranted = false
+
+    // 3-2-1 countdown before first recording
+    @State private var countdownValue: Int? = nil
+    @State private var showPreCountdown = false
 
     // Segment tracking for progress bar markers
     @State private var segmentStartTimes: [Double] = []
@@ -55,6 +62,19 @@ struct VineRecorderView: View {
 
             if isExporting {
                 exportingOverlay
+            }
+
+            // 3-2-1 countdown overlay
+            if let countdown = countdownValue {
+                ZStack {
+                    Color.black.opacity(0.5).ignoresSafeArea()
+                    Text("\(countdown)")
+                        .font(.system(size: 96, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .scaleEffect(countdownValue != nil ? 1.0 : 2.0)
+                        .animation(.easeOut(duration: 0.3), value: countdown)
+                }
+                .transition(.opacity)
             }
         }
         .statusBarHidden(true)
@@ -368,11 +388,11 @@ struct VineRecorderView: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: isRecording)
-        .gesture(
-            DragGesture(minimumDistance: 0)
+        .gesture(holdToRecord ?
+            AnyGesture(DragGesture(minimumDistance: 0)
                 .onChanged { _ in
-                    if !isRecording && recordedDuration < maxDuration {
-                        resumeRecording()
+                    if !isRecording && recordedDuration < maxDuration && countdownValue == nil {
+                        startWithCountdown()
                     }
                 }
                 .onEnded { _ in
@@ -380,8 +400,20 @@ struct VineRecorderView: View {
                         pauseRecording()
                     }
                 }
+                .map { _ in () })
+            :
+            AnyGesture(DragGesture(minimumDistance: 0)
+                .onEnded { _ in
+                    guard countdownValue == nil else { return }
+                    if isRecording {
+                        pauseRecording()
+                    } else if recordedDuration < maxDuration {
+                        startWithCountdown()
+                    }
+                }
+                .map { _ in () })
         )
-        .accessibilityLabel(isRecording ? "Recording... release to pause" : "Hold to record")
+        .accessibilityLabel(isRecording ? "Recording... tap to pause" : (holdToRecord ? "Hold to record" : "Tap to record"))
     }
 
     // MARK: - Permission Denied View
@@ -477,6 +509,31 @@ struct VineRecorderView: View {
     }
 
     // MARK: - Recording (multi-segment)
+
+    private func startWithCountdown() {
+        // Skip countdown if already started recording (resuming a paused segment)
+        guard !hasStartedRecording else {
+            resumeRecording()
+            return
+        }
+
+        // 3-2-1 countdown
+        showPreCountdown = true
+        countdownValue = 3
+        func tick(_ value: Int) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                if value > 1 {
+                    withAnimation { countdownValue = value - 1 }
+                    tick(value - 1)
+                } else {
+                    withAnimation { countdownValue = nil }
+                    showPreCountdown = false
+                    resumeRecording()
+                }
+            }
+        }
+        tick(3)
+    }
 
     private func resumeRecording() {
         hasStartedRecording = true

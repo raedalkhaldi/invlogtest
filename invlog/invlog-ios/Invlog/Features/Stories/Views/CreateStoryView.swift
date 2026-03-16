@@ -12,6 +12,9 @@ struct CreateStoryView: View {
     @State private var isLoadingMedia = false
     @State private var showCamera = false
     @State private var showVideoRecorder = false
+    @State private var showVideoFilter = false
+    @State private var showVideoTrim = false
+    @State private var showVideoOverlay = false
 
     var body: some View {
         NavigationStack {
@@ -176,11 +179,61 @@ struct CreateStoryView: View {
                 }
             }
             .fullScreenCover(isPresented: $showVideoRecorder) {
-                VineRecorderView(maxSeconds: 60) { url, thumbnail in
-                    selectedVideoURL = url
-                    selectedImage = thumbnail
-                    isVideo = true
-                    showVideoRecorder = false
+                NavigationStack {
+                    VineRecorderView(maxSeconds: 60, holdToRecord: false) { url, thumbnail in
+                        selectedVideoURL = url
+                        selectedImage = thumbnail
+                        isVideo = true
+                        showVideoRecorder = false
+                        // Chain to filter view
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showVideoFilter = true
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showVideoFilter) {
+                if let videoURL = selectedVideoURL, let thumb = selectedImage {
+                    NavigationStack {
+                        VideoFilterView(videoURL: videoURL, thumbnail: thumb) { filteredURL, filteredThumb in
+                            selectedVideoURL = filteredURL
+                            selectedImage = filteredThumb
+                            showVideoFilter = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                showVideoTrim = true
+                            }
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showVideoTrim) {
+                if let videoURL = selectedVideoURL, let thumb = selectedImage {
+                    NavigationStack {
+                        VideoTrimView(videoURL: videoURL, thumbnail: thumb) { trimmedURL, trimmedThumb in
+                            selectedVideoURL = trimmedURL
+                            selectedImage = trimmedThumb
+                            showVideoTrim = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                showVideoOverlay = true
+                            }
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showVideoOverlay) {
+                if let videoURL = selectedVideoURL, let thumb = selectedImage {
+                    NavigationStack {
+                        VideoOverlayEditorView(
+                            videoURL: videoURL,
+                            thumbnail: thumb,
+                            placeName: nil,
+                            onComplete: { finalURL, finalThumb in
+                                selectedVideoURL = finalURL
+                                selectedImage = finalThumb
+                                showVideoOverlay = false
+                            }
+                        )
+                    }
                 }
             }
         }

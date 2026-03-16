@@ -211,8 +211,10 @@ struct StoryViewerView: View {
                 AutoPlayVideoView(
                     url: videoUrl,
                     thumbnailUrl: story.thumbnailUrl.flatMap { URL(string: $0) },
-                    blurhash: story.blurhash
+                    blurhash: story.blurhash,
+                    durationSecs: story.durationSecs
                 )
+                .id(story.id) // Force player recreation when story changes
                 .frame(width: geometry.size.width, height: geometry.size.height)
             } else {
                 LazyImage(url: URL(string: story.url)) { state in

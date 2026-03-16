@@ -17,6 +17,7 @@ struct AutoPlayVideoView: View {
     @State private var isInViewport = false
     @State private var playbackProgress: Double = 0
     @State private var timeObserverToken: Any?
+    @State private var detectedDuration: Double?
     @ObservedObject private var muteManager = VideoMuteManager.shared
 
     var body: some View {
@@ -54,7 +55,7 @@ struct AutoPlayVideoView: View {
             }
 
             // Duration badge (top-right corner)
-            if let duration = durationSecs, duration > 0 {
+            if let duration = durationSecs ?? detectedDuration, duration > 0 {
                 VStack {
                     HStack {
                         Spacer()
@@ -188,6 +189,13 @@ struct AutoPlayVideoView: View {
             .sink { status in
                 switch status {
                 case .readyToPlay:
+                    // Detect duration from player if not provided
+                    if durationSecs == nil,
+                       let itemDuration = avPlayer.currentItem?.duration,
+                       itemDuration.isNumeric, !itemDuration.isIndefinite {
+                        let secs = CMTimeGetSeconds(itemDuration)
+                        if secs > 0 { detectedDuration = secs }
+                    }
                     // Small delay to ensure first frame is rendered
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                         withAnimation(.easeIn(duration: 0.2)) {
