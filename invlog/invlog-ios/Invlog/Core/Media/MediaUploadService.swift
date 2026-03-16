@@ -220,11 +220,40 @@ final class MediaUploadService: ObservableObject {
     private func compressVideoWithAssetWriter(asset: AVURLAsset, outputURL: URL) async throws {
         let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
 
-        // Video output settings: H.264, 1920x1080, 4.5 Mbps
+        // Determine output dimensions from source video (preserve aspect ratio, cap at 1920px longest edge)
+        var outputWidth: Int = 1920
+        var outputHeight: Int = 1080
+        var sourceTransform: CGAffineTransform = .identity
+
+        if let videoTrack = asset.tracks(withMediaType: .video).first {
+            let naturalSize = videoTrack.naturalSize
+            sourceTransform = videoTrack.preferredTransform
+
+            // Check if the video is rotated (portrait videos report landscape naturalSize + 90° rotation)
+            let isRotated = abs(sourceTransform.b) == 1.0 && abs(sourceTransform.c) == 1.0
+            let srcWidth = isRotated ? naturalSize.height : naturalSize.width
+            let srcHeight = isRotated ? naturalSize.width : naturalSize.height
+
+            let maxDimension: CGFloat = 1920.0
+            if max(srcWidth, srcHeight) > maxDimension {
+                let scale = maxDimension / max(srcWidth, srcHeight)
+                outputWidth = Int((srcWidth * scale).rounded(.toNearestOrEven))
+                outputHeight = Int((srcHeight * scale).rounded(.toNearestOrEven))
+            } else {
+                outputWidth = Int(srcWidth)
+                outputHeight = Int(srcHeight)
+            }
+
+            // Ensure even dimensions (required by H.264)
+            outputWidth = outputWidth + (outputWidth % 2)
+            outputHeight = outputHeight + (outputHeight % 2)
+        }
+
+        // Video output settings: H.264, source dimensions, 4.5 Mbps
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: 1920,
-            AVVideoHeightKey: 1080,
+            AVVideoWidthKey: outputWidth,
+            AVVideoHeightKey: outputHeight,
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: 4_500_000,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264MainAutoLevel
@@ -235,9 +264,7 @@ final class MediaUploadService: ObservableObject {
         videoInput.expectsMediaDataInRealTime = false
 
         // Apply the source video's transform (orientation)
-        if let videoTrack = asset.tracks(withMediaType: .video).first {
-            videoInput.transform = videoTrack.preferredTransform
-        }
+        videoInput.transform = sourceTransform
 
         if writer.canAdd(videoInput) {
             writer.add(videoInput)
