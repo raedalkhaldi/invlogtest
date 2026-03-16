@@ -471,6 +471,11 @@ struct VideoFilterView: View {
         Self.applyCIFilterImpl(to: image, filter: filter)
     }
 
+    /// Public access for reuse in CreateStoryView inline filter export
+    static func applyCIFilterPublic(to image: CIImage, filter: VideoFilter) -> CIImage {
+        applyCIFilterImpl(to: image, filter: filter)
+    }
+
     private static func applyCIFilterImpl(to image: CIImage, filter: VideoFilter) -> CIImage {
         switch filter {
         case .original:
@@ -574,7 +579,8 @@ private class FilteredPlayerUIView: UIView {
     init(player: AVPlayer) {
         playerLayer = AVPlayerLayer(player: player)
         super.init(frame: .zero)
-        playerLayer.videoGravity = .resizeAspectFill
+        playerLayer.videoGravity = .resizeAspect
+        playerLayer.backgroundColor = UIColor.black.cgColor
         layer.addSublayer(playerLayer)
     }
 

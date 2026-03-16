@@ -446,7 +446,8 @@ private class TrimPlayerUIView: UIView {
     init(player: AVPlayer) {
         playerLayer = AVPlayerLayer(player: player)
         super.init(frame: .zero)
-        playerLayer.videoGravity = .resizeAspectFill
+        playerLayer.videoGravity = .resizeAspect
+        playerLayer.backgroundColor = UIColor.black.cgColor
         layer.addSublayer(playerLayer)
     }
 
