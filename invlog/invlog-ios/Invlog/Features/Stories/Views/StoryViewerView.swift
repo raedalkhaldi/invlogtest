@@ -117,6 +117,14 @@ struct StoryViewerView: View {
         } message: {
             Text("Are you sure you want to delete this vlog?")
         }
+        .sheet(isPresented: $showComments) {
+            VlogReplySheet(
+                username: currentEntry?.group.user.username ?? "",
+                storyId: currentEntry?.story.id ?? ""
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Video Canvas (Base Layer)
@@ -388,23 +396,46 @@ struct StoryViewerView: View {
             }
             .buttonStyle(.plain)
 
-            // Time ago
-            Text(entry.story.createdAt, style: .relative)
-                .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.7))
-                .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+            // Caption
+            if let caption = entry.story.caption, !caption.isEmpty {
+                Text(caption)
+                    .font(.system(size: 14))
+                    .foregroundColor(.white)
+                    .lineLimit(isCaptionExpanded ? nil : 2)
+                    .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                    .onTapGesture {
+                        withAnimation { isCaptionExpanded.toggle() }
+                    }
+            }
 
-            // View count
-            if entry.story.viewCount > 0 {
+            // Location
+            if let locationName = entry.story.locationName, !locationName.isEmpty {
                 HStack(spacing: 4) {
-                    Image(systemName: "eye.fill")
-                        .font(.system(size: 11))
-                    Text("\(entry.story.viewCount) views")
-                        .font(.system(size: 12, weight: .medium))
+                    Image(systemName: "mappin.circle.fill")
+                        .font(.system(size: 12))
+                    Text(locationName)
+                        .font(.system(size: 13, weight: .medium))
                 }
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(.white.opacity(0.85))
                 .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
             }
+
+            // Time ago + view count
+            HStack(spacing: 8) {
+                Text(entry.story.createdAt, style: .relative)
+                    .font(.system(size: 12))
+
+                if entry.story.viewCount > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "eye.fill")
+                            .font(.system(size: 10))
+                        Text("\(entry.story.viewCount)")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                }
+            }
+            .foregroundColor(.white.opacity(0.7))
+            .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
         }
     }
 
@@ -576,6 +607,111 @@ struct StoryViewerView: View {
             return scene.windows.first?.safeAreaInsets.bottom ?? 0
         }
         return 0
+    }
+}
+
+// MARK: - Vlog Reply / Comments Sheet
+
+struct VlogReplySheet: View {
+    let username: String
+    let storyId: String
+
+    @State private var replyText = ""
+    @State private var sentReplies: [(id: UUID, text: String, date: Date)] = []
+    @State private var isSending = false
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                if sentReplies.isEmpty {
+                    Spacer()
+                    VStack(spacing: 12) {
+                        Image(systemName: "bubble.right")
+                            .font(.system(size: 40))
+                            .foregroundColor(Color.brandTextTertiary)
+                        Text("No replies yet")
+                            .font(InvlogTheme.body(15, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                        Text("Be the first to reply to @\(username)'s vlog")
+                            .font(InvlogTheme.caption(13))
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
+                    Spacer()
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 12) {
+                            ForEach(sentReplies, id: \.id) { reply in
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: "person.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(Color.brandTextTertiary)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("You")
+                                            .font(InvlogTheme.caption(12, weight: .bold))
+                                            .foregroundColor(Color.brandText)
+                                        Text(reply.text)
+                                            .font(InvlogTheme.body(14))
+                                            .foregroundColor(Color.brandText)
+                                        Text(reply.date, style: .relative)
+                                            .font(InvlogTheme.caption(11))
+                                            .foregroundColor(Color.brandTextTertiary)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                        .padding(.top, 12)
+                    }
+                }
+
+                Divider()
+
+                // Reply input
+                HStack(spacing: 10) {
+                    TextField("Reply to @\(username)...", text: $replyText)
+                        .font(InvlogTheme.body(14))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.brandCard)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule().stroke(Color.brandBorder, lineWidth: 1)
+                        )
+                        .focused($isFocused)
+
+                    if !replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button {
+                            sendReply()
+                        } label: {
+                            Image(systemName: "paperplane.fill")
+                                .font(.body)
+                                .foregroundColor(Color.brandPrimary)
+                        }
+                        .disabled(isSending)
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .animation(.easeInOut(duration: 0.2), value: replyText.isEmpty)
+            }
+            .invlogScreenBackground()
+            .navigationTitle("Replies")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear { isFocused = true }
+        }
+    }
+
+    private func sendReply() {
+        let text = replyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        isSending = true
+        sentReplies.append((id: UUID(), text: text, date: Date()))
+        replyText = ""
+        isSending = false
+        // TODO: Send reply via API when story comments endpoint is available
     }
 }
 

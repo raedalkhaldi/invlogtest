@@ -27,7 +27,7 @@ final class StoryUploadManager: ObservableObject {
 
     private init() {}
 
-    func upload(mediaItem: MediaItem) {
+    func upload(mediaItem: MediaItem, caption: String? = nil, locationName: String? = nil, restaurantId: String? = nil) {
         status = .uploading(progress: 0)
 
         // Observe upload progress
@@ -54,7 +54,7 @@ final class StoryUploadManager: ObservableObject {
                 status = .processing
 
                 // Backend now waits for video processing before creating story
-                try await APIClient.shared.requestVoid(.createStory(mediaId: mediaId))
+                try await APIClient.shared.requestVoid(.createStory(mediaId: mediaId, caption: caption, locationName: locationName, restaurantId: restaurantId))
 
                 status = .completed
                 NotificationCenter.default.post(name: .didCreateStory, object: nil)

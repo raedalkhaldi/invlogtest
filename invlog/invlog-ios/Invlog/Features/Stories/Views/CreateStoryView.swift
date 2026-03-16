@@ -15,6 +15,9 @@ struct CreateStoryView: View {
     @State private var showVideoFilter = false
     @State private var showVideoTrim = false
     @State private var showVideoOverlay = false
+    @State private var caption = ""
+    @State private var showPlacePicker = false
+    @State private var selectedPlace: SelectedPlace?
 
     var body: some View {
         NavigationStack {
@@ -55,6 +58,58 @@ struct CreateStoryView: View {
                         }
                         .foregroundColor(Color.brandAccent)
                     }
+
+                    // Caption field
+                    TextField("Add a caption...", text: $caption, axis: .vertical)
+                        .font(InvlogTheme.body(15))
+                        .lineLimit(3...6)
+                        .padding(12)
+                        .background(Color.brandCard)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                .stroke(Color.brandBorder, lineWidth: 1)
+                        )
+                        .padding(.horizontal)
+
+                    // Place picker
+                    Button {
+                        showPlacePicker = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(Color.brandPrimary)
+                            if let place = selectedPlace {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(place.name)
+                                        .font(InvlogTheme.body(14, weight: .semibold))
+                                        .foregroundColor(Color.brandText)
+                                    if !place.address.isEmpty {
+                                        Text(place.address)
+                                            .font(InvlogTheme.caption(12))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            } else {
+                                Text("Add Location (optional)")
+                                    .font(InvlogTheme.body(14))
+                                    .foregroundColor(Color.brandTextSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+                        .padding(12)
+                        .background(Color.brandCard)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                .stroke(Color.brandBorder, lineWidth: 1)
+                        )
+                    }
+                    .padding(.horizontal)
 
                     if let errorMessage {
                         Text(errorMessage)
@@ -171,6 +226,9 @@ struct CreateStoryView: View {
                 Task { await loadMedia(from: newItem) }
             }
             .interactiveDismissDisabled(false)
+            .sheet(isPresented: $showPlacePicker) {
+                PlacePickerView(selectedPlace: $selectedPlace)
+            }
             .fullScreenCover(isPresented: $showCamera) {
                 PhotoCaptureView { image in
                     selectedImage = image
@@ -285,7 +343,12 @@ struct CreateStoryView: View {
             return
         }
 
-        StoryUploadManager.shared.upload(mediaItem: mediaItem)
+        StoryUploadManager.shared.upload(
+            mediaItem: mediaItem,
+            caption: caption.isEmpty ? nil : caption,
+            locationName: selectedPlace?.name,
+            restaurantId: selectedPlace?.restaurantId
+        )
         dismiss()
     }
 }

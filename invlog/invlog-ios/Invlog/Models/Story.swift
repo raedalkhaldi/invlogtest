@@ -12,6 +12,9 @@ struct Story: Codable, Identifiable, Hashable {
     let createdAt: Date
     let expiresAt: Date
     var isViewedByMe: Bool?
+    let caption: String?
+    let locationName: String?
+    let restaurantId: String?
 }
 
 struct StoryGroup: Codable, Identifiable, Hashable {

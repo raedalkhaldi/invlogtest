@@ -93,7 +93,7 @@ enum APIEndpoint {
     case bookmarks(cursor: String?, limit: Int)
 
     // Stories
-    case createStory(mediaId: String)
+    case createStory(mediaId: String, caption: String? = nil, locationName: String? = nil, restaurantId: String? = nil)
     case storyFeed
     case viewStory(id: String)
     case storyViewers(id: String)
@@ -374,8 +374,12 @@ enum APIEndpoint {
             return body
         case .createRestaurant(let data), .updateRestaurant(_, let data), .addMenuItem(_, let data):
             return data
-        case .createStory(let mediaId):
-            return ["mediaId": mediaId]
+        case .createStory(let mediaId, let caption, let locationName, let restaurantId):
+            var body: [String: Any] = ["mediaId": mediaId]
+            if let caption, !caption.isEmpty { body["caption"] = caption }
+            if let locationName, !locationName.isEmpty { body["locationName"] = locationName }
+            if let restaurantId { body["restaurantId"] = restaurantId }
+            return body
         case .startConversation(let userId):
             return ["userId": userId]
         case .sendMessage(_, let content):
