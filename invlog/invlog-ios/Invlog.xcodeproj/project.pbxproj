@@ -102,6 +102,8 @@
 		T008A008B008C008D008F001 /* ExploreTripsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T008A008B008C008D008E008 /* ExploreTripsView.swift */; };
 		T009A009B009C009D009F001 /* InviteCollaboratorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = T009A009B009C009D009E009 /* InviteCollaboratorView.swift */; };
 		VMUTE00200020002VMUTE0002 /* VideoMuteManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VMUTE00100010001VMUTE0001 /* VideoMuteManager.swift */; };
+		89BDFFC44D13446A8419E098 /* MentionableTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64299AE648642B9AC170958 /* MentionableTextField.swift */; };
+		6C429FB611E34E1BA22619C5 /* LikedBySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 167795038F5E439CACD96180 /* LikedBySheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -199,6 +201,8 @@
 		T008A008B008C008D008E008 /* ExploreTripsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ExploreTripsView.swift; path = ExploreTripsView.swift; sourceTree = "<group>"; };
 		T009A009B009C009D009E009 /* InviteCollaboratorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InviteCollaboratorView.swift; path = InviteCollaboratorView.swift; sourceTree = "<group>"; };
 		VMUTE00100010001VMUTE0001 /* VideoMuteManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoMuteManager.swift; path = VideoMuteManager.swift; sourceTree = "<group>"; };
+		B64299AE648642B9AC170958 /* MentionableTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MentionableTextField.swift; path = MentionableTextField.swift; sourceTree = "<group>"; };
+		167795038F5E439CACD96180 /* LikedBySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LikedBySheet.swift; path = LikedBySheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -416,6 +420,9 @@
 				FF66778899001122AABBCCDD /* ShimmerView.swift */,
 				1CC7390A52C3D561851E83ED /* VideoThumbnailGenerator.swift */,
 				7D5C70D3053C4885AE778FED /* SimpleVideoPlayerView.swift */,
+			
+				B64299AE648642B9AC170958 /* MentionableTextField.swift */,
+				167795038F5E439CACD96180 /* LikedBySheet.swift */,
 			);
 			name = Components;
 			path = Components;
@@ -802,6 +809,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6C429FB611E34E1BA22619C5 /* LikedBySheet.swift in Sources */,
+				89BDFFC44D13446A8419E098 /* MentionableTextField.swift in Sources */,
 				ABAE697AF2E58930B4134787 /* AppState.swift in Sources */,
 				011E3679163AB92EF5EFB81A /* InvlogApp.swift in Sources */,
 				2E53B62ADDF61C0B122E9E3E /* EmptyStateView.swift in Sources */,
