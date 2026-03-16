@@ -22,6 +22,9 @@ struct AutoPlayVideoView: View {
 
     var body: some View {
         ZStack {
+            // Black background so videos with different aspect ratios don't show gaps
+            Color.black
+
             // Video player (behind thumbnail, always present when player exists)
             if let player {
                 VideoPlayerView(player: player, onVisibilityChanged: { visible in
@@ -123,18 +126,17 @@ struct AutoPlayVideoView: View {
         if let thumbnailUrl {
             LazyImage(url: thumbnailUrl) { state in
                 if let image = state.image {
-                    image.resizable().scaledToFill()
+                    image.resizable().scaledToFit()
                 } else if let blurhash {
                     BlurhashView(blurhash: blurhash)
                 } else {
-                    Rectangle().fill(Color(.systemGray5))
+                    Color.black
                 }
             }
         } else if let blurhash {
             BlurhashView(blurhash: blurhash)
         } else {
-            Rectangle()
-                .fill(Color(.systemGray5))
+            Color.black
         }
     }
 
@@ -267,7 +269,9 @@ private class PlayerUIView: UIView {
     init(player: AVPlayer) {
         playerLayer = AVPlayerLayer(player: player)
         super.init(frame: .zero)
+        backgroundColor = .black
         playerLayer.videoGravity = .resizeAspect
+        playerLayer.backgroundColor = UIColor.black.cgColor
         layer.addSublayer(playerLayer)
     }
 

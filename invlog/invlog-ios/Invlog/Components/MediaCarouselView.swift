@@ -58,12 +58,15 @@ struct MediaCarouselView: View {
     @ViewBuilder
     private func mediaItem(_ item: PostMedia) -> some View {
         if item.mediaType == "video", let videoUrl = URL(string: item.url) {
-            AutoPlayVideoView(
-                url: videoUrl,
-                thumbnailUrl: URL(string: item.thumbnailUrl ?? item.url),
-                blurhash: item.blurhash,
-                durationSecs: item.durationSecs
-            )
+            ZStack {
+                Color.black
+                AutoPlayVideoView(
+                    url: videoUrl,
+                    thumbnailUrl: URL(string: item.thumbnailUrl ?? item.url),
+                    blurhash: item.blurhash,
+                    durationSecs: item.durationSecs
+                )
+            }
         } else {
             LazyImage(url: URL(string: {
                 switch quality {

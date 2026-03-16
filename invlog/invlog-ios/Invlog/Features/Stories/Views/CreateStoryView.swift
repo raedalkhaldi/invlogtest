@@ -123,22 +123,22 @@ struct CreateStoryView: View {
         ScrollView {
             VStack(spacing: 0) {
                 // Video preview with black background (proper aspect ratio)
-                ZStack {
-                    Color.black
+                GeometryReader { geo in
+                    ZStack {
+                        Color.black
 
-                    if isVideo, let videoURL = selectedVideoURL {
-                        StoryVideoPreview(url: videoURL)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: UIScreen.main.bounds.width * 16 / 9)
-                    } else if let image = selectedImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: UIScreen.main.bounds.width * 16 / 9)
+                        if isVideo, let videoURL = selectedVideoURL {
+                            StoryVideoPreview(url: videoURL)
+                                .frame(width: geo.size.width, height: geo.size.height)
+                        } else if let image = selectedImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: geo.size.width, height: geo.size.height)
+                        }
                     }
                 }
-                .frame(height: min(UIScreen.main.bounds.width * 16 / 9, UIScreen.main.bounds.height * 0.5))
+                .frame(height: UIScreen.main.bounds.height * 0.45)
                 .clipped()
 
                 // Filter strip (only for videos)
