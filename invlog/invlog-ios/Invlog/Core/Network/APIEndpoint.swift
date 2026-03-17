@@ -37,14 +37,6 @@ enum APIEndpoint {
     case unlikePost(id: String)
     case likeComment(id: String)
     case unlikeComment(id: String)
-    case postLikes(id: String, page: Int, perPage: Int)
-
-    // Story Comments & Likes (reuse post endpoints)
-    case storyComments(storyId: String, page: Int, perPage: Int)
-    case createStoryComment(storyId: String, content: String, parentId: String?)
-    case likeStory(id: String)
-    case unlikeStory(id: String)
-    case storyLikes(id: String, page: Int, perPage: Int)
 
     // Follows
     case followUser(id: String)
@@ -100,9 +92,8 @@ enum APIEndpoint {
     case removeBookmark(id: String)
     case bookmarks(cursor: String?, limit: Int)
 
-    // Stories
-    case createStory(mediaId: String, caption: String? = nil, locationName: String? = nil, restaurantId: String? = nil)
-    case updateStory(id: String, caption: String?, locationName: String?)
+    // Stories (backend only supports mediaId — no caption/content/edit)
+    case createStory(mediaId: String)
     case storyFeed
     case viewStory(id: String)
     case storyViewers(id: String)
@@ -142,18 +133,16 @@ enum APIEndpoint {
              .startConversation, .sendMessage,
              .createTrip, .addTripStop, .reorderTripStops,
              .inviteCollaborator, .cloneTrip,
-             .avatarPresign,
-             .createStoryComment, .likeStory:
+             .avatarPresign:
             return .post
         case .updateProfile, .updatePost, .updateComment, .updateRestaurant,
              .markNotificationRead, .markAllNotificationsRead,
              .markConversationRead,
-             .updateTrip, .updateTripStop,
-             .updateStory:
+             .updateTrip, .updateTripStop:
             return .patch
         case .deleteAccount, .deletePost, .deleteComment,
              .unlikePost, .unlikeComment, .unfollowUser, .unfollowRestaurant, .unblockUser,
-             .removeBookmark, .deleteStory, .unlikeStory,
+             .removeBookmark, .deleteStory,
              .deleteTrip, .removeTripStop, .removeCollaborator:
             return .delete
         default:
@@ -192,14 +181,6 @@ enum APIEndpoint {
         case .unlikePost(let id): return "/posts/\(id)/like"
         case .likeComment(let id): return "/comments/\(id)/like"
         case .unlikeComment(let id): return "/comments/\(id)/like"
-        case .postLikes(let id, _, _): return "/posts/\(id)/likes"
-
-        // Story Comments & Likes (reuse post endpoints — unified content system)
-        case .storyComments(let storyId, _, _): return "/posts/\(storyId)/comments"
-        case .createStoryComment(let storyId, _, _): return "/posts/\(storyId)/comments"
-        case .likeStory(let id): return "/posts/\(id)/like"
-        case .unlikeStory(let id): return "/posts/\(id)/like"
-        case .storyLikes(let id, _, _): return "/posts/\(id)/likes"
 
         // Follows
         case .followUser(let id): return "/users/\(id)/follow"
@@ -255,7 +236,6 @@ enum APIEndpoint {
 
         // Stories
         case .createStory: return "/stories"
-        case .updateStory(let id, _, _): return "/stories/\(id)"
         case .storyFeed: return "/stories/feed"
         case .viewStory(let id): return "/stories/\(id)/view"
         case .storyViewers(let id): return "/stories/\(id)/viewers"
@@ -303,10 +283,7 @@ enum APIEndpoint {
             return items
         case .comments(_, let page, let perPage),
              .followers(_, let page, let perPage), .following(_, let page, let perPage),
-             .restaurantCheckins(_, let page, let perPage), .restaurantPosts(_, let page, let perPage), .userCheckins(_, let page, let perPage),
-             .postLikes(_, let page, let perPage),
-             .storyComments(_, let page, let perPage),
-             .storyLikes(_, let page, let perPage):
+             .restaurantCheckins(_, let page, let perPage), .restaurantPosts(_, let page, let perPage), .userCheckins(_, let page, let perPage):
             return [
                 URLQueryItem(name: "page", value: "\(page)"),
                 URLQueryItem(name: "perPage", value: "\(perPage)"),
@@ -358,8 +335,7 @@ enum APIEndpoint {
             if let visibility { body["visibility"] = visibility }
             if let tripId { body["tripId"] = tripId }
             return body
-        case .createComment(_, let content, let parentId),
-             .createStoryComment(_, let content, let parentId):
+        case .createComment(_, let content, let parentId):
             var body: [String: Any] = ["content": content]
             if let parentId { body["parentId"] = parentId }
             return body
@@ -398,24 +374,9 @@ enum APIEndpoint {
             return body
         case .createRestaurant(let data), .updateRestaurant(_, let data), .addMenuItem(_, let data):
             return data
-        case .createStory(let mediaId, let caption, let locationName, let restaurantId):
-            var body: [String: Any] = ["mediaId": mediaId]
-            // Send as both "caption" and "content" for backend compatibility
-            if let caption, !caption.isEmpty {
-                body["caption"] = caption
-                body["content"] = caption
-            }
-            if let locationName, !locationName.isEmpty { body["locationName"] = locationName }
-            if let restaurantId { body["restaurantId"] = restaurantId }
-            return body
-        case .updateStory(_, let caption, let locationName):
-            var body: [String: Any] = [:]
-            if let caption {
-                body["caption"] = caption
-                body["content"] = caption
-            }
-            if let locationName { body["locationName"] = locationName }
-            return body
+        case .createStory(let mediaId):
+            // Backend only accepts mediaId — caption/content/locationName cause 400
+            return ["mediaId": mediaId]
         case .startConversation(let userId):
             return ["userId": userId]
         case .sendMessage(_, let content):

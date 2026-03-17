@@ -27,6 +27,7 @@ final class StoryUploadManager: ObservableObject {
 
     private init() {}
 
+    /// Upload a story. Note: backend only accepts mediaId — caption/location are stored locally only.
     func upload(mediaItem: MediaItem, caption: String? = nil, locationName: String? = nil, restaurantId: String? = nil) {
         status = .uploading(progress: 0)
 
@@ -53,15 +54,8 @@ final class StoryUploadManager: ObservableObject {
 
                 status = .processing
 
-                // Create story — send caption/locationName only if non-empty
-                let cleanCaption = caption?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let cleanLocation = locationName?.trimmingCharacters(in: .whitespacesAndNewlines)
-                try await APIClient.shared.requestVoid(.createStory(
-                    mediaId: mediaId,
-                    caption: (cleanCaption?.isEmpty == false) ? cleanCaption : nil,
-                    locationName: (cleanLocation?.isEmpty == false) ? cleanLocation : nil,
-                    restaurantId: restaurantId
-                ))
+                // Backend only accepts mediaId — caption/content/locationName cause 400
+                try await APIClient.shared.requestVoid(.createStory(mediaId: mediaId))
 
                 status = .completed
                 NotificationCenter.default.post(name: .didCreateStory, object: nil)

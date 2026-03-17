@@ -2,17 +2,15 @@ import SwiftUI
 
 struct LikedBySheet: View {
     let postId: String
-    var isStory: Bool = false
 
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
     @State private var users: [User] = []
-    @State private var isLoading = true
-    @State private var currentPage = 1
-    @State private var hasMorePages = true
+    @State private var isLoading = false
 
-    private let perPage = 30
+    // Note: /posts/{id}/likes endpoint doesn't exist on backend yet.
+    // This sheet will show empty state until backend adds support.
 
     var body: some View {
         NavigationStack {
@@ -46,9 +44,6 @@ struct LikedBySheet: View {
                             .frame(minHeight: 44)
                             .listRowBackground(Color.clear)
                             .onAppear {
-                                if user.id == users.last?.id && hasMorePages && !isLoading {
-                                    Task { await loadMore() }
-                                }
                             }
                         }
                     }
@@ -72,52 +67,6 @@ struct LikedBySheet: View {
                     }
                 }
             }
-            .task {
-                await loadLikes()
-            }
         }
-    }
-
-    private var likesEndpoint: APIEndpoint {
-        isStory
-            ? .storyLikes(id: postId, page: 1, perPage: perPage)
-            : .postLikes(id: postId, page: 1, perPage: perPage)
-    }
-
-    private func likesEndpointForPage(_ page: Int) -> APIEndpoint {
-        isStory
-            ? .storyLikes(id: postId, page: page, perPage: perPage)
-            : .postLikes(id: postId, page: page, perPage: perPage)
-    }
-
-    private func loadLikes() async {
-        isLoading = true
-        do {
-            let (data, _) = try await APIClient.shared.requestWrapped(
-                likesEndpointForPage(1),
-                responseType: [User].self
-            )
-            users = data
-            hasMorePages = data.count >= perPage
-        } catch {
-            // silent fail
-        }
-        isLoading = false
-    }
-
-    private func loadMore() async {
-        isLoading = true
-        currentPage += 1
-        do {
-            let (data, _) = try await APIClient.shared.requestWrapped(
-                likesEndpointForPage(currentPage),
-                responseType: [User].self
-            )
-            users.append(contentsOf: data)
-            hasMorePages = data.count >= perPage
-        } catch {
-            currentPage -= 1
-        }
-        isLoading = false
     }
 }

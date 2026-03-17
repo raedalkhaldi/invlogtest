@@ -173,6 +173,11 @@ actor APIClient {
                     return
                 }
 
+                // Treat 409 (Already liked/followed) as success for idempotent operations
+                if httpResponse.statusCode == 409 {
+                    return
+                }
+
                 // Retry on 5xx or 429
                 if ((500...599).contains(httpResponse.statusCode) || httpResponse.statusCode == 429),
                    attempt < 2 {

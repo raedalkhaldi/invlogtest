@@ -25,7 +25,7 @@ struct StoryViewerView: View {
     @State private var heartPosition: CGPoint = .zero
     @State private var heartBurstWorkItem: DispatchWorkItem?
 
-    // Action rail state
+    // Action rail state (local-only — backend has no story like/comment API yet)
     @State private var likedStoryIds: Set<String> = []
     @State private var bookmarkedStoryIds: Set<String> = []
     @State private var storyLikeCounts: [String: Int] = [:]
@@ -38,7 +38,6 @@ struct StoryViewerView: View {
     @State private var dragOffsetY: CGFloat = 0
     @State private var showComments = false
     @State private var showStats = false
-    @State private var showEditSheet = false
 
     // Caption expansion
     @State private var isCaptionExpanded = false
@@ -83,11 +82,9 @@ struct StoryViewerView: View {
                 Color.black.ignoresSafeArea()
 
                 if let entry = currentEntry {
-                    // Full-screen video canvas (base layer, z-index 0)
                     videoCanvas(entry: entry, size: geo.size)
                         .offset(y: dragOffsetY)
 
-                    // Overlay UI (z-index 10+)
                     overlayUI(entry: entry, size: geo.size)
                         .offset(y: dragOffsetY)
                 }
@@ -101,7 +98,6 @@ struct StoryViewerView: View {
         }
         .onDisappear {
             isDismissing = true
-            // Reset pause state so other videos aren't stuck paused
             muteManager.isPaused = false
             isPaused = false
             heartBurstWorkItem?.cancel()
@@ -141,24 +137,10 @@ struct StoryViewerView: View {
         }
         .sheet(isPresented: $showStats) {
             if let entry = currentEntry {
-                VlogStatsSheet(story: entry.story)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-        }
-        .sheet(isPresented: $showEditSheet) {
-            if let entry = currentEntry {
-                VlogEditSheet(
-                    storyId: entry.story.id,
-                    caption: entry.story.caption ?? "",
-                    locationName: entry.story.locationName ?? ""
-                ) { newCaption, newLocation in
-                    // Update local state
-                    if currentFlatIndex < allStories.count {
-                        allStories[currentFlatIndex].story.caption = newCaption.isEmpty ? nil : newCaption
-                        allStories[currentFlatIndex].story.locationName = newLocation.isEmpty ? nil : newLocation
-                    }
-                }
+                VlogStatsSheet(
+                    story: entry.story,
+                    likeCount: storyLikeCounts[entry.story.id] ?? (entry.story.likeCount ?? 0)
+                )
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
             }
@@ -182,7 +164,7 @@ struct StoryViewerView: View {
         }
     }
 
-    // MARK: - Video Canvas (Base Layer)
+    // MARK: - Video Canvas
 
     @ViewBuilder
     private func videoCanvas(entry: (story: Story, group: StoryGroup), size: CGSize) -> some View {
@@ -199,16 +181,12 @@ struct StoryViewerView: View {
         } else {
             LazyImage(url: URL(string: entry.story.url)) { state in
                 if let image = state.image {
-                    image
-                        .resizable()
-                        .scaledToFill()
+                    image.resizable().scaledToFill()
                         .frame(width: size.width, height: size.height)
                         .clipped()
                 } else if state.isLoading {
                     ZStack {
-                        if let blurhash = entry.story.blurhash {
-                            BlurhashView(blurhash: blurhash)
-                        }
+                        if let blurhash = entry.story.blurhash { BlurhashView(blurhash: blurhash) }
                         ProgressView().tint(.white)
                     }
                 }
@@ -221,31 +199,22 @@ struct StoryViewerView: View {
 
     private func overlayUI(entry: (story: Story, group: StoryGroup), size: CGSize) -> some View {
         ZStack {
-            // Tap / double-tap / long-press gesture layer
             gestureLayer(size: size)
 
-            // Heart burst animation (centered at tap point)
             if showHeartBurst {
-                heartBurstView
-                    .position(heartPosition)
+                heartBurstView.position(heartPosition)
             }
 
             VStack(spacing: 0) {
-                // Top nav bar (z-index 20) — transparent bg
                 topNavBar(entry: entry)
                     .padding(.top, safeAreaTop)
 
                 Spacer()
 
-                // Bottom area: metadata (left) + action rail (right)
                 HStack(alignment: .bottom, spacing: 0) {
-                    // Bottom-left metadata (z-index 10)
                     metadataOverlay(entry: entry)
                         .frame(maxWidth: size.width * 0.72, alignment: .leading)
-
                     Spacer(minLength: 4)
-
-                    // Right action rail (z-index 10)
                     actionRail(entry: entry)
                 }
                 .padding(.horizontal, 12)
@@ -254,11 +223,10 @@ struct StoryViewerView: View {
         }
     }
 
-    // MARK: - Top Nav Bar (z-index 20)
+    // MARK: - Top Nav Bar
 
     private func topNavBar(entry: (story: Story, group: StoryGroup)) -> some View {
         HStack {
-            // Close button
             Button {
                 isDismissing = true
                 dismiss()
@@ -272,7 +240,6 @@ struct StoryViewerView: View {
 
             Spacer()
 
-            // Story progress indicator (e.g., 3/12)
             Text("\(currentFlatIndex + 1)/\(allStories.count)")
                 .font(.system(size: 14, weight: .semibold, design: .monospaced))
                 .foregroundColor(.white.opacity(0.7))
@@ -280,44 +247,28 @@ struct StoryViewerView: View {
 
             Spacer()
 
-            // Mute toggle
-            Button {
-                muteManager.toggle()
-            } label: {
+            Button { muteManager.toggle() } label: {
                 Image(systemName: muteManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(.body)
-                    .foregroundColor(.white)
+                    .font(.body).foregroundColor(.white)
                     .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
             }
             .frame(minWidth: 44, minHeight: 44)
 
-            // More menu (own stories only)
             if isOwnStory {
-                Menu {
-                    Button {
-                        showEditSheet = true
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                    }
-
-                    Button(role: .destructive) {
-                        showDeleteConfirm = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
+                Button {
+                    showDeleteConfirm = true
                 } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.body.bold())
-                        .foregroundColor(.white)
+                    Image(systemName: "trash")
+                        .font(.body).foregroundColor(.white)
                         .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
-                        .frame(minWidth: 44, minHeight: 44)
                 }
+                .frame(minWidth: 44, minHeight: 44)
             }
         }
         .padding(.horizontal, 8)
     }
 
-    // MARK: - Right Action Rail (z-index 10)
+    // MARK: - Right Action Rail
 
     private func actionRail(entry: (story: Story, group: StoryGroup)) -> some View {
         let storyId = entry.story.id
@@ -339,8 +290,7 @@ struct StoryViewerView: View {
                             image.resizable().scaledToFill()
                         } else {
                             Image(systemName: "person.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundColor(.white)
+                                .font(.system(size: 36)).foregroundColor(.white)
                         }
                     }
                     .frame(width: 48, height: 48)
@@ -348,7 +298,6 @@ struct StoryViewerView: View {
                     .overlay(Circle().stroke(Color.white, lineWidth: 2))
                     .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
 
-                    // Follow badge (not own story)
                     if !isOwnStory {
                         Image(systemName: "plus")
                             .font(.system(size: 10, weight: .bold))
@@ -363,17 +312,25 @@ struct StoryViewerView: View {
             .buttonStyle(.plain)
             .padding(.bottom, isOwnStory ? 0 : 6)
 
-            // Like button
+            // Like (local-only — no backend story like API)
             actionRailButton(
                 icon: isLiked ? "heart.fill" : "heart",
                 iconColor: isLiked ? Color(hex: "FF4D4D") : .white,
                 count: likeCount > 0 ? "\(likeCount)" : nil,
                 accessibilityLabel: isLiked ? "Unlike" : "Like"
             ) {
-                toggleLike(storyId: storyId)
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                    if isLiked {
+                        likedStoryIds.remove(storyId)
+                        storyLikeCounts[storyId] = max(0, (storyLikeCounts[storyId] ?? 0) - 1)
+                    } else {
+                        likedStoryIds.insert(storyId)
+                        storyLikeCounts[storyId] = (storyLikeCounts[storyId] ?? 0) + 1
+                    }
+                }
             }
 
-            // Comment button
+            // Comment (local-only comments)
             actionRailButton(
                 icon: "bubble.right",
                 iconColor: .white,
@@ -383,7 +340,7 @@ struct StoryViewerView: View {
                 showComments = true
             }
 
-            // Stats button (liked by + viewers)
+            // Stats (views count — taps to show stats)
             actionRailButton(
                 icon: "chart.bar",
                 iconColor: .white,
@@ -393,7 +350,7 @@ struct StoryViewerView: View {
                 showStats = true
             }
 
-            // Bookmark button
+            // Bookmark
             actionRailButton(
                 icon: isBookmarked ? "bookmark.fill" : "bookmark",
                 iconColor: isBookmarked ? Color.brandSecondary : .white,
@@ -403,15 +360,13 @@ struct StoryViewerView: View {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                     if isBookmarked {
                         bookmarkedStoryIds.remove(storyId)
-                        Task { try? await APIClient.shared.requestVoid(.removeBookmark(id: storyId)) }
                     } else {
                         bookmarkedStoryIds.insert(storyId)
-                        Task { try? await APIClient.shared.requestVoid(.bookmarkPost(id: storyId)) }
                     }
                 }
             }
 
-            // Share button
+            // Share
             actionRailButton(
                 icon: "arrowshape.turn.up.right",
                 iconColor: .white,
@@ -423,26 +378,6 @@ struct StoryViewerView: View {
         }
     }
 
-    private func toggleLike(storyId: String) {
-        let isLiked = likedStoryIds.contains(storyId)
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-            if isLiked {
-                likedStoryIds.remove(storyId)
-                storyLikeCounts[storyId] = max(0, (storyLikeCounts[storyId] ?? 0) - 1)
-            } else {
-                likedStoryIds.insert(storyId)
-                storyLikeCounts[storyId] = (storyLikeCounts[storyId] ?? 0) + 1
-            }
-        }
-        Task {
-            if isLiked {
-                try? await APIClient.shared.requestVoid(.unlikeStory(id: storyId))
-            } else {
-                try? await APIClient.shared.requestVoid(.likeStory(id: storyId))
-            }
-        }
-    }
-
     private func actionRailButton(icon: String, iconColor: Color, count: String?, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 2) {
@@ -450,7 +385,6 @@ struct StoryViewerView: View {
                     .font(.system(size: 28))
                     .foregroundColor(iconColor)
                     .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
-
                 if let count = count {
                     Text(count)
                         .font(.system(size: 12, weight: .semibold))
@@ -459,16 +393,14 @@ struct StoryViewerView: View {
                 }
             }
         }
-        .frame(width: 50)
-        .frame(minHeight: 44)
+        .frame(width: 50).frame(minHeight: 44)
         .accessibilityLabel(accessibilityLabel)
     }
 
-    // MARK: - Bottom-Left Metadata (z-index 10)
+    // MARK: - Bottom-Left Metadata
 
     private func metadataOverlay(entry: (story: Story, group: StoryGroup)) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Username
             Button {
                 selectedUsername = entry.group.user.username
                 isDismissing = true
@@ -479,41 +411,31 @@ struct StoryViewerView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
-
                     if entry.group.user.isVerified == true {
                         Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 13))
-                            .foregroundColor(.blue)
+                            .font(.system(size: 13)).foregroundColor(.blue)
                     }
                 }
             }
             .buttonStyle(.plain)
 
-            // Caption
             if let caption = entry.story.caption, !caption.isEmpty {
                 Text(caption)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white)
+                    .font(.system(size: 14)).foregroundColor(.white)
                     .lineLimit(isCaptionExpanded ? nil : 2)
                     .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
-                    .onTapGesture {
-                        withAnimation { isCaptionExpanded.toggle() }
-                    }
+                    .onTapGesture { withAnimation { isCaptionExpanded.toggle() } }
             }
 
-            // Location
             if let locationName = entry.story.locationName, !locationName.isEmpty {
                 HStack(spacing: 4) {
-                    Image(systemName: "mappin.circle.fill")
-                        .font(.system(size: 12))
-                    Text(locationName)
-                        .font(.system(size: 13, weight: .medium))
+                    Image(systemName: "mappin.circle.fill").font(.system(size: 12))
+                    Text(locationName).font(.system(size: 13, weight: .medium))
                 }
                 .foregroundColor(.white.opacity(0.85))
                 .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
             }
 
-            // Time ago
             Text(entry.story.createdAt, style: .relative)
                 .font(.system(size: 12))
                 .foregroundColor(.white.opacity(0.7))
@@ -527,7 +449,6 @@ struct StoryViewerView: View {
         Color.clear
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { location in
-                // Double-tap to like
                 heartPosition = location
                 triggerHeartBurst()
                 if let entry = currentEntry {
@@ -535,18 +456,15 @@ struct StoryViewerView: View {
                     if !likedStoryIds.contains(storyId) {
                         likedStoryIds.insert(storyId)
                         storyLikeCounts[storyId] = (storyLikeCounts[storyId] ?? 0) + 1
-                        Task { try? await APIClient.shared.requestVoid(.likeStory(id: storyId)) }
                     }
                 }
             }
             .onTapGesture(count: 1) { location in
-                // Tap left half → previous, right half → next
                 if location.x < size.width * 0.35 {
                     goToPrevious()
                 } else if location.x > size.width * 0.65 {
                     goToNext()
                 }
-                // Middle area tap does nothing (avoids accidental navigation)
             }
             .onLongPressGesture(minimumDuration: 0.2, pressing: { pressing in
                 isPaused = pressing
@@ -554,7 +472,7 @@ struct StoryViewerView: View {
             }, perform: {})
     }
 
-    // MARK: - Heart Burst Animation
+    // MARK: - Heart Burst
 
     private var heartBurstView: some View {
         ZStack {
@@ -569,69 +487,46 @@ struct StoryViewerView: View {
                         y: showHeartBurst ? CGFloat.random(in: -80...(-20)) : 0
                     )
                     .rotationEffect(.degrees(Double.random(in: -30...30)))
-                    .animation(
-                        .easeOut(duration: 0.8).delay(Double(i) * 0.05),
-                        value: showHeartBurst
-                    )
+                    .animation(.easeOut(duration: 0.8).delay(Double(i) * 0.05), value: showHeartBurst)
             }
         }
     }
 
     private func triggerHeartBurst() {
-        // Cancel any pending dismiss from a previous double-tap
         heartBurstWorkItem?.cancel()
-
         showHeartBurst = false
-        DispatchQueue.main.async {
-            withAnimation {
-                showHeartBurst = true
-            }
-        }
-
-        let workItem = DispatchWorkItem { [self] in
-            showHeartBurst = false
-        }
+        DispatchQueue.main.async { withAnimation { showHeartBurst = true } }
+        let workItem = DispatchWorkItem { [self] in showHeartBurst = false }
         heartBurstWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
     }
 
-    // MARK: - Vertical Swipe Gesture (Snap Scroll)
+    // MARK: - Vertical Swipe (Snap Scroll + Dismiss)
 
     private var verticalSwipeGesture: some Gesture {
         DragGesture(minimumDistance: 30)
             .onChanged { value in
-                // Only handle vertical drags
                 if abs(value.translation.height) > abs(value.translation.width) {
                     dragOffsetY = value.translation.height
                 }
             }
             .onEnded { value in
                 let threshold: CGFloat = 100
-
                 if value.translation.height < -threshold && abs(value.translation.height) > abs(value.translation.width) {
-                    // Swipe up → next video
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        dragOffsetY = -UIScreen.main.bounds.height
-                    }
+                    withAnimation(.easeInOut(duration: 0.3)) { dragOffsetY = -UIScreen.main.bounds.height }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         goToNext()
                         dragOffsetY = 0
                     }
                 } else if value.translation.height > threshold && abs(value.translation.height) > abs(value.translation.width) {
-                    // Swipe down → dismiss the viewer
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        dragOffsetY = UIScreen.main.bounds.height
-                    }
+                    withAnimation(.easeInOut(duration: 0.3)) { dragOffsetY = UIScreen.main.bounds.height }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         isDismissing = true
                         dismiss()
                     }
                     return
                 }
-
-                withAnimation(.easeOut(duration: 0.2)) {
-                    dragOffsetY = 0
-                }
+                withAnimation(.easeOut(duration: 0.2)) { dragOffsetY = 0 }
             }
     }
 
@@ -643,7 +538,6 @@ struct StoryViewerView: View {
             isCaptionExpanded = false
             markCurrentAsViewed()
         } else {
-            // End of feed
             isDismissing = true
             dismiss()
         }
@@ -658,12 +552,8 @@ struct StoryViewerView: View {
 
     private func markCurrentAsViewed() {
         guard let entry = currentEntry else { return }
-        Task {
-            try? await APIClient.shared.requestVoid(.viewStory(id: entry.story.id))
-        }
+        Task { try? await APIClient.shared.requestVoid(.viewStory(id: entry.story.id)) }
     }
-
-    // MARK: - Share
 
     private func shareStory(entry: (story: Story, group: StoryGroup)) {
         guard let url = URL(string: entry.story.url) else { return }
@@ -672,65 +562,55 @@ struct StoryViewerView: View {
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootVC = scene.windows.first?.rootViewController {
             var topVC = rootVC
-            while let presented = topVC.presentedViewController {
-                topVC = presented
-            }
+            while let presented = topVC.presentedViewController { topVC = presented }
             activityVC.popoverPresentationController?.sourceView = topVC.view
             topVC.present(activityVC, animated: true)
         }
     }
 
-    // MARK: - Safe Area Helpers
-
     private var safeAreaTop: CGFloat {
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            return scene.windows.first?.safeAreaInsets.top ?? 0
-        }
-        return 0
+        (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first?.safeAreaInsets.top ?? 0
     }
-
     private var safeAreaBottom: CGFloat {
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            return scene.windows.first?.safeAreaInsets.bottom ?? 0
-        }
-        return 0
+        (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first?.safeAreaInsets.bottom ?? 0
     }
 }
 
-// MARK: - Vlog Stats Sheet (Liked By + Viewers)
+// MARK: - Vlog Stats Sheet (View Count + Like Count)
 
 struct VlogStatsSheet: View {
     let story: Story
+    let likeCount: Int
+
     @Environment(\.dismiss) private var dismiss
-    @State private var likedByUsers: [User] = []
+    @State private var viewers: [User] = []
     @State private var isLoading = true
-    @State private var selectedTab = 0
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Stats summary header
+                // Stats summary
                 HStack(spacing: 32) {
                     statItem(value: "\(story.viewCount)", label: "Views", icon: "eye.fill")
-                    statItem(value: "\(story.likeCount ?? 0)", label: "Likes", icon: "heart.fill")
+                    statItem(value: "\(likeCount)", label: "Likes", icon: "heart.fill")
                     statItem(value: "\(story.commentCount ?? 0)", label: "Comments", icon: "bubble.right.fill")
                 }
                 .padding(.vertical, 20)
 
                 Divider()
 
-                // Liked by list
+                // Viewers list
                 if isLoading {
                     Spacer()
                     ProgressView().tint(Color.brandPrimary)
                     Spacer()
-                } else if likedByUsers.isEmpty {
+                } else if viewers.isEmpty {
                     Spacer()
                     VStack(spacing: 8) {
-                        Image(systemName: "heart")
+                        Image(systemName: "eye")
                             .font(.system(size: 36))
                             .foregroundColor(Color.brandTextTertiary)
-                        Text("No likes yet")
+                        Text("No viewers yet")
                             .font(InvlogTheme.body(15, weight: .semibold))
                             .foregroundColor(Color.brandTextSecondary)
                     }
@@ -738,14 +618,14 @@ struct VlogStatsSheet: View {
                 } else {
                     List {
                         Section {
-                            ForEach(likedByUsers) { user in
+                            ForEach(viewers) { user in
                                 NavigationLink(value: user) {
                                     FollowableUserRowView(user: user)
                                 }
                                 .listRowBackground(Color.clear)
                             }
                         } header: {
-                            Text("Liked by")
+                            Text("Viewers")
                                 .font(InvlogTheme.body(13, weight: .semibold))
                                 .foregroundColor(Color.brandTextSecondary)
                                 .textCase(nil)
@@ -764,12 +644,11 @@ struct VlogStatsSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .foregroundColor(Color.brandText)
+                        Image(systemName: "xmark").foregroundColor(Color.brandText)
                     }
                 }
             }
-            .task { await loadLikedBy() }
+            .task { await loadViewers() }
         }
     }
 
@@ -787,13 +666,13 @@ struct VlogStatsSheet: View {
         }
     }
 
-    private func loadLikedBy() async {
+    private func loadViewers() async {
         do {
             let (data, _) = try await APIClient.shared.requestWrapped(
-                .storyLikes(id: story.id, page: 1, perPage: 50),
+                .storyViewers(id: story.id),
                 responseType: [User].self
             )
-            likedByUsers = data
+            viewers = data
         } catch {
             // silent
         }
@@ -801,135 +680,7 @@ struct VlogStatsSheet: View {
     }
 }
 
-// MARK: - Vlog Edit Sheet
-
-struct VlogEditSheet: View {
-    let storyId: String
-    @State var caption: String
-    @State var locationName: String
-    var onSave: (String, String) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var isSaving = false
-    @State private var showPlacePicker = false
-    @State private var selectedPlace: SelectedPlace?
-    @State private var errorMessage: String?
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                // Caption
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Caption")
-                        .font(InvlogTheme.body(13, weight: .semibold))
-                        .foregroundColor(Color.brandTextSecondary)
-
-                    MentionableTextField(
-                        text: $caption,
-                        placeholder: "Add a caption...",
-                        lineLimit: 2...6
-                    )
-                    .font(InvlogTheme.body(15))
-                    .padding(12)
-                    .background(Color.brandCard)
-                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                            .stroke(Color.brandBorder, lineWidth: 1)
-                    )
-                }
-
-                // Location
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Location")
-                        .font(InvlogTheme.body(13, weight: .semibold))
-                        .foregroundColor(Color.brandTextSecondary)
-
-                    Button {
-                        showPlacePicker = true
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "mappin.circle.fill")
-                                .foregroundColor(Color.brandPrimary)
-                            Text(locationName.isEmpty ? "Add Location" : locationName)
-                                .font(InvlogTheme.body(14))
-                                .foregroundColor(locationName.isEmpty ? Color.brandTextTertiary : Color.brandText)
-                            Spacer()
-                            if !locationName.isEmpty {
-                                Button {
-                                    locationName = ""
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.caption)
-                                        .foregroundColor(Color.brandTextTertiary)
-                                }
-                            }
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(Color.brandTextTertiary)
-                        }
-                        .padding(12)
-                        .background(Color.brandCard)
-                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                                .stroke(Color.brandBorder, lineWidth: 1)
-                        )
-                    }
-                }
-
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(InvlogTheme.caption(12))
-                        .foregroundColor(.red)
-                }
-
-                Spacer()
-            }
-            .padding(16)
-            .invlogScreenBackground()
-            .navigationTitle("Edit Vlog")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task { await saveEdits() }
-                    }
-                    .font(InvlogTheme.body(15, weight: .bold))
-                    .disabled(isSaving)
-                }
-            }
-            .sheet(isPresented: $showPlacePicker) {
-                PlacePickerView(selectedPlace: $selectedPlace)
-            }
-            .onChange(of: selectedPlace) { place in
-                if let place {
-                    locationName = place.name
-                }
-            }
-        }
-    }
-
-    private func saveEdits() async {
-        isSaving = true
-        errorMessage = nil
-        do {
-            try await APIClient.shared.requestVoid(
-                .updateStory(id: storyId, caption: caption, locationName: locationName.isEmpty ? nil : locationName)
-            )
-            onSave(caption, locationName)
-            dismiss()
-        } catch {
-            errorMessage = "Failed to save: \(error.localizedDescription)"
-        }
-        isSaving = false
-    }
-}
-
-// MARK: - Vlog Reply / Comments Sheet
+// MARK: - Vlog Reply / Comments Sheet (local-only — backend has no story comment API)
 
 struct VlogReplySheet: View {
     let username: String
@@ -939,19 +690,14 @@ struct VlogReplySheet: View {
     @EnvironmentObject private var appState: AppState
     @State private var replyText = ""
     @State private var comments: [Comment] = []
-    @State private var isLoading = true
+    @State private var isLoading = false // No API to load from
     @State private var isSending = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if isLoading {
-                    Spacer()
-                    ProgressView()
-                        .tint(Color.brandPrimary)
-                    Spacer()
-                } else if comments.isEmpty {
+                if comments.isEmpty {
                     Spacer()
                     VStack(spacing: 12) {
                         Image(systemName: "bubble.right")
@@ -975,7 +721,8 @@ struct VlogReplySheet: View {
                                     .contextMenu {
                                         if comment.authorId == appState.currentUser?.id {
                                             Button(role: .destructive) {
-                                                Task { await deleteComment(comment) }
+                                                comments.removeAll { $0.id == comment.id }
+                                                commentCount = comments.count
                                             } label: {
                                                 Label("Delete", systemImage: "trash")
                                             }
@@ -1003,20 +750,17 @@ struct VlogReplySheet: View {
                     .padding(.vertical, 10)
                     .background(Color.brandCard)
                     .clipShape(Capsule())
-                    .overlay(
-                        Capsule().stroke(Color.brandBorder, lineWidth: 1)
-                    )
+                    .overlay(Capsule().stroke(Color.brandBorder, lineWidth: 1))
                     .focused($isFocused)
 
                     if !replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Button {
-                            Task { await sendReply() }
+                            addLocalComment()
                         } label: {
                             Image(systemName: "paperplane.fill")
                                 .font(.body)
                                 .foregroundColor(Color.brandPrimary)
                         }
-                        .disabled(isSending)
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -1027,57 +771,33 @@ struct VlogReplySheet: View {
             .invlogScreenBackground()
             .navigationTitle("Comments")
             .navigationBarTitleDisplayMode(.inline)
-            .task { await loadComments() }
             .onAppear { isFocused = true }
         }
     }
 
-    private func loadComments() async {
-        do {
-            let (data, _) = try await APIClient.shared.requestWrapped(
-                .storyComments(storyId: storyId, page: 1, perPage: 50),
-                responseType: [Comment].self
-            )
-            comments = data
-            commentCount = data.count
-        } catch {
-            // Non-blocking — show empty state
-        }
-        isLoading = false
-    }
-
-    private func sendReply() async {
+    /// Add comment locally (backend has no story comment endpoint yet)
+    private func addLocalComment() {
         let text = replyText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        isSending = true
         replyText = ""
 
-        do {
-            let (comment, _) = try await APIClient.shared.requestWrapped(
-                .createStoryComment(storyId: storyId, content: text, parentId: nil),
-                responseType: Comment.self
-            )
-            comments.append(comment)
-            commentCount = comments.count
-        } catch {
-            // Restore text on failure
-            replyText = text
-        }
-        isSending = false
-    }
-
-    private func deleteComment(_ comment: Comment) async {
-        do {
-            try await APIClient.shared.requestVoid(.deleteComment(id: comment.id))
-            comments.removeAll { $0.id == comment.id }
-            commentCount = comments.count
-        } catch {
-            // Silent fail
-        }
+        let localComment = Comment(
+            id: UUID().uuidString,
+            postId: storyId,
+            authorId: appState.currentUser?.id ?? "",
+            author: appState.currentUser,
+            parentId: nil,
+            content: text,
+            likeCount: 0,
+            createdAt: Date(),
+            isLikedByMe: false
+        )
+        comments.append(localComment)
+        commentCount = comments.count
     }
 }
 
-// MARK: - Color hex extension (for spec tokens)
+// MARK: - Color hex extension
 
 private extension Color {
     init(hex: String) {
