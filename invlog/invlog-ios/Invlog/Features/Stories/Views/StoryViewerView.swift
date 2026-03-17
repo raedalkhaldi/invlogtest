@@ -28,6 +28,8 @@ struct StoryViewerView: View {
     // Action rail state
     @State private var likedStoryIds: Set<String> = []
     @State private var bookmarkedStoryIds: Set<String> = []
+    @State private var storyLikeCounts: [String: Int] = [:]
+    @State private var storyCommentCounts: [String: Int] = [:]
 
     // Sound
     @ObservedObject private var muteManager = VideoMuteManager.shared
@@ -126,14 +128,18 @@ struct StoryViewerView: View {
         .sheet(isPresented: $showComments) {
             VlogReplySheet(
                 username: currentEntry?.group.user.username ?? "",
-                storyId: currentEntry?.story.id ?? ""
+                storyId: currentEntry?.story.id ?? "",
+                commentCount: Binding(
+                    get: { storyCommentCounts[currentEntry?.story.id ?? ""] ?? 0 },
+                    set: { storyCommentCounts[currentEntry?.story.id ?? ""] = $0 }
+                )
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showLikedBy) {
             if let entry = currentEntry {
-                LikedBySheet(postId: entry.story.id)
+                LikedBySheet(postId: entry.story.id, isStory: true)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
@@ -271,6 +277,8 @@ struct StoryViewerView: View {
         let storyId = entry.story.id
         let isLiked = likedStoryIds.contains(storyId)
         let isBookmarked = bookmarkedStoryIds.contains(storyId)
+        let likeCount = storyLikeCounts[storyId] ?? entry.story.viewCount
+        let commentCount = storyCommentCounts[storyId] ?? 0
 
         return VStack(spacing: 20) {
             // Creator avatar
@@ -313,24 +321,18 @@ struct StoryViewerView: View {
             actionRailButton(
                 icon: isLiked ? "heart.fill" : "heart",
                 iconColor: isLiked ? Color(hex: "FF4D4D") : .white,
-                count: entry.story.viewCount > 0 ? "\(entry.story.viewCount)" : nil,
+                count: likeCount > 0 ? "\(likeCount)" : nil,
                 accessibilityLabel: isLiked ? "Unlike" : "Like",
                 onLongPress: { showLikedBy = true }
             ) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-                    if isLiked {
-                        likedStoryIds.remove(storyId)
-                    } else {
-                        likedStoryIds.insert(storyId)
-                    }
-                }
+                toggleLike(storyId: storyId)
             }
 
             // Comment button
             actionRailButton(
                 icon: "bubble.right",
                 iconColor: .white,
-                count: nil,
+                count: commentCount > 0 ? "\(commentCount)" : nil,
                 accessibilityLabel: "Comments"
             ) {
                 showComments = true
@@ -346,8 +348,10 @@ struct StoryViewerView: View {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                     if isBookmarked {
                         bookmarkedStoryIds.remove(storyId)
+                        Task { try? await APIClient.shared.requestVoid(.removeBookmark(id: storyId)) }
                     } else {
                         bookmarkedStoryIds.insert(storyId)
+                        Task { try? await APIClient.shared.requestVoid(.bookmarkPost(id: storyId)) }
                     }
                 }
             }
@@ -360,6 +364,26 @@ struct StoryViewerView: View {
                 accessibilityLabel: "Share"
             ) {
                 shareStory(entry: entry)
+            }
+        }
+    }
+
+    private func toggleLike(storyId: String) {
+        let isLiked = likedStoryIds.contains(storyId)
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+            if isLiked {
+                likedStoryIds.remove(storyId)
+                storyLikeCounts[storyId] = max(0, (storyLikeCounts[storyId] ?? 0) - 1)
+            } else {
+                likedStoryIds.insert(storyId)
+                storyLikeCounts[storyId] = (storyLikeCounts[storyId] ?? 0) + 1
+            }
+        }
+        Task {
+            if isLiked {
+                try? await APIClient.shared.requestVoid(.unlikeStory(id: storyId))
+            } else {
+                try? await APIClient.shared.requestVoid(.likeStory(id: storyId))
             }
         }
     }
@@ -468,7 +492,12 @@ struct StoryViewerView: View {
                 heartPosition = location
                 triggerHeartBurst()
                 if let entry = currentEntry {
-                    likedStoryIds.insert(entry.story.id)
+                    let storyId = entry.story.id
+                    if !likedStoryIds.contains(storyId) {
+                        likedStoryIds.insert(storyId)
+                        storyLikeCounts[storyId] = (storyLikeCounts[storyId] ?? 0) + 1
+                        Task { try? await APIClient.shared.requestVoid(.likeStory(id: storyId)) }
+                    }
                 }
             }
             .onTapGesture(count: 1) { location in
@@ -550,21 +579,15 @@ struct StoryViewerView: View {
                         dragOffsetY = 0
                     }
                 } else if value.translation.height > threshold && abs(value.translation.height) > abs(value.translation.width) {
-                    // Swipe down → previous video
+                    // Swipe down → dismiss the viewer
                     withAnimation(.easeInOut(duration: 0.3)) {
                         dragOffsetY = UIScreen.main.bounds.height
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        goToPrevious()
-                        dragOffsetY = 0
-                    }
-                } else if value.translation.height > 150 && abs(value.translation.width) < 50 {
-                    // Pull down to dismiss (only when at first story)
-                    if currentFlatIndex == 0 {
                         isDismissing = true
                         dismiss()
-                        return
                     }
+                    return
                 }
 
                 withAnimation(.easeOut(duration: 0.2)) {
@@ -640,6 +663,7 @@ struct StoryViewerView: View {
 struct VlogReplySheet: View {
     let username: String
     let storyId: String
+    @Binding var commentCount: Int
 
     @EnvironmentObject private var appState: AppState
     @State private var replyText = ""
@@ -744,6 +768,7 @@ struct VlogReplySheet: View {
                 responseType: [Comment].self
             )
             comments = data
+            commentCount = data.count
         } catch {
             // Non-blocking — show empty state
         }
@@ -762,6 +787,7 @@ struct VlogReplySheet: View {
                 responseType: Comment.self
             )
             comments.append(comment)
+            commentCount = comments.count
         } catch {
             // Restore text on failure
             replyText = text
@@ -773,6 +799,7 @@ struct VlogReplySheet: View {
         do {
             try await APIClient.shared.requestVoid(.deleteComment(id: comment.id))
             comments.removeAll { $0.id == comment.id }
+            commentCount = comments.count
         } catch {
             // Silent fail
         }

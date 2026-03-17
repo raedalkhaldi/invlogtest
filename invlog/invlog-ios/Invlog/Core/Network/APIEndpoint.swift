@@ -39,9 +39,12 @@ enum APIEndpoint {
     case unlikeComment(id: String)
     case postLikes(id: String, page: Int, perPage: Int)
 
-    // Story Comments
+    // Story Comments & Likes (reuse post endpoints)
     case storyComments(storyId: String, page: Int, perPage: Int)
     case createStoryComment(storyId: String, content: String, parentId: String?)
+    case likeStory(id: String)
+    case unlikeStory(id: String)
+    case storyLikes(id: String, page: Int, perPage: Int)
 
     // Follows
     case followUser(id: String)
@@ -139,7 +142,7 @@ enum APIEndpoint {
              .createTrip, .addTripStop, .reorderTripStops,
              .inviteCollaborator, .cloneTrip,
              .avatarPresign,
-             .createStoryComment:
+             .createStoryComment, .likeStory:
             return .post
         case .updateProfile, .updatePost, .updateComment, .updateRestaurant,
              .markNotificationRead, .markAllNotificationsRead,
@@ -148,7 +151,7 @@ enum APIEndpoint {
             return .patch
         case .deleteAccount, .deletePost, .deleteComment,
              .unlikePost, .unlikeComment, .unfollowUser, .unfollowRestaurant, .unblockUser,
-             .removeBookmark, .deleteStory,
+             .removeBookmark, .deleteStory, .unlikeStory,
              .deleteTrip, .removeTripStop, .removeCollaborator:
             return .delete
         default:
@@ -189,9 +192,12 @@ enum APIEndpoint {
         case .unlikeComment(let id): return "/comments/\(id)/like"
         case .postLikes(let id, _, _): return "/posts/\(id)/likes"
 
-        // Story Comments
-        case .storyComments(let storyId, _, _): return "/stories/\(storyId)/comments"
-        case .createStoryComment(let storyId, _, _): return "/stories/\(storyId)/comments"
+        // Story Comments & Likes (reuse post endpoints — unified content system)
+        case .storyComments(let storyId, _, _): return "/posts/\(storyId)/comments"
+        case .createStoryComment(let storyId, _, _): return "/posts/\(storyId)/comments"
+        case .likeStory(let id): return "/posts/\(id)/like"
+        case .unlikeStory(let id): return "/posts/\(id)/like"
+        case .storyLikes(let id, _, _): return "/posts/\(id)/likes"
 
         // Follows
         case .followUser(let id): return "/users/\(id)/follow"
@@ -296,7 +302,8 @@ enum APIEndpoint {
              .followers(_, let page, let perPage), .following(_, let page, let perPage),
              .restaurantCheckins(_, let page, let perPage), .restaurantPosts(_, let page, let perPage), .userCheckins(_, let page, let perPage),
              .postLikes(_, let page, let perPage),
-             .storyComments(_, let page, let perPage):
+             .storyComments(_, let page, let perPage),
+             .storyLikes(_, let page, let perPage):
             return [
                 URLQueryItem(name: "page", value: "\(page)"),
                 URLQueryItem(name: "perPage", value: "\(perPage)"),

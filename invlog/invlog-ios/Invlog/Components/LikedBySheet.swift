@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LikedBySheet: View {
     let postId: String
+    var isStory: Bool = false
 
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
@@ -77,11 +78,23 @@ struct LikedBySheet: View {
         }
     }
 
+    private var likesEndpoint: APIEndpoint {
+        isStory
+            ? .storyLikes(id: postId, page: 1, perPage: perPage)
+            : .postLikes(id: postId, page: 1, perPage: perPage)
+    }
+
+    private func likesEndpointForPage(_ page: Int) -> APIEndpoint {
+        isStory
+            ? .storyLikes(id: postId, page: page, perPage: perPage)
+            : .postLikes(id: postId, page: page, perPage: perPage)
+    }
+
     private func loadLikes() async {
         isLoading = true
         do {
             let (data, _) = try await APIClient.shared.requestWrapped(
-                .postLikes(id: postId, page: 1, perPage: perPage),
+                likesEndpointForPage(1),
                 responseType: [User].self
             )
             users = data
@@ -97,7 +110,7 @@ struct LikedBySheet: View {
         currentPage += 1
         do {
             let (data, _) = try await APIClient.shared.requestWrapped(
-                .postLikes(id: postId, page: currentPage, perPage: perPage),
+                likesEndpointForPage(currentPage),
                 responseType: [User].self
             )
             users.append(contentsOf: data)
