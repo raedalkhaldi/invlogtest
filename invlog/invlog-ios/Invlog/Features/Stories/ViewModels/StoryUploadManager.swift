@@ -57,6 +57,12 @@ final class StoryUploadManager: ObservableObject {
                 // Backend only accepts mediaId — caption/content/locationName cause 400
                 try await APIClient.shared.requestVoid(.createStory(mediaId: mediaId))
 
+                // Save caption locally since backend doesn't store it
+                if let caption = caption, !caption.isEmpty {
+                    // We'll save with mediaId as key; the feed refresh will match by recency
+                    StoryCaptionCache.shared.saveForLatest(caption: caption)
+                }
+
                 status = .completed
                 NotificationCenter.default.post(name: .didCreateStory, object: nil)
 

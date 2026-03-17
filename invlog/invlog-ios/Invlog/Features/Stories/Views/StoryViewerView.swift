@@ -31,6 +31,12 @@ struct StoryViewerView: View {
     @State private var storyLikeCounts: [String: Int] = [:]
     @State private var storyCommentCounts: [String: Int] = [:]
 
+    // Persistent local comments per story (keyed by story ID)
+    @State private var storyComments: [String: [Comment]] = [:]
+
+    // Local "liked by" tracking (usernames of people who liked each story)
+    @State private var storyLikedByUsers: [String: [User]] = [:]
+
     // Sound
     @ObservedObject private var muteManager = VideoMuteManager.shared
 
@@ -124,24 +130,40 @@ struct StoryViewerView: View {
             Text("Are you sure you want to delete this vlog?")
         }
         .sheet(isPresented: $showComments) {
-            VlogReplySheet(
-                username: currentEntry?.group.user.username ?? "",
-                storyId: currentEntry?.story.id ?? "",
-                commentCount: Binding(
-                    get: { storyCommentCounts[currentEntry?.story.id ?? ""] ?? 0 },
-                    set: { storyCommentCounts[currentEntry?.story.id ?? ""] = $0 }
+            if let entry = currentEntry {
+                let storyId = entry.story.id
+                VlogReplySheet(
+                    username: entry.group.user.username ?? "",
+                    storyId: storyId,
+                    comments: Binding(
+                        get: { storyComments[storyId] ?? [] },
+                        set: { storyComments[storyId] = $0 }
+                    ),
+                    commentCount: Binding(
+                        get: { storyCommentCounts[storyId] ?? 0 },
+                        set: { storyCommentCounts[storyId] = $0 }
+                    ),
+                    onMentionTap: { username in
+                        showComments = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            selectedUsername = username
+                            isDismissing = true
+                            dismiss()
+                        }
+                    }
                 )
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
         }
         .sheet(isPresented: $showStats) {
             if let entry = currentEntry {
                 VlogStatsSheet(
                     story: entry.story,
-                    likeCount: storyLikeCounts[entry.story.id] ?? (entry.story.likeCount ?? 0)
+                    likeCount: storyLikeCounts[entry.story.id] ?? (entry.story.likeCount ?? 0),
+                    localLikedByUsers: storyLikedByUsers[entry.story.id] ?? []
                 )
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
         }
@@ -323,9 +345,19 @@ struct StoryViewerView: View {
                     if isLiked {
                         likedStoryIds.remove(storyId)
                         storyLikeCounts[storyId] = max(0, (storyLikeCounts[storyId] ?? 0) - 1)
+                        // Remove current user from liked-by
+                        storyLikedByUsers[storyId]?.removeAll { $0.id == appState.currentUser?.id }
                     } else {
                         likedStoryIds.insert(storyId)
                         storyLikeCounts[storyId] = (storyLikeCounts[storyId] ?? 0) + 1
+                        // Add current user to liked-by
+                        if let currentUser = appState.currentUser {
+                            var likedUsers = storyLikedByUsers[storyId] ?? []
+                            if !likedUsers.contains(where: { $0.id == currentUser.id }) {
+                                likedUsers.insert(currentUser, at: 0)
+                            }
+                            storyLikedByUsers[storyId] = likedUsers
+                        }
                     }
                 }
             }
@@ -419,12 +451,23 @@ struct StoryViewerView: View {
             }
             .buttonStyle(.plain)
 
-            if let caption = entry.story.caption, !caption.isEmpty {
-                Text(caption)
-                    .font(.system(size: 14)).foregroundColor(.white)
-                    .lineLimit(isCaptionExpanded ? nil : 2)
-                    .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
-                    .onTapGesture { withAnimation { isCaptionExpanded.toggle() } }
+            // Caption with clickable @mentions
+            if let caption = entry.story.caption ?? StoryCaptionCache.shared.caption(for: entry.story.id),
+               !caption.isEmpty {
+                MentionText(
+                    content: caption,
+                    font: .system(size: 14),
+                    color: .white,
+                    mentionColor: Color(hex: "6EB5FF"),
+                    lineLimit: isCaptionExpanded ? nil : 2,
+                    onMentionTap: { username in
+                        selectedUsername = username
+                        isDismissing = true
+                        dismiss()
+                    }
+                )
+                .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                .onTapGesture { withAnimation { isCaptionExpanded.toggle() } }
             }
 
             if let locationName = entry.story.locationName, !locationName.isEmpty {
@@ -456,6 +499,14 @@ struct StoryViewerView: View {
                     if !likedStoryIds.contains(storyId) {
                         likedStoryIds.insert(storyId)
                         storyLikeCounts[storyId] = (storyLikeCounts[storyId] ?? 0) + 1
+                        // Track who liked
+                        if let currentUser = appState.currentUser {
+                            var likedUsers = storyLikedByUsers[storyId] ?? []
+                            if !likedUsers.contains(where: { $0.id == currentUser.id }) {
+                                likedUsers.insert(currentUser, at: 0)
+                            }
+                            storyLikedByUsers[storyId] = likedUsers
+                        }
                     }
                 }
             }
@@ -576,15 +627,55 @@ struct StoryViewerView: View {
     }
 }
 
-// MARK: - Vlog Stats Sheet (View Count + Like Count)
+// MARK: - Local Caption Cache (backend doesn't store captions yet)
+
+final class StoryCaptionCache {
+    static let shared = StoryCaptionCache()
+    private let key = "invlog_story_captions"
+    private let pendingKey = "invlog_story_pending_caption"
+
+    private init() {}
+
+    func save(caption: String, for storyId: String) {
+        var all = allCaptions()
+        all[storyId] = caption
+        UserDefaults.standard.set(all, forKey: key)
+    }
+
+    /// Save a caption to assign to the next story that appears in the feed.
+    /// Called at upload time when we don't know the story ID yet.
+    func saveForLatest(caption: String) {
+        UserDefaults.standard.set(caption, forKey: pendingKey)
+    }
+
+    /// Try to assign the pending caption to a story ID (called when stories load).
+    func assignPendingCaption(to storyId: String) {
+        if let pending = UserDefaults.standard.string(forKey: pendingKey), !pending.isEmpty {
+            save(caption: pending, for: storyId)
+            UserDefaults.standard.removeObject(forKey: pendingKey)
+        }
+    }
+
+    func caption(for storyId: String) -> String? {
+        allCaptions()[storyId]
+    }
+
+    private func allCaptions() -> [String: String] {
+        UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+    }
+}
+
+// MARK: - Vlog Stats Sheet (Who Viewed + Who Liked)
 
 struct VlogStatsSheet: View {
     let story: Story
     let likeCount: Int
+    var localLikedByUsers: [User] = []
 
     @Environment(\.dismiss) private var dismiss
     @State private var viewers: [User] = []
     @State private var isLoading = true
+    @State private var selectedTab = 0 // 0 = viewers, 1 = likes
 
     var body: some View {
         NavigationStack {
@@ -597,42 +688,22 @@ struct VlogStatsSheet: View {
                 }
                 .padding(.vertical, 20)
 
+                // Tab picker: Viewers / Liked by
+                Picker("", selection: $selectedTab) {
+                    Text("Viewers (\(viewers.count))").tag(0)
+                    Text("Liked by (\(localLikedByUsers.count))").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+
                 Divider()
 
-                // Viewers list
-                if isLoading {
-                    Spacer()
-                    ProgressView().tint(Color.brandPrimary)
-                    Spacer()
-                } else if viewers.isEmpty {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Image(systemName: "eye")
-                            .font(.system(size: 36))
-                            .foregroundColor(Color.brandTextTertiary)
-                        Text("No viewers yet")
-                            .font(InvlogTheme.body(15, weight: .semibold))
-                            .foregroundColor(Color.brandTextSecondary)
-                    }
-                    Spacer()
+                // Content based on selected tab
+                if selectedTab == 0 {
+                    viewersList
                 } else {
-                    List {
-                        Section {
-                            ForEach(viewers) { user in
-                                NavigationLink(value: user) {
-                                    FollowableUserRowView(user: user)
-                                }
-                                .listRowBackground(Color.clear)
-                            }
-                        } header: {
-                            Text("Viewers")
-                                .font(InvlogTheme.body(13, weight: .semibold))
-                                .foregroundColor(Color.brandTextSecondary)
-                                .textCase(nil)
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
+                    likedByList
                 }
             }
             .invlogScreenBackground()
@@ -649,6 +720,64 @@ struct VlogStatsSheet: View {
                 }
             }
             .task { await loadViewers() }
+        }
+    }
+
+    @ViewBuilder
+    private var viewersList: some View {
+        if isLoading {
+            Spacer()
+            ProgressView().tint(Color.brandPrimary)
+            Spacer()
+        } else if viewers.isEmpty {
+            Spacer()
+            VStack(spacing: 8) {
+                Image(systemName: "eye")
+                    .font(.system(size: 36))
+                    .foregroundColor(Color.brandTextTertiary)
+                Text("No viewers yet")
+                    .font(InvlogTheme.body(15, weight: .semibold))
+                    .foregroundColor(Color.brandTextSecondary)
+            }
+            Spacer()
+        } else {
+            List {
+                ForEach(viewers) { user in
+                    NavigationLink(value: user) {
+                        FollowableUserRowView(user: user)
+                    }
+                    .listRowBackground(Color.clear)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private var likedByList: some View {
+        if localLikedByUsers.isEmpty {
+            Spacer()
+            VStack(spacing: 8) {
+                Image(systemName: "heart")
+                    .font(.system(size: 36))
+                    .foregroundColor(Color.brandTextTertiary)
+                Text("No likes yet")
+                    .font(InvlogTheme.body(15, weight: .semibold))
+                    .foregroundColor(Color.brandTextSecondary)
+            }
+            Spacer()
+        } else {
+            List {
+                ForEach(localLikedByUsers) { user in
+                    NavigationLink(value: user) {
+                        FollowableUserRowView(user: user)
+                    }
+                    .listRowBackground(Color.clear)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
     }
 
@@ -685,13 +814,12 @@ struct VlogStatsSheet: View {
 struct VlogReplySheet: View {
     let username: String
     let storyId: String
+    @Binding var comments: [Comment]
     @Binding var commentCount: Int
+    var onMentionTap: ((String) -> Void)? = nil
 
     @EnvironmentObject private var appState: AppState
     @State private var replyText = ""
-    @State private var comments: [Comment] = []
-    @State private var isLoading = false // No API to load from
-    @State private var isSending = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -715,7 +843,7 @@ struct VlogReplySheet: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(comments) { comment in
-                                CommentRowView(comment: comment)
+                                VlogCommentRow(comment: comment, onMentionTap: onMentionTap)
                                     .padding(.horizontal)
                                     .padding(.vertical, 8)
                                     .contextMenu {
@@ -794,6 +922,48 @@ struct VlogReplySheet: View {
         )
         comments.append(localComment)
         commentCount = comments.count
+    }
+}
+
+// MARK: - Vlog Comment Row (with clickable mentions)
+
+private struct VlogCommentRow: View {
+    let comment: Comment
+    var onMentionTap: ((String) -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            LazyImage(url: comment.author?.avatarUrl) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .foregroundColor(Color.brandTextTertiary)
+                }
+            }
+            .frame(width: 32, height: 32)
+            .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(comment.author?.username ?? "Unknown")
+                        .font(InvlogTheme.body(13, weight: .bold))
+                        .foregroundColor(Color.brandText)
+                    Spacer()
+                    Text(comment.createdAt, style: .relative)
+                        .font(InvlogTheme.caption(10))
+                        .foregroundColor(Color.brandTextTertiary)
+                }
+
+                MentionText(
+                    content: comment.content,
+                    font: InvlogTheme.body(14),
+                    color: Color.brandText,
+                    mentionColor: Color.brandPrimary,
+                    onMentionTap: onMentionTap
+                )
+            }
+        }
     }
 }
 

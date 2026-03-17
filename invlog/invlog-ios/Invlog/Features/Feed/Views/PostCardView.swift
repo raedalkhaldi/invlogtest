@@ -20,6 +20,8 @@ struct PostCardView: View {
     @State private var isLikeInFlight = false
     @State private var showHeartBurst = false
     @State private var showLikedBy = false
+    @State private var showPostStats = false
+    @State private var navigateToMention: String? = nil
 
     private var isOwnPost: Bool {
         post.authorId == appState.currentUser?.id
@@ -129,12 +131,18 @@ struct PostCardView: View {
 
             // Content
             if let content = post.content, !content.isEmpty {
-                Text(content)
-                    .font(InvlogTheme.body(15))
-                    .foregroundColor(Color.brandText)
-                    .lineLimit(4)
-                    .padding(.horizontal, InvlogTheme.Card.padding)
-                    .padding(.bottom, InvlogTheme.Spacing.xs)
+                MentionText(
+                    content: content,
+                    font: InvlogTheme.body(15),
+                    color: Color.brandText,
+                    mentionColor: Color.brandPrimary,
+                    lineLimit: 4,
+                    onMentionTap: { username in
+                        navigateToMention = username
+                    }
+                )
+                .padding(.horizontal, InvlogTheme.Card.padding)
+                .padding(.bottom, InvlogTheme.Spacing.xs)
             }
 
             // Rating
@@ -244,10 +252,16 @@ struct PostCardView: View {
                             Text(comment.author?.username ?? "user")
                                 .font(InvlogTheme.caption(13, weight: .bold))
                                 .foregroundColor(Color.brandText)
-                            Text(comment.content)
-                                .font(InvlogTheme.caption(13))
-                                .foregroundColor(Color.brandText)
-                                .lineLimit(2)
+                            MentionText(
+                                content: comment.content,
+                                font: InvlogTheme.caption(13),
+                                color: Color.brandText,
+                                mentionColor: Color.brandPrimary,
+                                lineLimit: 2,
+                                onMentionTap: { username in
+                                    navigateToMention = username
+                                }
+                            )
                         }
                     }
 
@@ -280,10 +294,28 @@ struct PostCardView: View {
             }
         }
         .background(
-            NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId), isActive: $navigateToProfile) {
-                EmptyView()
+            Group {
+                NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId), isActive: $navigateToProfile) {
+                    EmptyView()
+                }
+                .hidden()
+
+                // Navigation for @mention taps
+                NavigationLink(
+                    destination: Group {
+                        if let username = navigateToMention {
+                            ProfileView(userId: username)
+                        }
+                    },
+                    isActive: Binding(
+                        get: { navigateToMention != nil },
+                        set: { if !$0 { navigateToMention = nil } }
+                    )
+                ) {
+                    EmptyView()
+                }
+                .hidden()
             }
-            .hidden()
         )
         .invlogCard()
         .opacity(isDeleted ? 0 : 1)
@@ -301,6 +333,11 @@ struct PostCardView: View {
         .sheet(isPresented: $showLikedBy) {
             LikedBySheet(postId: post.id)
                 .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showPostStats) {
+            PostStatsSheet(post: post, likeCount: likeCount, commentCount: commentCount)
+                .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
         .alert("Delete Post", isPresented: $showDeleteConfirm) {
@@ -416,6 +453,20 @@ struct PostCardView: View {
             .buttonStyle(.borderless)
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Share post")
+
+            // Stats
+            if isOwnPost {
+                Button {
+                    showPostStats = true
+                } label: {
+                    Image(systemName: "chart.bar")
+                        .foregroundColor(Color.brandTextSecondary)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderless)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("Post stats")
+            }
 
             Button {
                 toggleBookmark()
