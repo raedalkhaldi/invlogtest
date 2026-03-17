@@ -102,6 +102,7 @@ enum APIEndpoint {
 
     // Stories
     case createStory(mediaId: String, caption: String? = nil, locationName: String? = nil, restaurantId: String? = nil)
+    case updateStory(id: String, caption: String?, locationName: String?)
     case storyFeed
     case viewStory(id: String)
     case storyViewers(id: String)
@@ -147,7 +148,8 @@ enum APIEndpoint {
         case .updateProfile, .updatePost, .updateComment, .updateRestaurant,
              .markNotificationRead, .markAllNotificationsRead,
              .markConversationRead,
-             .updateTrip, .updateTripStop:
+             .updateTrip, .updateTripStop,
+             .updateStory:
             return .patch
         case .deleteAccount, .deletePost, .deleteComment,
              .unlikePost, .unlikeComment, .unfollowUser, .unfollowRestaurant, .unblockUser,
@@ -253,6 +255,7 @@ enum APIEndpoint {
 
         // Stories
         case .createStory: return "/stories"
+        case .updateStory(let id, _, _): return "/stories/\(id)"
         case .storyFeed: return "/stories/feed"
         case .viewStory(let id): return "/stories/\(id)/view"
         case .storyViewers(let id): return "/stories/\(id)/viewers"
@@ -397,9 +400,21 @@ enum APIEndpoint {
             return data
         case .createStory(let mediaId, let caption, let locationName, let restaurantId):
             var body: [String: Any] = ["mediaId": mediaId]
-            if let caption, !caption.isEmpty { body["caption"] = caption }
+            // Send as both "caption" and "content" for backend compatibility
+            if let caption, !caption.isEmpty {
+                body["caption"] = caption
+                body["content"] = caption
+            }
             if let locationName, !locationName.isEmpty { body["locationName"] = locationName }
             if let restaurantId { body["restaurantId"] = restaurantId }
+            return body
+        case .updateStory(_, let caption, let locationName):
+            var body: [String: Any] = [:]
+            if let caption {
+                body["caption"] = caption
+                body["content"] = caption
+            }
+            if let locationName { body["locationName"] = locationName }
             return body
         case .startConversation(let userId):
             return ["userId": userId]

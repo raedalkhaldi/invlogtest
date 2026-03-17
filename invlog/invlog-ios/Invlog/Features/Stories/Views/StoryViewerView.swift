@@ -37,7 +37,8 @@ struct StoryViewerView: View {
     // Vertical snap scroll offset
     @State private var dragOffsetY: CGFloat = 0
     @State private var showComments = false
-    @State private var showLikedBy = false
+    @State private var showStats = false
+    @State private var showEditSheet = false
 
     // Caption expansion
     @State private var isCaptionExpanded = false
@@ -95,6 +96,7 @@ struct StoryViewerView: View {
         .ignoresSafeArea()
         .gesture(verticalSwipeGesture)
         .onAppear {
+            initializeLikeStates()
             markCurrentAsViewed()
         }
         .onDisappear {
@@ -137,11 +139,45 @@ struct StoryViewerView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showLikedBy) {
+        .sheet(isPresented: $showStats) {
             if let entry = currentEntry {
-                LikedBySheet(postId: entry.story.id, isStory: true)
+                VlogStatsSheet(story: entry.story)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            if let entry = currentEntry {
+                VlogEditSheet(
+                    storyId: entry.story.id,
+                    caption: entry.story.caption ?? "",
+                    locationName: entry.story.locationName ?? ""
+                ) { newCaption, newLocation in
+                    // Update local state
+                    if currentFlatIndex < allStories.count {
+                        allStories[currentFlatIndex].story.caption = newCaption.isEmpty ? nil : newCaption
+                        allStories[currentFlatIndex].story.locationName = newLocation.isEmpty ? nil : newLocation
+                    }
+                }
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+            }
+        }
+    }
+
+    // MARK: - Initialize like/comment counts from model data
+
+    private func initializeLikeStates() {
+        for entry in allStories {
+            let sid = entry.story.id
+            if entry.story.isLikedByMe == true {
+                likedStoryIds.insert(sid)
+            }
+            if let lc = entry.story.likeCount {
+                storyLikeCounts[sid] = lc
+            }
+            if let cc = entry.story.commentCount {
+                storyCommentCounts[sid] = cc
             }
         }
     }
@@ -255,17 +291,27 @@ struct StoryViewerView: View {
             }
             .frame(minWidth: 44, minHeight: 44)
 
-            // Delete (own stories only)
+            // More menu (own stories only)
             if isOwnStory {
-                Button {
-                    showDeleteConfirm = true
+                Menu {
+                    Button {
+                        showEditSheet = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 } label: {
-                    Image(systemName: "trash")
-                        .font(.body)
+                    Image(systemName: "ellipsis")
+                        .font(.body.bold())
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
-                .frame(minWidth: 44, minHeight: 44)
             }
         }
         .padding(.horizontal, 8)
@@ -277,8 +323,8 @@ struct StoryViewerView: View {
         let storyId = entry.story.id
         let isLiked = likedStoryIds.contains(storyId)
         let isBookmarked = bookmarkedStoryIds.contains(storyId)
-        let likeCount = storyLikeCounts[storyId] ?? entry.story.viewCount
-        let commentCount = storyCommentCounts[storyId] ?? 0
+        let likeCount = storyLikeCounts[storyId] ?? (entry.story.likeCount ?? 0)
+        let commentCount = storyCommentCounts[storyId] ?? (entry.story.commentCount ?? 0)
 
         return VStack(spacing: 20) {
             // Creator avatar
@@ -322,8 +368,7 @@ struct StoryViewerView: View {
                 icon: isLiked ? "heart.fill" : "heart",
                 iconColor: isLiked ? Color(hex: "FF4D4D") : .white,
                 count: likeCount > 0 ? "\(likeCount)" : nil,
-                accessibilityLabel: isLiked ? "Unlike" : "Like",
-                onLongPress: { showLikedBy = true }
+                accessibilityLabel: isLiked ? "Unlike" : "Like"
             ) {
                 toggleLike(storyId: storyId)
             }
@@ -336,6 +381,16 @@ struct StoryViewerView: View {
                 accessibilityLabel: "Comments"
             ) {
                 showComments = true
+            }
+
+            // Stats button (liked by + viewers)
+            actionRailButton(
+                icon: "chart.bar",
+                iconColor: .white,
+                count: entry.story.viewCount > 0 ? "\(entry.story.viewCount)" : nil,
+                accessibilityLabel: "Stats"
+            ) {
+                showStats = true
             }
 
             // Bookmark button
@@ -388,7 +443,7 @@ struct StoryViewerView: View {
         }
     }
 
-    private func actionRailButton(icon: String, iconColor: Color, count: String?, accessibilityLabel: String, onLongPress: (() -> Void)? = nil, action: @escaping () -> Void) -> some View {
+    private func actionRailButton(icon: String, iconColor: Color, count: String?, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 2) {
                 Image(systemName: icon)
@@ -397,15 +452,10 @@ struct StoryViewerView: View {
                     .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
 
                 if let count = count {
-                    Button {
-                        onLongPress?()
-                    } label: {
-                        Text(count)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                    }
-                    .buttonStyle(.plain)
+                    Text(count)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                 }
             }
         }
@@ -463,22 +513,11 @@ struct StoryViewerView: View {
                 .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
             }
 
-            // Time ago + view count
-            HStack(spacing: 8) {
-                Text(entry.story.createdAt, style: .relative)
-                    .font(.system(size: 12))
-
-                if entry.story.viewCount > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "eye.fill")
-                            .font(.system(size: 10))
-                        Text("\(entry.story.viewCount)")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                }
-            }
-            .foregroundColor(.white.opacity(0.7))
-            .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+            // Time ago
+            Text(entry.story.createdAt, style: .relative)
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.7))
+                .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
         }
     }
 
@@ -655,6 +694,238 @@ struct StoryViewerView: View {
             return scene.windows.first?.safeAreaInsets.bottom ?? 0
         }
         return 0
+    }
+}
+
+// MARK: - Vlog Stats Sheet (Liked By + Viewers)
+
+struct VlogStatsSheet: View {
+    let story: Story
+    @Environment(\.dismiss) private var dismiss
+    @State private var likedByUsers: [User] = []
+    @State private var isLoading = true
+    @State private var selectedTab = 0
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Stats summary header
+                HStack(spacing: 32) {
+                    statItem(value: "\(story.viewCount)", label: "Views", icon: "eye.fill")
+                    statItem(value: "\(story.likeCount ?? 0)", label: "Likes", icon: "heart.fill")
+                    statItem(value: "\(story.commentCount ?? 0)", label: "Comments", icon: "bubble.right.fill")
+                }
+                .padding(.vertical, 20)
+
+                Divider()
+
+                // Liked by list
+                if isLoading {
+                    Spacer()
+                    ProgressView().tint(Color.brandPrimary)
+                    Spacer()
+                } else if likedByUsers.isEmpty {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Image(systemName: "heart")
+                            .font(.system(size: 36))
+                            .foregroundColor(Color.brandTextTertiary)
+                        Text("No likes yet")
+                            .font(InvlogTheme.body(15, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                    }
+                    Spacer()
+                } else {
+                    List {
+                        Section {
+                            ForEach(likedByUsers) { user in
+                                NavigationLink(value: user) {
+                                    FollowableUserRowView(user: user)
+                                }
+                                .listRowBackground(Color.clear)
+                            }
+                        } header: {
+                            Text("Liked by")
+                                .font(InvlogTheme.body(13, weight: .semibold))
+                                .foregroundColor(Color.brandTextSecondary)
+                                .textCase(nil)
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                }
+            }
+            .invlogScreenBackground()
+            .navigationTitle("Vlog Stats")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: User.self) { user in
+                ProfileView(userId: user.username)
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .foregroundColor(Color.brandText)
+                    }
+                }
+            }
+            .task { await loadLikedBy() }
+        }
+    }
+
+    private func statItem(value: String, label: String, icon: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(Color.brandPrimary)
+            Text(value)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(Color.brandText)
+            Text(label)
+                .font(InvlogTheme.caption(12))
+                .foregroundColor(Color.brandTextSecondary)
+        }
+    }
+
+    private func loadLikedBy() async {
+        do {
+            let (data, _) = try await APIClient.shared.requestWrapped(
+                .storyLikes(id: story.id, page: 1, perPage: 50),
+                responseType: [User].self
+            )
+            likedByUsers = data
+        } catch {
+            // silent
+        }
+        isLoading = false
+    }
+}
+
+// MARK: - Vlog Edit Sheet
+
+struct VlogEditSheet: View {
+    let storyId: String
+    @State var caption: String
+    @State var locationName: String
+    var onSave: (String, String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var isSaving = false
+    @State private var showPlacePicker = false
+    @State private var selectedPlace: SelectedPlace?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                // Caption
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Caption")
+                        .font(InvlogTheme.body(13, weight: .semibold))
+                        .foregroundColor(Color.brandTextSecondary)
+
+                    MentionableTextField(
+                        text: $caption,
+                        placeholder: "Add a caption...",
+                        lineLimit: 2...6
+                    )
+                    .font(InvlogTheme.body(15))
+                    .padding(12)
+                    .background(Color.brandCard)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                            .stroke(Color.brandBorder, lineWidth: 1)
+                    )
+                }
+
+                // Location
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Location")
+                        .font(InvlogTheme.body(13, weight: .semibold))
+                        .foregroundColor(Color.brandTextSecondary)
+
+                    Button {
+                        showPlacePicker = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(Color.brandPrimary)
+                            Text(locationName.isEmpty ? "Add Location" : locationName)
+                                .font(InvlogTheme.body(14))
+                                .foregroundColor(locationName.isEmpty ? Color.brandTextTertiary : Color.brandText)
+                            Spacer()
+                            if !locationName.isEmpty {
+                                Button {
+                                    locationName = ""
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundColor(Color.brandTextTertiary)
+                                }
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+                        .padding(12)
+                        .background(Color.brandCard)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                .stroke(Color.brandBorder, lineWidth: 1)
+                        )
+                    }
+                }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(InvlogTheme.caption(12))
+                        .foregroundColor(.red)
+                }
+
+                Spacer()
+            }
+            .padding(16)
+            .invlogScreenBackground()
+            .navigationTitle("Edit Vlog")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Task { await saveEdits() }
+                    }
+                    .font(InvlogTheme.body(15, weight: .bold))
+                    .disabled(isSaving)
+                }
+            }
+            .sheet(isPresented: $showPlacePicker) {
+                PlacePickerView(selectedPlace: $selectedPlace)
+            }
+            .onChange(of: selectedPlace) { place in
+                if let place {
+                    locationName = place.name
+                }
+            }
+        }
+    }
+
+    private func saveEdits() async {
+        isSaving = true
+        errorMessage = nil
+        do {
+            try await APIClient.shared.requestVoid(
+                .updateStory(id: storyId, caption: caption, locationName: locationName.isEmpty ? nil : locationName)
+            )
+            onSave(caption, locationName)
+            dismiss()
+        } catch {
+            errorMessage = "Failed to save: \(error.localizedDescription)"
+        }
+        isSaving = false
     }
 }
 

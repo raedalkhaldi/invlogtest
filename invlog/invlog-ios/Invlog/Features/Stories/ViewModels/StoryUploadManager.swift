@@ -53,8 +53,15 @@ final class StoryUploadManager: ObservableObject {
 
                 status = .processing
 
-                // Backend now waits for video processing before creating story
-                try await APIClient.shared.requestVoid(.createStory(mediaId: mediaId, caption: caption, locationName: locationName, restaurantId: restaurantId))
+                // Create story — send caption/locationName only if non-empty
+                let cleanCaption = caption?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let cleanLocation = locationName?.trimmingCharacters(in: .whitespacesAndNewlines)
+                try await APIClient.shared.requestVoid(.createStory(
+                    mediaId: mediaId,
+                    caption: (cleanCaption?.isEmpty == false) ? cleanCaption : nil,
+                    locationName: (cleanLocation?.isEmpty == false) ? cleanLocation : nil,
+                    restaurantId: restaurantId
+                ))
 
                 status = .completed
                 NotificationCenter.default.post(name: .didCreateStory, object: nil)

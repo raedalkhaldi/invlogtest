@@ -296,6 +296,9 @@ actor APIClient {
         if let errorResponse = try? decoder.decode(ErrorResponse.self, from: data) {
             return .httpError(statusCode: statusCode, message: errorResponse.message)
         }
-        return .httpError(statusCode: statusCode, message: nil)
+        // Try to extract raw error string for debugging
+        let rawBody = String(data: data, encoding: .utf8)
+        let message = rawBody?.isEmpty == false ? "Server error (\(statusCode)): \(rawBody!.prefix(300))" : nil
+        return .httpError(statusCode: statusCode, message: message)
     }
 }
