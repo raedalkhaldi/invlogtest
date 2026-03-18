@@ -7,10 +7,7 @@ struct InvlogCardModifier: ViewModifier {
         content
             .background(Color.brandCard)
             .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius)
-                    .stroke(Color.brandBorder, lineWidth: InvlogTheme.Card.borderWidth)
-            )
+            // No border overlay — cleaner card style
             .shadow(
                 color: InvlogTheme.cardShadowColor,
                 radius: InvlogTheme.cardShadowRadius,
@@ -53,18 +50,26 @@ struct InvlogSecondaryButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Accent Button Style (orange bg, white text)
+// MARK: - Accent Button Style (orange bg, white text — full capsule like Stitch)
 
 struct InvlogAccentButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(InvlogTheme.body(15, weight: .bold))
+            .font(InvlogTheme.body(16, weight: .bold))
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(Color.brandPrimary)
-            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
-            .opacity(configuration.isPressed ? 0.85 : 1)
+            .frame(height: 54)
+            .background(
+                LinearGradient(
+                    colors: [Color.brandPrimary, Color(hex: 0xD44A08)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(Capsule())
+            .shadow(color: Color.brandPrimary.opacity(0.35), radius: 10, y: 5)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -84,6 +89,19 @@ struct InvlogFilterPillStyle: ButtonStyle {
             .overlay(
                 Capsule().stroke(isActive ? Color.clear : Color.brandBorder, lineWidth: 1)
             )
+    }
+}
+
+// MARK: - Color Hex (local for gradients)
+
+private extension Color {
+    init(hex: UInt) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255
+        )
     }
 }
 

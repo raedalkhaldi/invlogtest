@@ -18,26 +18,32 @@ struct CustomTabBarView: View {
                 tabButton(.feed, icon: "fork.knife", label: "Feed")
                 tabButton(.search, icon: "magnifyingglass", label: "Discover")
 
-                // Center: Orange create button
+                // Center: Circular check-in button with gradient
                 Button(action: onCreateTapped) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color.brandPrimary)
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.brandPrimary, Color(hex: 0xD44A08)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                             .frame(
                                 width: InvlogTheme.TabBar.createButtonSize,
                                 height: InvlogTheme.TabBar.createButtonSize
                             )
                             .shadow(
-                                color: Color.brandPrimary.opacity(0.35),
-                                radius: 8, y: 4
+                                color: Color.brandPrimary.opacity(0.45),
+                                radius: 14, y: 6
                             )
 
                         Image(systemName: "plus")
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.system(size: 24, weight: .black))
                             .foregroundColor(.white)
                     }
                 }
-                .offset(y: -8)
+                .offset(y: -14)
                 .frame(maxWidth: .infinity)
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("Check In")
@@ -50,7 +56,7 @@ struct CustomTabBarView: View {
             .padding(.bottom, InvlogTheme.TabBar.safeAreaBottom)
         }
         .background(
-            VisualEffectBlur(blurStyle: .systemThinMaterial)
+            VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
                 .ignoresSafeArea(.all, edges: .bottom)
         )
     }
@@ -93,6 +99,19 @@ struct CustomTabBarView: View {
         }
         .frame(minWidth: 44, minHeight: 44)
         .accessibilityLabel(label)
+    }
+}
+
+// MARK: - Color Hex (local for gradient)
+
+private extension Color {
+    init(hex: UInt) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255
+        )
     }
 }
 
