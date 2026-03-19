@@ -14,6 +14,7 @@ struct CreateStoryView: View {
     @State private var showCamera = false
     @State private var showVideoRecorder = false
     @State private var showVideoTrim = false
+    @State private var showCropView = false
     @State private var caption = ""
     @State private var showPlacePicker = false
     @State private var selectedPlace: SelectedPlace?
@@ -88,6 +89,9 @@ struct CreateStoryView: View {
                     selectedImage = image
                     selectedVideoURL = nil
                     isVideo = false
+                    selectedFilter = .original
+                    selectedFilterIndex = 0
+                    generateImageFilterThumbnails()
                 }
             }
             .fullScreenCover(isPresented: $showVideoRecorder) {
@@ -108,8 +112,18 @@ struct CreateStoryView: View {
                             selectedVideoURL = trimmedURL
                             selectedImage = trimmedThumb
                             showVideoTrim = false
-                            // Regenerate filter thumbnails for trimmed video
                             generateFilterThumbnails()
+                        }
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showCropView) {
+                if let image = selectedImage {
+                    NavigationStack {
+                        ImageCropView(image: image, imageNumber: 1, totalImages: 1) { cropped in
+                            selectedImage = cropped
+                            showCropView = false
+                            generateImageFilterThumbnails()
                         }
                     }
                 }
@@ -141,14 +155,12 @@ struct CreateStoryView: View {
                 .frame(height: UIScreen.main.bounds.height * 0.45)
                 .clipped()
 
-                // Filter strip (only for videos)
-                if isVideo {
-                    filterStripSection
-                }
+                // Filter strip (photos and videos)
+                filterStripSection
 
-                // Action buttons row (Edit/Trim)
-                if isVideo {
-                    HStack(spacing: 16) {
+                // Action buttons row
+                HStack(spacing: 16) {
+                    if isVideo {
                         Button {
                             showVideoTrim = true
                         } label: {
@@ -164,15 +176,14 @@ struct CreateStoryView: View {
                             .background(Color.white.opacity(0.15))
                             .clipShape(Capsule())
                         }
-
-                        PhotosPicker(
-                            selection: $selectedItem,
-                            matching: .any(of: [.images, .videos])
-                        ) {
+                    } else {
+                        Button {
+                            showCropView = true
+                        } label: {
                             HStack(spacing: 6) {
-                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Image(systemName: "crop")
                                     .font(.system(size: 14, weight: .semibold))
-                                Text("Change")
+                                Text("Crop")
                                     .font(InvlogTheme.body(14, weight: .semibold))
                             }
                             .foregroundColor(.white)
@@ -181,12 +192,29 @@ struct CreateStoryView: View {
                             .background(Color.white.opacity(0.15))
                             .clipShape(Capsule())
                         }
-
-                        Spacer()
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+
+                    PhotosPicker(
+                        selection: $selectedItem,
+                        matching: .any(of: [.images, .videos])
+                    ) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Change")
+                                .font(InvlogTheme.body(14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.15))
+                        .clipShape(Capsule())
+                    }
+
+                    Spacer()
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
 
                 // Caption + Place section
                 VStack(spacing: 12) {
@@ -418,7 +446,6 @@ struct CreateStoryView: View {
 
     private func handleShare() {
         if selectedFilter != .original, isVideo, let videoURL = selectedVideoURL {
-            // Export with filter applied
             isExportingFilter = true
             Task { @MainActor in
                 do {
@@ -430,9 +457,28 @@ struct CreateStoryView: View {
                     errorMessage = error.localizedDescription
                 }
             }
+        } else if selectedFilter != .original, !isVideo, let image = selectedImage {
+            isExportingFilter = true
+            Task { @MainActor in
+                let filtered = await applyFilterToImage(image, filter: selectedFilter)
+                isExportingFilter = false
+                doShare(videoURL: nil, thumbnail: filtered)
+            }
         } else {
             doShare(videoURL: selectedVideoURL, thumbnail: selectedImage)
         }
+    }
+
+    private func applyFilterToImage(_ image: UIImage, filter: VideoFilter) async -> UIImage {
+        await Task.detached(priority: .userInitiated) {
+            guard let ci = CIImage(image: image) else { return image }
+            let filtered = VideoFilterView.applyCIFilter(to: ci, filter: filter)
+            let ctx = CIContext()
+            if let cg = ctx.createCGImage(filtered, from: filtered.extent) {
+                return UIImage(cgImage: cg)
+            }
+            return image
+        }.value
     }
 
     private func doShare(videoURL: URL?, thumbnail: UIImage?) {
@@ -519,8 +565,33 @@ struct CreateStoryView: View {
                   let image = UIImage(data: data) {
             selectedImage = image
             isVideo = false
+            generateImageFilterThumbnails()
         }
         isLoadingMedia = false
+    }
+
+    // MARK: - Photo Filter Thumbnails
+
+    private func generateImageFilterThumbnails() {
+        guard let image = selectedImage else { return }
+        filterThumbnails = [:]
+        Task {
+            let result = await Task.detached(priority: .userInitiated) { () -> [VideoFilter: UIImage] in
+                let scale = min(150.0 / image.size.width, 150.0 / image.size.height, 1.0)
+                guard let ci = CIImage(image: image) else { return [:] }
+                let scaledCI = ci.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+                let context = CIContext()
+                var thumbs: [VideoFilter: UIImage] = [:]
+                for filter in VideoFilter.allCases {
+                    let filtered = VideoFilterView.applyCIFilter(to: scaledCI, filter: filter)
+                    if let cg = context.createCGImage(filtered, from: filtered.extent) {
+                        thumbs[filter] = UIImage(cgImage: cg)
+                    }
+                }
+                return thumbs
+            }.value
+            filterThumbnails = result
+        }
     }
 
     // Uses shared VideoThumbnailGenerator

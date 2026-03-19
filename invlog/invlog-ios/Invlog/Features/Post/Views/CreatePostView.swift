@@ -45,6 +45,8 @@ struct CreatePostView: View {
     @State private var imagesToCrop: [UIImage] = []
     @State private var currentCropIndex = 0
     @State private var showCropView = false
+    @State private var croppedImages: [UIImage] = []
+    @State private var showPhotoFilter = false
     @State private var visibility = "public"
     @State private var matchingTrips: [Trip] = []
     @State private var selectedTripId: String?
@@ -228,15 +230,28 @@ struct CreatePostView: View {
                         imageNumber: currentCropIndex + 1,
                         totalImages: imagesToCrop.count
                     ) { croppedImage in
-                        selectedImages.append(croppedImage)
-                        mediaItems.append(.image(croppedImage))
+                        croppedImages.append(croppedImage)
                         if currentCropIndex + 1 < imagesToCrop.count {
                             currentCropIndex += 1
                         } else {
                             showCropView = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                showPhotoFilter = true
+                            }
                         }
                     }
                     .id(currentCropIndex)
+                }
+            }
+        }
+        .sheet(isPresented: $showPhotoFilter) {
+            NavigationStack {
+                ImageFilterView(images: croppedImages) { filteredImages in
+                    for img in filteredImages {
+                        selectedImages.append(img)
+                        mediaItems.append(.image(img))
+                    }
+                    croppedImages = []
                 }
             }
         }

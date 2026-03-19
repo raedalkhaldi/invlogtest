@@ -612,6 +612,7 @@ struct PostCardView: View {
                 isDeleted = true
             }
             onDeleted?()
+            NotificationCenter.default.post(name: .didDeletePost, object: post.id)
         } catch {
             // Delete failed silently
         }

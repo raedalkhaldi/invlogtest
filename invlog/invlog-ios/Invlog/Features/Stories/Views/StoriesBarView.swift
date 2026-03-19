@@ -12,7 +12,7 @@ struct StoriesBarView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 14) {
+            LazyHStack(spacing: 14) {
                 addStoryButton
 
                 ForEach(storyGroups) { group in

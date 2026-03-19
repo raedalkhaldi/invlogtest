@@ -5,6 +5,7 @@ struct NotificationsListView: View {
     @EnvironmentObject private var appState: AppState
     @State private var notifications: [AppNotification] = []
     @State private var isLoading = true
+    @State private var lastLoadedAt: Date?
 
     var body: some View {
         Group {
@@ -57,6 +58,12 @@ struct NotificationsListView: View {
         .task {
             await loadNotifications()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .didSelectNotificationsTab)) { _ in
+            let stale = lastLoadedAt.map { Date().timeIntervalSince($0) > 30 } ?? true
+            if stale {
+                Task { await loadNotifications() }
+            }
+        }
     }
 
     private func loadNotifications() async {
@@ -66,6 +73,7 @@ struct NotificationsListView: View {
                 responseType: [AppNotification].self
             )
             notifications = data
+            lastLoadedAt = Date()
             appState.unreadNotificationCount = data.filter { !$0.isRead }.count
         } catch {
             print("❌ Notifications load error: \(error)")

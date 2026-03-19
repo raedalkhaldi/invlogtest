@@ -203,9 +203,17 @@ struct StoryViewerView: View {
         } else {
             LazyImage(url: URL(string: entry.story.url)) { state in
                 if let image = state.image {
-                    image.resizable().scaledToFill()
-                        .frame(width: size.width, height: size.height)
-                        .clipped()
+                    ZStack {
+                        // Blurred fill background (no black bars)
+                        image.resizable().scaledToFill()
+                            .frame(width: size.width, height: size.height)
+                            .clipped()
+                            .blur(radius: 24)
+                            .overlay(Color.black.opacity(0.25))
+                        // Full photo fit on top
+                        image.resizable().scaledToFit()
+                            .frame(width: size.width, height: size.height)
+                    }
                 } else if state.isLoading {
                     ZStack {
                         if let blurhash = entry.story.blurhash { BlurhashView(blurhash: blurhash) }
