@@ -89,4 +89,9 @@ export class UpdatePostDto {
   @IsArray()
   @IsUUID('4', { each: true })
   removeMediaIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  addMediaIds?: string[];
 }
