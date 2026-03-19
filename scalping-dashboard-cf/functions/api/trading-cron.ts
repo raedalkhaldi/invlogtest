@@ -448,6 +448,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return Response.json({ message: "Trading cron completed", entries_opened: entriesOpened, exits_closed: exitsClosed, daily_pnl: dailyPnl, log });
   }
 
+  // Collect signal log entries for this cron run (batch-written at end)
+  const signalLogEntries: object[] = [];
+
   const fetchResults = await Promise.allSettled(
     cfg.tickers.map(async (ticker) => {
       if (afterOpenTickers.includes(ticker) || afterPendingTickers.includes(ticker)) {
@@ -477,11 +480,41 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     if (!signal?.tradeable || !opt || opt.contract_type === "NONE") continue;
 
+    // Base log entry — filled with outcome below
+    const logEntry: Record<string, unknown> = {
+      ts:         now.toISOString(),
+      ticker,
+      direction:  signal.direction,
+      grade:      opt.grade,
+      confluence: signal.confluence_score,
+      strength:   signal.signal_strength,
+      entry:      signal.entry,
+      target:     signal.target,
+      target_a:   signal.target_a ?? null,
+      strike:     opt.strike,
+      expiry:     opt.expiration,
+      contract:   opt.contract_type,
+      opt_entry:  opt.entry_premium,
+      opt_target: opt.target_premium,
+      bot_id:     botId,
+      outcome:    "SKIPPED_UNKNOWN",
+    };
+
     // Apply config filters
-    if (cfg.minGrade === "A" && opt.grade !== "A") continue;
-    if (opt.grade !== "A" && opt.grade !== "B") continue;
+    if (cfg.minGrade === "A" && opt.grade !== "A") {
+      logEntry.outcome = "SKIPPED_GRADE";
+      signalLogEntries.push(logEntry);
+      continue;
+    }
+    if (opt.grade !== "A" && opt.grade !== "B") {
+      logEntry.outcome = "SKIPPED_GRADE";
+      signalLogEntries.push(logEntry);
+      continue;
+    }
     if (signal.confluence_score < cfg.minConfluenceScore) {
       log.push(`${ticker}: Confluence ${signal.confluence_score} below ${cfg.minConfluenceScore} — skip`);
+      logEntry.outcome = "SKIPPED_CONFLUENCE";
+      signalLogEntries.push(logEntry);
       continue;
     }
 
@@ -489,6 +522,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const expectedCt = signal.direction === "LONG" ? "CALL" : "PUT";
     if (opt.contract_type !== expectedCt) {
       log.push(`${ticker}: Contract/direction mismatch — skip`);
+      logEntry.outcome = "SKIPPED_MISMATCH";
+      signalLogEntries.push(logEntry);
       continue;
     }
 
@@ -498,6 +533,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const minutesSince = (now.getTime() - lastExit.getTime()) / 60000;
       if (minutesSince < cfg.cooldownMinutes) {
         log.push(`${ticker}: Cooldown active — skip queuing`);
+        logEntry.outcome = "SKIPPED_COOLDOWN";
+        signalLogEntries.push(logEntry);
         continue;
       }
     }
@@ -508,24 +545,32 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ? signal.target_a
         : signal.target;
 
-    if (!stockTarget || !signal.entry) { log.push(`${ticker}: No valid stock target — skip`); continue; }
+    if (!stockTarget || !signal.entry) {
+      log.push(`${ticker}: No valid stock target — skip`);
+      logEntry.outcome = "SKIPPED_NO_TARGET";
+      signalLogEntries.push(logEntry);
+      continue;
+    }
 
     // Direction sanity: target must be on the correct side of entry
     const targetOk =
       signal.direction === "LONG" ? stockTarget > signal.entry : stockTarget < signal.entry;
     if (!targetOk) {
       log.push(`${ticker}: Target $${stockTarget.toFixed(2)} wrong side of entry $${signal.entry.toFixed(2)} — skip`);
+      logEntry.outcome = "SKIPPED_WRONG_SIDE";
+      signalLogEntries.push(logEntry);
       continue;
     }
 
-    // Strike-cleared check: target must put the option IN the money at exit.
-    // A CALL is worthless if stock never reaches the strike; same for PUT below strike.
+    // Strike-cleared check
     const strikeCleared =
       opt.contract_type === "CALL"
-        ? stockTarget > opt.strike        // stock must go ABOVE strike to profit
-        : stockTarget < opt.strike;       // stock must go BELOW strike to profit
+        ? stockTarget > opt.strike
+        : stockTarget < opt.strike;
     if (!strikeCleared) {
       log.push(`${ticker}: Target $${stockTarget.toFixed(2)} doesn't clear ${opt.contract_type} strike $${opt.strike} — skip (OTM at target)`);
+      logEntry.outcome = "SKIPPED_OTM";
+      signalLogEntries.push(logEntry);
       continue;
     }
 
@@ -552,6 +597,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     await savePendingSignal(cache, pending, botId);
     log.push(`${ticker}: PENDING — ${signal.direction} ${opt.grade} entry@$${signal.entry.toFixed(2)} target@$${stockTarget.toFixed(2)}`);
+    logEntry.outcome = "QUEUED";
+    logEntry.stock_target = stockTarget;
+    signalLogEntries.push(logEntry);
+  }
+
+  // ── Batch-write signal log entries to KV ───────────────
+  if (signalLogEntries.length > 0) {
+    const dateKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const kvKey = `signal:log:${dateKey}:${botId}`;
+    try {
+      const existing = await cache.get(kvKey, "json") as object[] | null;
+      const merged = [...(existing ?? []), ...signalLogEntries];
+      await cache.put(kvKey, JSON.stringify(merged), { expirationTtl: 7_776_000 }); // 90 days
+    } catch {}
   }
 
   return Response.json({
