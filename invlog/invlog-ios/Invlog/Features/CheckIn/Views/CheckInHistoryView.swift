@@ -303,6 +303,7 @@ struct CheckInRow: View {
                 Image(systemName: "mappin")
                     .font(.caption)
                     .foregroundColor(Color.brandPrimary)
+            }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
@@ -315,7 +316,7 @@ struct CheckInRow: View {
             parts.append("Check-in at \(restaurant.name)")
         }
         if let user = checkIn.user {
-            parts.append("by \(user.displayName ?? user.username)")
+            parts.append("by \(user.displayName ?? user.username ?? "")")
         }
         return parts.joined(separator: " ")
     }
