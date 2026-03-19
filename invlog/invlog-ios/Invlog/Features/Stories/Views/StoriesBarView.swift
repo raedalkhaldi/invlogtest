@@ -9,6 +9,7 @@ struct StoriesBarView: View {
     @State private var selectedGroup: StoryGroup?
     @State private var showCreateStory = false
     @State private var navigateToUsername: String?
+    @State private var viewerSessionId: UUID = UUID()
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -17,6 +18,7 @@ struct StoriesBarView: View {
 
                 ForEach(storyGroups) { group in
                     Button {
+                        viewerSessionId = UUID() // Force fresh viewer on every tap
                         selectedGroup = group
                     } label: {
                         storyAvatarView(for: group)
@@ -35,6 +37,7 @@ struct StoriesBarView: View {
                 selectedUsername: $navigateToUsername,
                 storiesViewModel: storiesViewModel
             )
+            .id(viewerSessionId) // Force fresh view on every open
         }
         .sheet(isPresented: $showCreateStory) {
             CreateStoryView()
