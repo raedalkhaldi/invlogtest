@@ -326,7 +326,7 @@ struct PostCardView: View {
             ShareSheetView(items: [shareText])
         }
         .sheet(isPresented: $showComments) {
-            CommentsSheetView(postId: post.id, postAuthorId: post.authorId, commentCount: $commentCount, onCommentAdded: onCommentAdded)
+            CommentsSheetView(post: post, commentCount: $commentCount, onCommentAdded: onCommentAdded)
         }
         .sheet(isPresented: $showEditSheet) {
             EditPostSheet(post: post)
@@ -900,8 +900,7 @@ struct EditPostSheet: View {
 // MARK: - Comments Sheet
 
 struct CommentsSheetView: View {
-    let postId: String
-    let postAuthorId: String
+    let post: Post
     @Binding var commentCount: Int
     var onCommentAdded: (() -> Void)?
     @EnvironmentObject private var appState: AppState
@@ -909,14 +908,39 @@ struct CommentsSheetView: View {
     @State private var comments: [Comment] = []
     @State private var newComment = ""
     @State private var isLoading = true
+    @State private var replyingTo: Comment? = nil
+
+    private var postId: String { post.id }
+    private var postAuthorId: String { post.authorId }
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
+                // Mini post preview at top
+                miniPostPreview
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
+                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+
+                // Comment count header
+                HStack {
+                    Text("\(commentCount) comments")
+                        .font(InvlogTheme.body(14, weight: .semibold))
+                        .foregroundColor(Color.brandText)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+
+                // Comments list
                 if isLoading {
+                    Spacer()
                     ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Spacer()
                 } else if comments.isEmpty {
+                    Spacer()
                     VStack(spacing: 12) {
                         Image(systemName: "bubble.right")
                             .font(.system(size: 32))
@@ -928,14 +952,14 @@ struct CommentsSheetView: View {
                             .font(InvlogTheme.caption(12))
                             .foregroundColor(Color.brandTextTertiary)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Spacer()
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(comments) { comment in
                                 CommentRowView(comment: comment)
                                     .padding(.horizontal)
-                                    .padding(.vertical, 8)
+                                    .padding(.vertical, 10)
                                     .contextMenu {
                                         if canDeleteComment(comment) {
                                             Button(role: .destructive) {
@@ -945,7 +969,7 @@ struct CommentsSheetView: View {
                                             }
                                         }
                                     }
-                                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                                Rectangle().fill(Color.brandBorder.opacity(0.5)).frame(height: 0.5)
                                     .padding(.horizontal)
                             }
                         }
@@ -953,53 +977,137 @@ struct CommentsSheetView: View {
                 }
             }
             .invlogScreenBackground()
-            .navigationTitle("Comments")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Comments")
+                        .font(InvlogTheme.body(16, weight: .bold))
+                }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                        .frame(minWidth: 44, minHeight: 44)
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                HStack(spacing: 8) {
-                    MentionableTextField(
-                        text: $newComment,
-                        placeholder: "Add a comment...",
-                        axis: .horizontal,
-                        lineLimit: 1...3
-                    )
-                    .font(InvlogTheme.body(15))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.brandBorder.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .accessibilityLabel("Write a comment")
-
-                    Button {
-                        Task { await submitComment() }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.brandTextTertiary : Color.brandPrimary)
-                    }
-                    .frame(minWidth: 44, minHeight: 44)
-                    .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityLabel("Send comment")
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color.brandCard)
-                .overlay(alignment: .top) {
-                    Rectangle().fill(Color.brandBorder).frame(height: 0.5)
-                }
+                commentInputBar
             }
             .task {
                 await loadComments()
             }
         }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
     }
 
+    // MARK: - Mini Post Preview
+    private var miniPostPreview: some View {
+        HStack(alignment: .top, spacing: 10) {
+            // Thumbnail
+            if let firstMedia = post.media?.first {
+                let thumbUrl = firstMedia.thumbnailUrl ?? firstMedia.mediumUrl ?? firstMedia.url
+                AsyncImage(url: URL(string: thumbUrl)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        Color.brandBackground
+                    }
+                }
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            // Post info
+            VStack(alignment: .leading, spacing: 4) {
+                // Author
+                HStack(spacing: 6) {
+                    if let avatarUrl = post.author?.avatarUrl {
+                        AsyncImage(url: avatarUrl) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable().scaledToFill()
+                            default:
+                                Circle().fill(Color.brandBackground)
+                            }
+                        }
+                        .frame(width: 20, height: 20)
+                        .clipShape(Circle())
+                    }
+
+                    Text(post.author?.displayName ?? post.author?.username ?? "")
+                        .font(InvlogTheme.body(13, weight: .semibold))
+                        .foregroundColor(Color.brandText)
+                        .lineLimit(1)
+                }
+
+                // Caption
+                if let content = post.content, !content.isEmpty {
+                    Text(content)
+                        .font(InvlogTheme.caption(12))
+                        .foregroundColor(Color.brandTextSecondary)
+                        .lineLimit(2)
+                }
+
+                // Restaurant name
+                if let restaurant = post.restaurant {
+                    HStack(spacing: 3) {
+                        Image(systemName: "mappin")
+                            .font(.system(size: 9))
+                        Text(restaurant.name)
+                            .font(InvlogTheme.caption(11))
+                    }
+                    .foregroundColor(Color.brandTextTertiary)
+                    .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(Color.brandBackground.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Comment Input Bar
+    private var commentInputBar: some View {
+        HStack(spacing: 8) {
+            MentionableTextField(
+                text: $newComment,
+                placeholder: "Add a comment...",
+                axis: .horizontal,
+                lineLimit: 1...3
+            )
+            .font(InvlogTheme.body(15))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.brandBorder.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .accessibilityLabel("Write a comment")
+
+            Button {
+                Task { await submitComment() }
+            } label: {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.brandTextTertiary : Color.brandPrimary)
+            }
+            .frame(minWidth: 44, minHeight: 44)
+            .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityLabel("Send comment")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color.brandCard)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+        }
+    }
+
+    // MARK: - Actions
     private func loadComments() async {
         do {
             let (data, _) = try await APIClient.shared.requestWrapped(
