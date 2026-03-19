@@ -308,7 +308,7 @@ export class PostsService {
       dto.isPublic = dto.visibility === 'public';
     }
 
-    const { removeMediaIds, ...updateFields } = dto;
+    const { removeMediaIds, addMediaIds, ...updateFields } = dto;
     Object.assign(post, updateFields);
     await this.postRepo.save(post);
 
@@ -320,6 +320,30 @@ export class PostsService {
         .from(PostMedia)
         .where('id IN (:...ids)', { ids: removeMediaIds })
         .andWhere('post_id = :postId', { postId: id })
+        .execute();
+    }
+
+    // Attach new media to this post
+    if (addMediaIds?.length) {
+      const ownedMedia = await this.mediaRepo.find({
+        where: {
+          id: In(addMediaIds),
+          uploaderId: userId,
+          postId: IsNull(),
+        },
+      });
+
+      if (ownedMedia.length !== addMediaIds.length) {
+        throw new BadRequestException(
+          'Some media IDs are invalid, do not belong to you, or are already attached to another post',
+        );
+      }
+
+      await this.mediaRepo
+        .createQueryBuilder()
+        .update(PostMedia)
+        .set({ postId: id })
+        .where('id IN (:...ids)', { ids: addMediaIds })
         .execute();
     }
 

@@ -17,19 +17,19 @@ enum InvlogTheme {
     // MARK: - Border Radius
 
     enum Radius {
-        static let sm: CGFloat = 8
-        static let md: CGFloat = 12
-        static let lg: CGFloat = 16
-        static let xl: CGFloat = 20
+        static let sm: CGFloat = 10
+        static let md: CGFloat = 14
+        static let lg: CGFloat = 18
+        static let xl: CGFloat = 24
         static let full: CGFloat = 999
     }
 
     // MARK: - Card Constants
 
     enum Card {
-        static let borderWidth: CGFloat = 1
-        static let cornerRadius: CGFloat = 12
-        static let padding: CGFloat = 14
+        static let borderWidth: CGFloat = 0      // no border — cleaner
+        static let cornerRadius: CGFloat = 18    // rounder corners
+        static let padding: CGFloat = 16
     }
 
     // MARK: - Avatar Sizes
@@ -39,8 +39,8 @@ enum InvlogTheme {
         static let medium: CGFloat = 40
         static let large: CGFloat = 56
         static let profile: CGFloat = 80
-        static let storyRing: CGFloat = 64
-        static let storyInner: CGFloat = 56
+        static let storyRing: CGFloat = 66
+        static let storyInner: CGFloat = 58
     }
 
     // MARK: - Tab Bar
@@ -48,14 +48,14 @@ enum InvlogTheme {
     enum TabBar {
         static let contentHeight: CGFloat = 96
         static let safeAreaBottom: CGFloat = 34
-        static let createButtonSize: CGFloat = 52
+        static let createButtonSize: CGFloat = 58
     }
 
-    // MARK: - Shadows
+    // MARK: - Shadows — deeper, more elevated
 
-    static let cardShadowColor = Color.black.opacity(0.04)
-    static let cardShadowRadius: CGFloat = 3
-    static let cardShadowY: CGFloat = 1
+    static let cardShadowColor = Color.black.opacity(0.08)
+    static let cardShadowRadius: CGFloat = 16
+    static let cardShadowY: CGFloat = 6
 
     // MARK: - Typography (SF Rounded)
 

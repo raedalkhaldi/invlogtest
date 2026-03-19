@@ -200,34 +200,177 @@ final class MediaUploadService: ObservableObject {
     private func compressVideo(url: URL) async throws -> Data {
         let asset = AVURLAsset(url: url)
 
-        // Use 1280x720 preset — backend caps at 1080p anyway
-        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
-            // Fallback: read raw file if export session unavailable
-            return try Data(contentsOf: url)
-        }
-
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mp4")
 
-        session.outputURL = tempURL
-        session.outputFileType = .mp4
-        session.shouldOptimizeForNetworkUse = true
-
-        await session.export()
-
-        guard session.status == .completed else {
-            // Clean up and fallback to raw file
+        // Use AVAssetWriter for fine-grained compression control
+        do {
+            try await compressVideoWithAssetWriter(asset: asset, outputURL: tempURL)
+            let data = try Data(contentsOf: tempURL)
             try? FileManager.default.removeItem(at: tempURL)
-            if let error = session.error {
-                throw error
-            }
+            return data
+        } catch {
+            // Clean up on failure, fallback to raw file
+            try? FileManager.default.removeItem(at: tempURL)
             return try Data(contentsOf: url)
         }
+    }
 
-        let data = try Data(contentsOf: tempURL)
-        try? FileManager.default.removeItem(at: tempURL)
-        return data
+    private func compressVideoWithAssetWriter(asset: AVURLAsset, outputURL: URL) async throws {
+        let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+
+        // Determine output dimensions from source video (preserve aspect ratio, cap at 1920px longest edge)
+        var outputWidth: Int = 1920
+        var outputHeight: Int = 1080
+        var sourceTransform: CGAffineTransform = .identity
+
+        if let videoTrack = asset.tracks(withMediaType: .video).first {
+            let naturalSize = videoTrack.naturalSize
+            sourceTransform = videoTrack.preferredTransform
+
+            // Check if the video is rotated (portrait videos report landscape naturalSize + 90° rotation)
+            let isRotated = abs(sourceTransform.b) == 1.0 && abs(sourceTransform.c) == 1.0
+            let srcWidth = isRotated ? naturalSize.height : naturalSize.width
+            let srcHeight = isRotated ? naturalSize.width : naturalSize.height
+
+            let maxDimension: CGFloat = 1920.0
+            if max(srcWidth, srcHeight) > maxDimension {
+                let scale = maxDimension / max(srcWidth, srcHeight)
+                outputWidth = Int((srcWidth * scale).rounded(.toNearestOrEven))
+                outputHeight = Int((srcHeight * scale).rounded(.toNearestOrEven))
+            } else {
+                outputWidth = Int(srcWidth)
+                outputHeight = Int(srcHeight)
+            }
+
+            // Ensure even dimensions (required by H.264)
+            outputWidth = outputWidth + (outputWidth % 2)
+            outputHeight = outputHeight + (outputHeight % 2)
+        }
+
+        // Video output settings: H.264, source dimensions, 4.5 Mbps
+        let videoSettings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: outputWidth,
+            AVVideoHeightKey: outputHeight,
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: 4_500_000,
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264MainAutoLevel
+            ]
+        ]
+
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+        videoInput.expectsMediaDataInRealTime = false
+
+        // Apply the source video's transform (orientation)
+        videoInput.transform = sourceTransform
+
+        if writer.canAdd(videoInput) {
+            writer.add(videoInput)
+        }
+
+        // Audio output settings: AAC, 128kbps, 44100 Hz
+        let audioSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVNumberOfChannelsKey: 2,
+            AVSampleRateKey: 44100,
+            AVEncoderBitRateKey: 128_000
+        ]
+
+        let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+        audioInput.expectsMediaDataInRealTime = false
+
+        if writer.canAdd(audioInput) {
+            writer.add(audioInput)
+        }
+
+        // Set up asset reader
+        let reader = try AVAssetReader(asset: asset)
+
+        // Video reader output
+        let videoReaderSettings: [String: Any] = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+        ]
+
+        var videoReaderOutput: AVAssetReaderTrackOutput?
+        if let videoTrack = asset.tracks(withMediaType: .video).first {
+            let output = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: videoReaderSettings)
+            output.alwaysCopiesSampleData = false
+            if reader.canAdd(output) {
+                reader.add(output)
+                videoReaderOutput = output
+            }
+        }
+
+        // Audio reader output
+        let audioReaderSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: 44100,
+            AVNumberOfChannelsKey: 2
+        ]
+
+        var audioReaderOutput: AVAssetReaderTrackOutput?
+        if let audioTrack = asset.tracks(withMediaType: .audio).first {
+            let output = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: audioReaderSettings)
+            output.alwaysCopiesSampleData = false
+            if reader.canAdd(output) {
+                reader.add(output)
+                audioReaderOutput = output
+            }
+        }
+
+        reader.startReading()
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            // Write video samples
+            if let videoOutput = videoReaderOutput {
+                group.addTask {
+                    await withCheckedContinuation { continuation in
+                        videoInput.requestMediaDataWhenReady(on: DispatchQueue(label: "com.invlog.videoWriterQueue")) {
+                            while videoInput.isReadyForMoreMediaData {
+                                if let sampleBuffer = videoOutput.copyNextSampleBuffer() {
+                                    videoInput.append(sampleBuffer)
+                                } else {
+                                    videoInput.markAsFinished()
+                                    continuation.resume()
+                                    return
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Write audio samples
+            if let audioOutput = audioReaderOutput {
+                group.addTask {
+                    await withCheckedContinuation { continuation in
+                        audioInput.requestMediaDataWhenReady(on: DispatchQueue(label: "com.invlog.audioWriterQueue")) {
+                            while audioInput.isReadyForMoreMediaData {
+                                if let sampleBuffer = audioOutput.copyNextSampleBuffer() {
+                                    audioInput.append(sampleBuffer)
+                                } else {
+                                    audioInput.markAsFinished()
+                                    continuation.resume()
+                                    return
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            try await group.waitForAll()
+        }
+
+        await writer.finishWriting()
+
+        if writer.status == .failed {
+            throw writer.error ?? NSError(domain: "MediaUploadService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Video compression failed"])
+        }
     }
 
     private func resizeIfNeeded(image: UIImage, maxDimension: CGFloat) -> Data? {

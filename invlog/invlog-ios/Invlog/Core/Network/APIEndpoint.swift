@@ -23,7 +23,7 @@ enum APIEndpoint {
     // Posts
     case createPost(content: String?, mediaIds: [String], restaurantId: String?, rating: Int?, latitude: Double?, longitude: Double?, locationName: String?, locationAddress: String?, visibility: String?, tripId: String?)
     case postDetail(id: String)
-    case updatePost(id: String, content: String?, rating: Int?, visibility: String?, removeMediaIds: [String]?)
+    case updatePost(id: String, content: String?, rating: Int?, visibility: String?, removeMediaIds: [String]?, addMediaIds: [String]?)
     case deletePost(id: String)
 
     // Comments
@@ -92,7 +92,7 @@ enum APIEndpoint {
     case removeBookmark(id: String)
     case bookmarks(cursor: String?, limit: Int)
 
-    // Stories
+    // Stories (backend only supports mediaId — no caption/content/edit)
     case createStory(mediaId: String)
     case storyFeed
     case viewStory(id: String)
@@ -167,7 +167,7 @@ enum APIEndpoint {
         // Posts
         case .createPost: return "/posts"
         case .postDetail(let id): return "/posts/\(id)"
-        case .updatePost(let id, _, _, _, _): return "/posts/\(id)"
+        case .updatePost(let id, _, _, _, _, _): return "/posts/\(id)"
         case .deletePost(let id): return "/posts/\(id)"
 
         // Comments
@@ -341,12 +341,13 @@ enum APIEndpoint {
             return body
         case .updateComment(_, let content):
             return ["content": content]
-        case .updatePost(_, let content, let rating, let visibility, let removeMediaIds):
+        case .updatePost(_, let content, let rating, let visibility, let removeMediaIds, let addMediaIds):
             var body: [String: Any] = [:]
             if let content { body["content"] = content }
             if let rating { body["rating"] = rating }
             if let visibility { body["visibility"] = visibility }
             if let removeMediaIds, !removeMediaIds.isEmpty { body["removeMediaIds"] = removeMediaIds }
+            if let addMediaIds, !addMediaIds.isEmpty { body["addMediaIds"] = addMediaIds }
             return body
         case .updateProfile(let displayName, let bio, let isPrivate, let avatarUrl):
             var body: [String: Any] = [:]
@@ -375,6 +376,7 @@ enum APIEndpoint {
         case .createRestaurant(let data), .updateRestaurant(_, let data), .addMenuItem(_, let data):
             return data
         case .createStory(let mediaId):
+            // Backend only accepts mediaId — caption/content/locationName cause 400
             return ["mediaId": mediaId]
         case .startConversation(let userId):
             return ["userId": userId]

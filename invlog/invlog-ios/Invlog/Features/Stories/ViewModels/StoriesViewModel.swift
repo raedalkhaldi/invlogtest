@@ -10,6 +10,12 @@ final class StoriesViewModel: ObservableObject {
         do {
             let (groups, _) = try await APIClient.shared.requestWrapped(.storyFeed, responseType: [StoryGroup].self)
             storyGroups = groups
+
+            // Assign any pending caption from a recent upload to the latest own story
+            if let myGroup = groups.first(where: { $0.stories.contains(where: { _ in true }) }),
+               let latestStory = myGroup.stories.first {
+                StoryCaptionCache.shared.assignPendingCaption(to: latestStory.id)
+            }
         } catch {
             print("Failed to load stories: \(error)")
         }

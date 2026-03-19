@@ -204,64 +204,106 @@ struct CheckInHistoryView: View {
 
 struct CheckInRow: View {
     let checkIn: CheckIn
+    var showUserPrimary: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
-            if let restaurant = checkIn.restaurant {
-                LazyImage(url: restaurant.avatarUrl) { state in
-                    if let image = state.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Image(systemName: "building.2")
+            if showUserPrimary, let user = checkIn.user {
+                // Restaurant profile context — show user avatar
+                NavigationLink(destination: ProfileView(userId: user.username)) {
+                    HStack(spacing: 12) {
+                        LazyImage(url: user.avatarUrl) { state in
+                            if let image = state.image {
+                                image.resizable().scaledToFill()
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(Color.brandTextTertiary)
+                            }
+                        }
+                        .frame(width: 44, height: 44)
+                        .clipShape(Circle())
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(user.displayName ?? user.username ?? "")
+                                .font(InvlogTheme.body(14, weight: .bold))
+                                .foregroundColor(Color.brandText)
+                                .lineLimit(1)
+                            Text("@\(user.username ?? "")")
+                                .font(InvlogTheme.caption(12))
+                                .foregroundColor(Color.brandTextSecondary)
+                                .lineLimit(1)
+                            Text(checkIn.createdAt, style: .relative)
+                                .font(InvlogTheme.caption(11))
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
                             .foregroundColor(Color.brandTextTertiary)
                     }
                 }
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                .accessibilityHidden(true)
-            } else if let user = checkIn.user {
-                LazyImage(url: user.avatarUrl) { state in
-                    if let image = state.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Image(systemName: "person.circle.fill")
-                            .foregroundColor(Color.brandTextTertiary)
-                    }
-                }
-                .frame(width: 44, height: 44)
-                .clipShape(Circle())
-                .accessibilityHidden(true)
+                .buttonStyle(.plain)
             } else {
-                Image(systemName: "mappin.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(Color.brandPrimary)
-                    .frame(width: 44, height: 44)
-                    .accessibilityHidden(true)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
+                // Default — show restaurant info
                 if let restaurant = checkIn.restaurant {
-                    Text(restaurant.name)
-                        .font(InvlogTheme.body(14, weight: .bold))
-                        .foregroundColor(Color.brandText)
-                        .lineLimit(1)
+                    LazyImage(url: restaurant.avatarUrl) { state in
+                        if let image = state.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Image(systemName: "building.2")
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    .accessibilityHidden(true)
+                } else if let user = checkIn.user {
+                    LazyImage(url: user.avatarUrl) { state in
+                        if let image = state.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Image(systemName: "person.circle.fill")
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+                    .accessibilityHidden(true)
+                } else {
+                    Image(systemName: "mappin.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(Color.brandPrimary)
+                        .frame(width: 44, height: 44)
+                        .accessibilityHidden(true)
                 }
-                if let user = checkIn.user {
-                    Text("@\(user.username)")
-                        .font(InvlogTheme.caption(12))
-                        .foregroundColor(Color.brandTextSecondary)
-                        .lineLimit(1)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    if let restaurant = checkIn.restaurant {
+                        Text(restaurant.name)
+                            .font(InvlogTheme.body(14, weight: .bold))
+                            .foregroundColor(Color.brandText)
+                            .lineLimit(1)
+                    }
+                    if let user = checkIn.user {
+                        Text("@\(user.username ?? "")")
+                            .font(InvlogTheme.caption(12))
+                            .foregroundColor(Color.brandTextSecondary)
+                            .lineLimit(1)
+                    }
+                    Text(checkIn.createdAt, style: .relative)
+                        .font(InvlogTheme.caption(11))
+                        .foregroundColor(Color.brandTextTertiary)
                 }
-                Text(checkIn.createdAt, style: .relative)
-                    .font(InvlogTheme.caption(11))
-                    .foregroundColor(Color.brandTextTertiary)
+
+                Spacer()
+
+                Image(systemName: "mappin")
+                    .font(.caption)
+                    .foregroundColor(Color.brandPrimary)
             }
-
-            Spacer()
-
-            Image(systemName: "mappin")
-                .font(.caption)
-                .foregroundColor(Color.brandPrimary)
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
@@ -274,7 +316,7 @@ struct CheckInRow: View {
             parts.append("Check-in at \(restaurant.name)")
         }
         if let user = checkIn.user {
-            parts.append("by \(user.displayName ?? user.username)")
+            parts.append("by \(user.displayName ?? user.username ?? "")")
         }
         return parts.joined(separator: " ")
     }

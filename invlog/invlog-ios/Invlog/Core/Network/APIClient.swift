@@ -30,6 +30,7 @@ actor APIClient {
     private let decoder: JSONDecoder
     private let keychainManager = KeychainManager()
     private var isRefreshing = false
+    private var refreshWaiters: [CheckedContinuation<Void, Error>] = []
 
     #if DEBUG
     private static let defaultBaseURL = URL(string: "http://localhost:3000/api/v1")!
@@ -116,6 +117,7 @@ actor APIClient {
                 return try decoder.decode(T.self, from: data)
             } catch let error as APIError {
                 // Don't retry client errors (except 429 handled above)
+                ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: error)
                 throw error
             } catch is CancellationError {
                 throw CancellationError()
@@ -126,10 +128,12 @@ actor APIClient {
                     try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt + 1))) * 500_000_000)
                     continue
                 }
+                ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: error)
                 throw error
             }
         }
 
+        ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: lastError)
         throw lastError
     }
 
@@ -169,6 +173,11 @@ actor APIClient {
                     return
                 }
 
+                // Treat 409 (Already liked/followed) as success for idempotent operations
+                if httpResponse.statusCode == 409 {
+                    return
+                }
+
                 // Retry on 5xx or 429
                 if ((500...599).contains(httpResponse.statusCode) || httpResponse.statusCode == 429),
                    attempt < 2 {
@@ -183,6 +192,7 @@ actor APIClient {
 
                 return
             } catch let error as APIError {
+                ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: error)
                 throw error
             } catch is CancellationError {
                 throw CancellationError()
@@ -192,10 +202,12 @@ actor APIClient {
                     try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt + 1))) * 500_000_000)
                     continue
                 }
+                ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: error)
                 throw error
             }
         }
 
+        ErrorLogger.shared.logAPI(endpoint: endpoint.path, statusCode: nil, error: lastError)
         throw lastError
     }
 
@@ -228,41 +240,70 @@ actor APIClient {
     }
 
     private func refreshAccessToken() async throws {
-        guard !isRefreshing else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
-
-        guard let refreshToken = keychainManager.getRefreshToken() else {
-            throw APIError.unauthorized
-        }
-
-        let endpoint = APIEndpoint.refreshToken(token: refreshToken)
-        let urlRequest = try endpoint.urlRequest(baseURL: baseURL)
-        let (data, response) = try await session.data(for: urlRequest)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            keychainManager.clearTokens()
-            throw APIError.unauthorized
-        }
-
-        struct TokenResponse: Decodable {
-            let data: TokenData
-            struct TokenData: Decodable {
-                let accessToken: String
-                let refreshToken: String
+        // If already refreshing, wait for the in-flight refresh to complete
+        if isRefreshing {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                refreshWaiters.append(continuation)
             }
+            return
         }
 
-        let tokenResponse = try decoder.decode(TokenResponse.self, from: data)
-        keychainManager.saveAccessToken(tokenResponse.data.accessToken)
-        keychainManager.saveRefreshToken(tokenResponse.data.refreshToken)
+        isRefreshing = true
+
+        do {
+            guard let refreshToken = keychainManager.getRefreshToken() else {
+                throw APIError.unauthorized
+            }
+
+            let endpoint = APIEndpoint.refreshToken(token: refreshToken)
+            let urlRequest = try endpoint.urlRequest(baseURL: baseURL)
+            let (data, response) = try await session.data(for: urlRequest)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                keychainManager.clearTokens()
+                NotificationCenter.default.post(name: .sessionExpired, object: nil)
+                throw APIError.unauthorized
+            }
+
+            struct TokenResponse: Decodable {
+                let data: TokenData
+                struct TokenData: Decodable {
+                    let accessToken: String
+                    let refreshToken: String
+                }
+            }
+
+            let tokenResponse = try decoder.decode(TokenResponse.self, from: data)
+            keychainManager.saveAccessToken(tokenResponse.data.accessToken)
+            keychainManager.saveRefreshToken(tokenResponse.data.refreshToken)
+
+            // Resume all waiters with success
+            let waiters = refreshWaiters
+            refreshWaiters = []
+            isRefreshing = false
+            for waiter in waiters {
+                waiter.resume()
+            }
+        } catch {
+            // Resume all waiters with the error
+            let waiters = refreshWaiters
+            refreshWaiters = []
+            isRefreshing = false
+            for waiter in waiters {
+                waiter.resume(throwing: error)
+            }
+            throw error
+        }
     }
 
     private func parseError(statusCode: Int, data: Data) -> APIError {
         if let errorResponse = try? decoder.decode(ErrorResponse.self, from: data) {
             return .httpError(statusCode: statusCode, message: errorResponse.message)
         }
-        return .httpError(statusCode: statusCode, message: nil)
+        // Try to extract raw error string for debugging
+        let rawBody = String(data: data, encoding: .utf8)
+        let message = rawBody?.isEmpty == false ? "Server error (\(statusCode)): \(rawBody!.prefix(300))" : nil
+        return .httpError(statusCode: statusCode, message: message)
     }
 }

@@ -8,6 +8,7 @@ struct PostDetailView: View {
     @State private var newComment = ""
     @State private var isLoading = true
     @State private var error: String?
+    @State private var navigateToMention: String? = nil
 
     var body: some View {
         Group {
@@ -50,7 +51,9 @@ struct PostDetailView: View {
                                     .padding(.horizontal)
                             } else {
                                 ForEach(comments) { comment in
-                                    CommentRowView(comment: comment)
+                                    CommentRowView(comment: comment, onMentionTap: { username in
+                                        navigateToMention = username
+                                    })
                                         .padding(.horizontal)
                                     Rectangle().fill(Color.brandBorder).frame(height: 0.5)
                                         .padding(.horizontal)
@@ -63,13 +66,18 @@ struct PostDetailView: View {
 
                 // Comment Input
                 HStack(spacing: 8) {
-                    TextField("Add a comment...", text: $newComment)
-                        .font(InvlogTheme.body(15))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.brandBorder.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .accessibilityLabel("Write a comment")
+                    MentionableTextField(
+                        text: $newComment,
+                        placeholder: "Add a comment...",
+                        axis: .horizontal,
+                        lineLimit: 1...3
+                    )
+                    .font(InvlogTheme.body(15))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.brandBorder.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .accessibilityLabel("Write a comment")
 
                     Button {
                         Task { await submitComment() }
@@ -95,6 +103,22 @@ struct PostDetailView: View {
         .navigationDestination(for: Restaurant.self) { restaurant in
             RestaurantDetailView(restaurantSlug: restaurant.slug)
         }
+        .background(
+            NavigationLink(
+                destination: Group {
+                    if let username = navigateToMention {
+                        ProfileView(userId: username)
+                    }
+                },
+                isActive: Binding(
+                    get: { navigateToMention != nil },
+                    set: { if !$0 { navigateToMention = nil } }
+                )
+            ) {
+                EmptyView()
+            }
+            .hidden()
+        )
         .task {
             await loadPost()
             await loadComments()
@@ -145,6 +169,7 @@ struct PostDetailView: View {
 
 struct CommentRowView: View {
     let comment: Comment
+    var onMentionTap: ((String) -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -171,10 +196,75 @@ struct CommentRowView: View {
                         .foregroundColor(Color.brandTextTertiary)
                 }
 
-                Text(comment.content)
-                    .font(InvlogTheme.body(14))
-                    .foregroundColor(Color.brandText)
+                MentionText(
+                    content: comment.content,
+                    font: InvlogTheme.body(14),
+                    color: Color.brandText,
+                    mentionColor: Color.brandPrimary,
+                    onMentionTap: onMentionTap
+                )
             }
+        }
+    }
+}
+
+// MARK: - Post Stats Sheet
+
+struct PostStatsSheet: View {
+    let post: Post
+    let likeCount: Int
+    let commentCount: Int
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                HStack(spacing: 32) {
+                    statItem(value: "\(likeCount)", label: "Likes", icon: "heart.fill")
+                    statItem(value: "\(commentCount)", label: "Comments", icon: "bubble.right.fill")
+                }
+                .padding(.vertical, 24)
+
+                Divider()
+
+                Spacer()
+
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.bar")
+                        .font(.system(size: 36))
+                        .foregroundColor(Color.brandTextTertiary)
+                    Text("Detailed analytics coming soon")
+                        .font(InvlogTheme.body(14, weight: .medium))
+                        .foregroundColor(Color.brandTextSecondary)
+                }
+
+                Spacer()
+            }
+            .invlogScreenBackground()
+            .navigationTitle("Post Stats")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark").foregroundColor(Color.brandText)
+                    }
+                }
+            }
+        }
+    }
+
+    private func statItem(value: String, label: String, icon: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(Color.brandPrimary)
+            Text(value)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(Color.brandText)
+            Text(label)
+                .font(InvlogTheme.caption(12))
+                .foregroundColor(Color.brandTextSecondary)
         }
     }
 }

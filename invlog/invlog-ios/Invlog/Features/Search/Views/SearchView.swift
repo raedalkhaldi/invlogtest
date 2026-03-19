@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 @preconcurrency import NukeUI
 
 struct NearbyRestaurantsDestination: Hashable {}
@@ -15,6 +16,8 @@ struct SearchView: View {
     @State private var isLoadingNearby = false
     @State private var exploreTrips: [Trip] = []
     @State private var isLoadingTrips = false
+    @State private var selectedPlaceCategory: PlaceCategoryFilter = .all
+    @State private var mapkitNearbyItems: [MKMapItem] = []
 
     enum SearchFilter: String, CaseIterable {
         case all = "All"
@@ -28,6 +31,46 @@ struct SearchView: View {
             case .restaurants: return "Places"
             case .users: return "People"
             case .posts: return "Posts"
+            }
+        }
+    }
+
+    enum PlaceCategoryFilter: String, CaseIterable, Identifiable {
+        case all = "All"
+        case restaurants = "Restaurants"
+        case coffee = "Coffee"
+        case bars = "Bars"
+        case desserts = "Desserts"
+        case bakery = "Bakery"
+        case fastFood = "Fast Food"
+        case fineDining = "Fine Dining"
+
+        var id: String { rawValue }
+
+        /// MapKit search query for this category
+        var mapkitQuery: String? {
+            switch self {
+            case .all: return nil
+            case .restaurants: return "restaurant"
+            case .coffee: return "cafe coffee"
+            case .bars: return "bar lounge pub"
+            case .desserts: return "dessert ice cream sweets"
+            case .bakery: return "bakery"
+            case .fastFood: return "fast food"
+            case .fineDining: return "fine dining"
+            }
+        }
+
+        var keywords: [String] {
+            switch self {
+            case .all: return []
+            case .restaurants: return ["restaurant", "dining", "food"]
+            case .coffee: return ["cafe", "coffee"]
+            case .bars: return ["bar", "lounge", "pub", "nightlife"]
+            case .desserts: return ["dessert", "ice cream", "sweet", "chocolate"]
+            case .bakery: return ["bakery"]
+            case .fastFood: return ["fast food", "street food"]
+            case .fineDining: return ["fine dining"]
             }
         }
     }
@@ -122,7 +165,7 @@ struct SearchView: View {
                         .padding(.horizontal)
                         .padding(.top, 8)
 
-                        // Nearby Restaurants Section
+                        // Nearby Places with category filter tabs
                         if !nearbyRestaurants.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
@@ -143,16 +186,108 @@ struct SearchView: View {
                                     .accessibilityLabel("See all nearby places")
                                 }
 
+                                // Category filter chips
                                 ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        ForEach(nearbyRestaurants.prefix(8)) { restaurant in
-                                            NavigationLink(value: restaurant) {
-                                                NearbyRestaurantCard(restaurant: restaurant)
+                                    HStack(spacing: 8) {
+                                        ForEach(PlaceCategoryFilter.allCases) { category in
+                                            Button {
+                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                    selectedPlaceCategory = category
+                                                }
+                                            } label: {
+                                                Text(category.rawValue)
+                                                    .font(InvlogTheme.caption(12, weight: .bold))
+                                                    .padding(.horizontal, 14)
+                                                    .padding(.vertical, 6)
+                                                    .background(selectedPlaceCategory == category ? Color.brandPrimary : Color.brandCard)
+                                                    .foregroundColor(selectedPlaceCategory == category ? .white : Color.brandText)
+                                                    .clipShape(Capsule())
+                                                    .overlay(
+                                                        Capsule()
+                                                            .stroke(selectedPlaceCategory == category ? Color.clear : Color.brandBorder, lineWidth: 1)
+                                                    )
                                             }
-                                            .frame(minWidth: 44, minHeight: 44)
-                                            .accessibilityLabel("\(restaurant.name)")
+                                            .frame(minHeight: 36)
+                                            .accessibilityLabel("\(category.rawValue) filter")
                                         }
                                     }
+                                    .padding(.horizontal)
+                                }
+
+                                // Filtered results — DB restaurants
+                                if selectedPlaceCategory == .all {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 12) {
+                                            ForEach(nearbyRestaurants.prefix(12)) { restaurant in
+                                                NavigationLink(value: restaurant) {
+                                                    NearbyRestaurantCard(restaurant: restaurant)
+                                                }
+                                                .frame(minWidth: 44, minHeight: 44)
+                                                .accessibilityLabel("\(restaurant.name)")
+                                            }
+                                        }
+                                        .padding(.horizontal)
+                                    }
+                                } else if isLoadingNearby {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 12)
+                                } else if mapkitNearbyItems.isEmpty {
+                                    HStack {
+                                        Spacer()
+                                        Text("No \(selectedPlaceCategory.rawValue.lowercased()) nearby")
+                                            .font(InvlogTheme.caption(12))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 12)
+                                } else {
+                                    // Show MapKit results as a list for better category accuracy
+                                    VStack(spacing: 0) {
+                                        ForEach(mapkitNearbyItems.prefix(12), id: \.self) { item in
+                                            Button {
+                                                // Navigate to map item — for now just show info
+                                            } label: {
+                                                HStack(spacing: 12) {
+                                                    Image(systemName: "mappin.circle.fill")
+                                                        .font(.title3)
+                                                        .foregroundColor(Color.brandPrimary)
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        Text(item.name ?? "Unknown")
+                                                            .font(InvlogTheme.body(14, weight: .semibold))
+                                                            .foregroundColor(Color.brandText)
+                                                            .lineLimit(1)
+                                                        if let addr = item.placemark.thoroughfare {
+                                                            Text(addr)
+                                                                .font(InvlogTheme.caption(11))
+                                                                .foregroundColor(Color.brandTextSecondary)
+                                                                .lineLimit(1)
+                                                        }
+                                                    }
+                                                    Spacer()
+                                                    if let cat = item.pointOfInterestCategory?.rawValue {
+                                                        Text(formatPOICategory(cat))
+                                                            .font(InvlogTheme.caption(10))
+                                                            .foregroundColor(Color.brandPrimary)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 3)
+                                                            .background(Color.brandOrangeLight)
+                                                            .clipShape(Capsule())
+                                                    }
+                                                }
+                                                .padding(.vertical, 8)
+                                                .padding(.horizontal)
+                                            }
+                                            .buttonStyle(.plain)
+                                            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                                                .padding(.horizontal)
+                                        }
+                                    }
+                                    .background(Color.brandCard)
+                                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius))
                                     .padding(.horizontal)
                                 }
                             }
@@ -313,10 +448,51 @@ struct SearchView: View {
         .task {
             await loadExploreTrips()
         }
+        .onChange(of: selectedPlaceCategory) { newCategory in
+            guard newCategory != .all, let query = newCategory.mapkitQuery else {
+                mapkitNearbyItems = []
+                return
+            }
+            Task { await searchMapKitCategory(query: query) }
+        }
         .onChange(of: locationManager.location) { newLocation in
             guard let coord = newLocation else { return }
             Task { await loadNearbyRestaurants(lat: coord.latitude, lng: coord.longitude) }
         }
+    }
+
+    private func searchMapKitCategory(query: String) async {
+        guard let coord = locationManager.location else { return }
+        isLoadingNearby = true
+        mapkitNearbyItems = []
+
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        request.resultTypes = .pointOfInterest
+        request.region = MKCoordinateRegion(
+            center: coord,
+            latitudinalMeters: 5000,
+            longitudinalMeters: 5000
+        )
+
+        do {
+            let search = MKLocalSearch(request: request)
+            let response = try await search.start()
+            mapkitNearbyItems = response.mapItems
+        } catch {
+            mapkitNearbyItems = []
+        }
+        isLoadingNearby = false
+    }
+
+    private func formatPOICategory(_ raw: String) -> String {
+        let cleaned = raw.replacingOccurrences(of: "MKPOICategory", with: "")
+        var result = ""
+        for char in cleaned {
+            if char.isUppercase && !result.isEmpty { result += " " }
+            result.append(char)
+        }
+        return result
     }
 
     private func loadNearbyRestaurants(lat: Double, lng: Double) async {
@@ -324,7 +500,7 @@ struct SearchView: View {
         isLoadingNearby = true
         do {
             let (data, _) = try await APIClient.shared.requestWrapped(
-                .nearbyRestaurants(lat: lat, lng: lng, radiusKm: 5, limit: 8),
+                .nearbyRestaurants(lat: lat, lng: lng, radiusKm: 5, limit: 30),
                 responseType: [Restaurant].self
             )
             nearbyRestaurants = data.sorted { ($0.distance ?? .greatestFiniteMagnitude) < ($1.distance ?? .greatestFiniteMagnitude) }

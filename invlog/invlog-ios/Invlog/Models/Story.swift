@@ -9,9 +9,15 @@ struct Story: Codable, Identifiable, Hashable {
     let blurhash: String?
     let durationSecs: Double?
     let viewCount: Int
+    let likeCount: Int?
+    let commentCount: Int?
     let createdAt: Date
     let expiresAt: Date
     var isViewedByMe: Bool?
+    var isLikedByMe: Bool?
+    var caption: String?
+    var locationName: String?
+    let restaurantId: String?
 }
 
 struct StoryGroup: Codable, Identifiable, Hashable {

@@ -17,6 +17,8 @@ struct RestaurantDetailView: View {
     @State private var isFollowing = false
     @State private var showCheckIn = false
     @State private var error: String?
+    @State private var selectedPhotoURL: URL?
+    @State private var showPhotoViewer = false
 
     var body: some View {
         Group {
@@ -72,6 +74,11 @@ struct RestaurantDetailView: View {
         .task {
             await loadRestaurant()
         }
+        .fullScreenCover(isPresented: $showPhotoViewer) {
+            if let photoURL = selectedPhotoURL {
+                PhotoViewerSheet(url: photoURL)
+            }
+        }
     }
 
     // MARK: - Main Content
@@ -79,7 +86,7 @@ struct RestaurantDetailView: View {
     @ViewBuilder
     private func restaurantContent(_ restaurant: Restaurant) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            LazyVStack(alignment: .leading, spacing: 16) {
                 LazyImage(url: restaurant.coverUrl ?? restaurantMedia.first.flatMap { URL(string: $0.mediumUrl ?? $0.url) }) { state in
                     if let image = state.image {
                         image.resizable().scaledToFill()
@@ -116,6 +123,7 @@ struct RestaurantDetailView: View {
                     mapSection(restaurant)
 
                     Group {
+                        currentlyHereSection
                         menuSection(restaurant)
                         checkInsSection(restaurant)
                         photoGallerySection
@@ -289,6 +297,71 @@ struct RestaurantDetailView: View {
         }
     }
 
+    // MARK: - Currently Here
+
+    @ViewBuilder
+    private var currentlyHereSection: some View {
+        let twoHoursAgo = Date().addingTimeInterval(-2 * 60 * 60)
+        let currentUsers = recentCheckIns.filter { $0.createdAt > twoHoursAgo }
+
+        if !currentUsers.isEmpty {
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.brandAccent)
+                        .frame(width: 8, height: 8)
+                    Text("Currently Here")
+                        .font(InvlogTheme.heading(16, weight: .bold))
+                        .foregroundColor(Color.brandText)
+                    Text("\(currentUsers.count)")
+                        .font(InvlogTheme.caption(12, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.brandAccent)
+                        .clipShape(Capsule())
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(currentUsers) { checkIn in
+                            if let user = checkIn.user {
+                                NavigationLink(destination: ProfileView(userId: user.username)) {
+                                    VStack(spacing: 4) {
+                                        LazyImage(url: user.avatarUrl) { state in
+                                            if let image = state.image {
+                                                image.resizable().scaledToFill()
+                                            } else {
+                                                Image(systemName: "person.circle.fill")
+                                                    .font(.system(size: 28))
+                                                    .foregroundColor(Color.brandTextTertiary)
+                                            }
+                                        }
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.brandAccent, lineWidth: 2)
+                                        )
+
+                                        Text(user.displayName ?? user.username ?? "")
+                                            .font(InvlogTheme.caption(10, weight: .medium))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                            .lineLimit(1)
+                                            .frame(width: 56)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Check-Ins
 
     @ViewBuilder
@@ -312,7 +385,7 @@ struct RestaurantDetailView: View {
                 }
 
                 ForEach(recentCheckIns.prefix(5)) { checkIn in
-                    CheckInRow(checkIn: checkIn)
+                    CheckInRow(checkIn: checkIn, showUserPrimary: true)
                 }
             }
         }
@@ -366,9 +439,13 @@ struct RestaurantDetailView: View {
                     .font(InvlogTheme.heading(16, weight: .bold))
                     .foregroundColor(Color.brandText)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 4) {
-                        ForEach(restaurantMedia.prefix(12)) { media in
+                let columns = [GridItem(.adaptive(minimum: 110), spacing: 4)]
+                LazyVGrid(columns: columns, spacing: 4) {
+                    ForEach(restaurantMedia.prefix(12)) { media in
+                        Button {
+                            selectedPhotoURL = URL(string: media.mediumUrl ?? media.url)
+                            showPhotoViewer = true
+                        } label: {
                             LazyImage(url: URL(string: media.thumbnailUrl ?? media.mediumUrl ?? media.url)) { state in
                                 if let image = state.image {
                                     image.resizable().scaledToFill()
@@ -378,9 +455,10 @@ struct RestaurantDetailView: View {
                                     Rectangle().fill(Color.brandBorder)
                                 }
                             }
-                            .frame(width: 100, height: 100)
+                            .frame(height: 120)
                             .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -418,7 +496,7 @@ struct RestaurantDetailView: View {
             isFollowing = data.isFollowedByMe ?? false
 
             let (checkInData, _) = try await APIClient.shared.requestWrapped(
-                .restaurantCheckins(restaurantId: data.id, page: 1, perPage: 5),
+                .restaurantCheckins(restaurantId: data.id, page: 1, perPage: 20),
                 responseType: [CheckIn].self
             )
             recentCheckIns = checkInData
@@ -515,5 +593,61 @@ struct MenuItemRow: View {
                 .font(InvlogTheme.body(14, weight: .bold))
                 .foregroundColor(Color.brandText)
         }
+    }
+}
+
+// MARK: - Photo Viewer
+
+struct PhotoViewerSheet: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .failure:
+                    VStack(spacing: 8) {
+                        Image(systemName: "photo")
+                            .font(.largeTitle)
+                            .foregroundColor(.white.opacity(0.5))
+                        Text("Could not load image")
+                            .font(InvlogTheme.body(14))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                case .empty:
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.2)
+                @unknown default:
+                    ProgressView().tint(.white)
+                }
+            }
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white.opacity(0.8))
+                            .shadow(color: .black.opacity(0.5), radius: 4)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .padding()
+                }
+                Spacer()
+            }
+        }
+        .statusBarHidden()
     }
 }

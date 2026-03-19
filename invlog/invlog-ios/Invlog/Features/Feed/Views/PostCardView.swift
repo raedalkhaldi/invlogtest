@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 @preconcurrency import NukeUI
 
 struct PostCardView: View {
@@ -16,9 +17,19 @@ struct PostCardView: View {
     @State private var showEditSheet = false
     @State private var showBlockConfirm = false
     @State private var isDeleted = false
+    @State private var navigateToProfile = false
+    @State private var isLikeInFlight = false
+    @State private var showHeartBurst = false
+    @State private var showLikedBy = false
+    @State private var showPostStats = false
+    @State private var navigateToMention: String? = nil
 
     private var isOwnPost: Bool {
         post.authorId == appState.currentUser?.id
+    }
+
+    private var hasVideo: Bool {
+        post.media?.contains(where: { $0.mediaType == "video" }) == true
     }
 
     init(post: Post, onCommentAdded: (() -> Void)? = nil, onDeleted: (() -> Void)? = nil) {
@@ -35,7 +46,9 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Author Header
             HStack(alignment: .top, spacing: 10) {
-                NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId)) {
+                Button {
+                    navigateToProfile = true
+                } label: {
                     LazyImage(url: post.author?.avatarUrl) { state in
                         if let image = state.image {
                             image.resizable().scaledToFill()
@@ -55,34 +68,10 @@ struct PostCardView: View {
                     // Row 1: "username checked-in place name"
                     checkinHeaderText
 
-                    // Row 2: Stats + time
-                    HStack(spacing: 6) {
-                        Text(post.createdAt.shortRelativeString)
-                            .font(InvlogTheme.caption(11))
-                            .foregroundColor(Color.brandTextTertiary)
-
-                        if likeCount > 0 {
-                            HStack(spacing: 2) {
-                                Image(systemName: "heart.fill")
-                                    .font(.system(size: 9))
-                                    .foregroundColor(.red)
-                                Text("\(likeCount)")
-                                    .font(InvlogTheme.caption(11, weight: .semibold))
-                                    .foregroundColor(Color.brandTextSecondary)
-                            }
-                        }
-
-                        if commentCount > 0 {
-                            HStack(spacing: 2) {
-                                Image(systemName: "bubble.right.fill")
-                                    .font(.system(size: 9))
-                                    .foregroundColor(Color.brandTextTertiary)
-                                Text("\(commentCount)")
-                                    .font(InvlogTheme.caption(11, weight: .semibold))
-                                    .foregroundColor(Color.brandTextSecondary)
-                            }
-                        }
-                    }
+                    // Row 2: Time
+                    Text(post.createdAt.shortRelativeString)
+                        .font(InvlogTheme.caption(11))
+                        .foregroundColor(Color.brandTextTertiary)
 
                     // Trip badge
                     if let tripId = post.tripId, let tripTitle = post.tripTitle {
@@ -102,52 +91,39 @@ struct PostCardView: View {
 
                 Spacer(minLength: 0)
 
-                VStack(alignment: .trailing, spacing: 8) {
-                    HStack(spacing: 8) {
-                        if let visibility = post.visibility, visibility != "public" {
-                            Image(systemName: visibility == "followers" ? "person.2.fill" : "lock.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(Color.brandTextTertiary)
-                        }
+                HStack(spacing: 8) {
+                    if let visibility = post.visibility, visibility != "public" {
+                        Image(systemName: visibility == "followers" ? "person.2.fill" : "lock.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
 
-                        Menu {
-                            if isOwnPost {
-                                Button {
-                                    showEditSheet = true
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button(role: .destructive) {
-                                    showDeleteConfirm = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            } else {
-                                Button(role: .destructive) {
-                                    showBlockConfirm = true
-                                } label: {
-                                    Label("Block User", systemImage: "slash.circle")
-                                }
+                    Menu {
+                        if isOwnPost {
+                            Button {
+                                showEditSheet = true
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
                             }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color.brandTextSecondary)
-                                .frame(width: 32, height: 32)
+                            Button(role: .destructive) {
+                                showDeleteConfirm = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        } else {
+                            Button(role: .destructive) {
+                                showBlockConfirm = true
+                            } label: {
+                                Label("Block User", systemImage: "slash.circle")
+                            }
                         }
-                        .accessibilityLabel("Post options")
-                    }
-
-                    // Heart button in top-right
-                    Button {
-                        toggleLike()
                     } label: {
-                        Image(systemName: isLiked ? "heart.fill" : "heart")
-                            .font(.system(size: 20))
-                            .foregroundColor(isLiked ? .red : Color.brandTextTertiary)
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                            .frame(width: 32, height: 32)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+                    .accessibilityLabel("Post options")
                 }
             }
             .padding(.horizontal, InvlogTheme.Card.padding)
@@ -156,12 +132,18 @@ struct PostCardView: View {
 
             // Content
             if let content = post.content, !content.isEmpty {
-                Text(content)
-                    .font(InvlogTheme.body(15))
-                    .foregroundColor(Color.brandText)
-                    .lineLimit(4)
-                    .padding(.horizontal, InvlogTheme.Card.padding)
-                    .padding(.bottom, InvlogTheme.Spacing.xs)
+                MentionText(
+                    content: content,
+                    font: InvlogTheme.body(15),
+                    color: Color.brandText,
+                    mentionColor: Color.brandPrimary,
+                    lineLimit: 4,
+                    onMentionTap: { username in
+                        navigateToMention = username
+                    }
+                )
+                .padding(.horizontal, InvlogTheme.Card.padding)
+                .padding(.bottom, InvlogTheme.Spacing.xs)
             }
 
             // Rating
@@ -180,51 +162,87 @@ struct PostCardView: View {
 
             // Media
             if let media = post.media, !media.isEmpty {
-                MediaCarouselView(media: media)
-            }
+                if hasVideo {
+                    // Video post: overlay action buttons on the right side (Reels-style)
+                    ZStack(alignment: .trailing) {
+                        mediaWithDoubleTap(media: media)
 
-            // Actions Bar
-            HStack(spacing: 0) {
-                Button {
-                    showComments = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "bubble.right")
-                        Text(commentCount > 0 ? "\(commentCount)" : "")
-                            .font(InvlogTheme.caption(13, weight: .semibold))
+                        // Vertical action buttons overlay
+                        VStack(spacing: 20) {
+                            Spacer()
+
+                            // Like
+                            Button {
+                                toggleLike()
+                            } label: {
+                                VStack(spacing: 2) {
+                                    Image(systemName: isLiked ? "heart.fill" : "heart")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(isLiked ? .red : .white)
+                                    if likeCount > 0 {
+                                        Text("\(likeCount)")
+                                            .font(InvlogTheme.caption(11, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .onTapGesture { showLikedBy = true }
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+
+                            // Comment
+                            Button {
+                                showComments = true
+                            } label: {
+                                VStack(spacing: 2) {
+                                    Image(systemName: "bubble.right")
+                                        .font(.system(size: 22))
+                                        .foregroundColor(.white)
+                                    if commentCount > 0 {
+                                        Text("\(commentCount)")
+                                            .font(InvlogTheme.caption(11, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(commentCount > 0 ? "\(commentCount) comments" : "Add a comment")
+
+                            // Share
+                            Button {
+                                showShareSheet = true
+                            } label: {
+                                Image(systemName: "paperplane")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(.white)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Share post")
+
+                            // Bookmark
+                            Button {
+                                toggleBookmark()
+                            } label: {
+                                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(isBookmarked ? Color.brandPrimary : .white)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark post")
+                        }
+                        .padding(.trailing, 12)
+                        .padding(.bottom, 16)
+                        .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
                     }
-                    .foregroundColor(Color.brandTextSecondary)
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel(commentCount > 0 ? "\(commentCount) comments" : "Add a comment")
+                } else {
+                    mediaWithDoubleTap(media: media)
 
-                Button {
-                    showShareSheet = true
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundColor(Color.brandTextSecondary)
-                        .frame(maxWidth: .infinity)
+                    // Image post: horizontal action bar below
+                    actionsBar
                 }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel("Share post")
-
-                Button {
-                    toggleBookmark()
-                } label: {
-                    Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                        .foregroundColor(isBookmarked ? Color.brandPrimary : Color.brandTextSecondary)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark post")
-            }
-            .padding(.top, InvlogTheme.Spacing.xs)
-            .overlay(alignment: .top) {
-                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+            } else {
+                // No media: horizontal action bar
+                actionsBar
             }
 
             // Inline Comments (first 2)
@@ -235,10 +253,16 @@ struct PostCardView: View {
                             Text(comment.author?.username ?? "user")
                                 .font(InvlogTheme.caption(13, weight: .bold))
                                 .foregroundColor(Color.brandText)
-                            Text(comment.content)
-                                .font(InvlogTheme.caption(13))
-                                .foregroundColor(Color.brandText)
-                                .lineLimit(2)
+                            MentionText(
+                                content: comment.content,
+                                font: InvlogTheme.caption(13),
+                                color: Color.brandText,
+                                mentionColor: Color.brandPrimary,
+                                lineLimit: 2,
+                                onMentionTap: { username in
+                                    navigateToMention = username
+                                }
+                            )
                         }
                     }
 
@@ -270,6 +294,30 @@ struct PostCardView: View {
                 .padding(.bottom, InvlogTheme.Spacing.xs)
             }
         }
+        .background(
+            Group {
+                NavigationLink(destination: ProfileView(userId: post.author?.username ?? post.authorId), isActive: $navigateToProfile) {
+                    EmptyView()
+                }
+                .hidden()
+
+                // Navigation for @mention taps
+                NavigationLink(
+                    destination: Group {
+                        if let username = navigateToMention {
+                            ProfileView(userId: username)
+                        }
+                    },
+                    isActive: Binding(
+                        get: { navigateToMention != nil },
+                        set: { if !$0 { navigateToMention = nil } }
+                    )
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            }
+        )
         .invlogCard()
         .opacity(isDeleted ? 0 : 1)
         .frame(height: isDeleted ? 0 : nil)
@@ -278,10 +326,20 @@ struct PostCardView: View {
             ShareSheetView(items: [shareText])
         }
         .sheet(isPresented: $showComments) {
-            CommentsSheetView(postId: post.id, postAuthorId: post.authorId, commentCount: $commentCount, onCommentAdded: onCommentAdded)
+            CommentsSheetView(post: post, commentCount: $commentCount, onCommentAdded: onCommentAdded)
         }
         .sheet(isPresented: $showEditSheet) {
             EditPostSheet(post: post)
+        }
+        .sheet(isPresented: $showLikedBy) {
+            LikedBySheet(postId: post.id)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showPostStats) {
+            PostStatsSheet(post: post, likeCount: likeCount, commentCount: commentCount)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .alert("Delete Post", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -304,6 +362,130 @@ struct PostCardView: View {
         }
     }
 
+    // MARK: - Media with Double-Tap to Like
+
+    @ViewBuilder
+    private func mediaWithDoubleTap(media: [PostMedia]) -> some View {
+        ZStack {
+            MediaCarouselView(media: media)
+
+            // Heart burst animation overlay
+            if showHeartBurst {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 2)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.5).combined(with: .opacity),
+                        removal: .scale(scale: 1.5).combined(with: .opacity)
+                    ))
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            doubleTapLike()
+        }
+    }
+
+    private func doubleTapLike() {
+        // Only like, never unlike on double-tap
+        if !isLiked {
+            toggleLike()
+        }
+
+        // Show heart burst animation
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            showHeartBurst = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(.easeOut(duration: 0.3)) {
+                showHeartBurst = false
+            }
+        }
+    }
+
+    private var actionsBar: some View {
+        HStack(spacing: 0) {
+            Button {
+                toggleLike()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: isLiked ? "heart.fill" : "heart")
+                        .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
+                    if likeCount > 0 {
+                        Button {
+                            showLikedBy = true
+                        } label: {
+                            Text("\(likeCount)")
+                                .font(InvlogTheme.caption(13, weight: .semibold))
+                                .foregroundColor(Color.brandTextSecondary)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+
+            Button {
+                showComments = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "bubble.right")
+                    Text(commentCount > 0 ? "\(commentCount)" : "")
+                        .font(InvlogTheme.caption(13, weight: .semibold))
+                }
+                .foregroundColor(Color.brandTextSecondary)
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel(commentCount > 0 ? "\(commentCount) comments" : "Add a comment")
+
+            Button {
+                showShareSheet = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .foregroundColor(Color.brandTextSecondary)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel("Share post")
+
+            // Stats
+            if isOwnPost {
+                Button {
+                    showPostStats = true
+                } label: {
+                    Image(systemName: "chart.bar")
+                        .foregroundColor(Color.brandTextSecondary)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderless)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("Post stats")
+            }
+
+            Button {
+                toggleBookmark()
+            } label: {
+                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                    .foregroundColor(isBookmarked ? Color.brandPrimary : Color.brandTextSecondary)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark post")
+        }
+        .padding(.top, InvlogTheme.Spacing.xs)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+        }
+    }
+
     @ViewBuilder
     private var checkinHeaderText: some View {
         let username = post.author?.username ?? "unknown"
@@ -323,7 +505,7 @@ struct PostCardView: View {
                 )
                 .lineLimit(1)
 
-                NavigationLink(value: restaurant) {
+                NavigationLink(destination: RestaurantDetailView(restaurantSlug: restaurant.slug)) {
                     Text(placeName)
                         .font(InvlogTheme.body(14, weight: .bold))
                         .foregroundColor(Color.brandPrimary)
@@ -391,9 +573,12 @@ struct PostCardView: View {
     }
 
     private func toggleLike() {
+        guard !isLikeInFlight else { return }
         let wasLiked = isLiked
+        let wasCount = likeCount
         isLiked.toggle()
         likeCount += isLiked ? 1 : -1
+        isLikeInFlight = true
         Task {
             do {
                 if isLiked {
@@ -401,10 +586,23 @@ struct PostCardView: View {
                 } else {
                     try await APIClient.shared.requestVoid(.unlikePost(id: post.id))
                 }
+            } catch let error as APIError {
+                // 409 = already liked/unliked — keep the optimistic state
+                if case .httpError(let code, _) = error, code == 409 {
+                    await MainActor.run { isLikeInFlight = false }
+                    return
+                }
+                await MainActor.run {
+                    isLiked = wasLiked
+                    likeCount = wasCount
+                }
             } catch {
-                isLiked = wasLiked
-                likeCount = post.likeCount
+                await MainActor.run {
+                    isLiked = wasLiked
+                    likeCount = wasCount
+                }
             }
+            await MainActor.run { isLikeInFlight = false }
         }
     }
 
@@ -415,6 +613,7 @@ struct PostCardView: View {
                 isDeleted = true
             }
             onDeleted?()
+            NotificationCenter.default.post(name: .didDeletePost, object: post.id)
         } catch {
             // Delete failed silently
         }
@@ -432,6 +631,11 @@ struct EditPostSheet: View {
     @State private var visibility: String
     @State private var removedMediaIds: Set<String> = []
     @State private var isSaving = false
+    @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var newMediaPreviews: [UIImage] = []
+    @State private var newMediaItems: [MediaItem] = []
+    @StateObject private var uploadService = MediaUploadService()
+    @State private var saveError: String?
 
     init(post: Post) {
         self.post = post
@@ -450,6 +654,13 @@ struct EditPostSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     contentField
                     mediaGrid
+                    addMediaSection
+                    if let saveError {
+                        Text(saveError)
+                            .font(InvlogTheme.caption(12))
+                            .foregroundColor(.red)
+                            .padding(.horizontal)
+                    }
                     ratingSection
                     visibilitySection
                     Spacer()
@@ -478,15 +689,39 @@ struct EditPostSheet: View {
                     .disabled(isSaving)
                 }
             }
+            .onChange(of: selectedItems) { newItems in
+                Task {
+                    for item in newItems {
+                        if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+                            if let video = try? await item.loadTransferable(type: VideoTransferable.self) {
+                                let thumb = await VideoThumbnailGenerator.generateThumbnail(from: video.url) ?? UIImage(systemName: "video.fill")!
+                                newMediaPreviews.append(thumb)
+                                newMediaItems.append(.video(video.url, thumb))
+                            }
+                        } else if let data = try? await item.loadTransferable(type: Data.self),
+                                  let image = UIImage(data: data) {
+                            newMediaPreviews.append(image)
+                            newMediaItems.append(.image(image))
+                        }
+                    }
+                    selectedItems = []
+                    if !newMediaItems.isEmpty {
+                        uploadService.startEagerUpload(newMediaItems)
+                    }
+                }
+            }
         }
     }
 
     private var contentField: some View {
-        TextField("Share your experience...", text: $content, axis: .vertical)
-            .font(InvlogTheme.body(15))
-            .lineLimit(5...10)
-            .padding()
-            .accessibilityLabel("Post content")
+        MentionableTextField(
+            text: $content,
+            placeholder: "Share your experience...",
+            lineLimit: 5...10
+        )
+        .font(InvlogTheme.body(15))
+        .padding()
+        .accessibilityLabel("Post content")
     }
 
     @ViewBuilder
@@ -539,6 +774,64 @@ struct EditPostSheet: View {
         }
     }
 
+    @ViewBuilder
+    private var addMediaSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !newMediaPreviews.isEmpty {
+                Text("New Media")
+                    .font(InvlogTheme.body(14, weight: .semibold))
+                    .foregroundColor(Color.brandText)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(newMediaPreviews.enumerated()), id: \.offset) { index, preview in
+                            ZStack(alignment: .topTrailing) {
+                                Image(uiImage: preview)
+                                    .resizable().scaledToFill()
+                                    .frame(width: 80, height: 80)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                Button {
+                                    newMediaPreviews.remove(at: index)
+                                    newMediaItems.remove(at: index)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.white)
+                                        .shadow(radius: 2)
+                                }
+                                .offset(x: 4, y: -4)
+                            }
+                        }
+                    }
+                }
+            }
+
+            PhotosPicker(
+                selection: $selectedItems,
+                maxSelectionCount: 10,
+                matching: .any(of: [.images, .videos])
+            ) {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(Color.brandPrimary)
+                    Text("Add Photos or Videos")
+                        .font(InvlogTheme.body(14, weight: .semibold))
+                        .foregroundColor(Color.brandText)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(Color.brandCard)
+                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                        .stroke(Color.brandBorder, lineWidth: 1)
+                )
+            }
+        }
+        .padding(.horizontal)
+    }
+
     private var ratingSection: some View {
         HStack(spacing: 4) {
             Text("Rating")
@@ -578,20 +871,27 @@ struct EditPostSheet: View {
 
     private func saveChanges() async {
         isSaving = true
+        saveError = nil
         do {
+            var newMediaIds: [String]?
+            if !newMediaItems.isEmpty {
+                newMediaIds = try await uploadService.uploadMedia(newMediaItems)
+            }
+
             try await APIClient.shared.requestVoid(
                 .updatePost(
                     id: post.id,
                     content: content,
                     rating: rating,
                     visibility: visibility,
-                    removeMediaIds: removedMediaIds.isEmpty ? nil : Array(removedMediaIds)
+                    removeMediaIds: removedMediaIds.isEmpty ? nil : Array(removedMediaIds),
+                    addMediaIds: newMediaIds
                 )
             )
             NotificationCenter.default.post(name: .didCreatePost, object: nil)
             dismiss()
         } catch {
-            // Save failed
+            saveError = error.localizedDescription
         }
         isSaving = false
     }
@@ -600,8 +900,7 @@ struct EditPostSheet: View {
 // MARK: - Comments Sheet
 
 struct CommentsSheetView: View {
-    let postId: String
-    let postAuthorId: String
+    let post: Post
     @Binding var commentCount: Int
     var onCommentAdded: (() -> Void)?
     @EnvironmentObject private var appState: AppState
@@ -609,14 +908,39 @@ struct CommentsSheetView: View {
     @State private var comments: [Comment] = []
     @State private var newComment = ""
     @State private var isLoading = true
+    @State private var replyingTo: Comment? = nil
+
+    private var postId: String { post.id }
+    private var postAuthorId: String { post.authorId }
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
+                // Mini post preview at top
+                miniPostPreview
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
+                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+
+                // Comment count header
+                HStack {
+                    Text("\(commentCount) comments")
+                        .font(InvlogTheme.body(14, weight: .semibold))
+                        .foregroundColor(Color.brandText)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+
+                // Comments list
                 if isLoading {
+                    Spacer()
                     ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Spacer()
                 } else if comments.isEmpty {
+                    Spacer()
                     VStack(spacing: 12) {
                         Image(systemName: "bubble.right")
                             .font(.system(size: 32))
@@ -628,14 +952,14 @@ struct CommentsSheetView: View {
                             .font(InvlogTheme.caption(12))
                             .foregroundColor(Color.brandTextTertiary)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Spacer()
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(comments) { comment in
                                 CommentRowView(comment: comment)
                                     .padding(.horizontal)
-                                    .padding(.vertical, 8)
+                                    .padding(.vertical, 10)
                                     .contextMenu {
                                         if canDeleteComment(comment) {
                                             Button(role: .destructive) {
@@ -645,7 +969,7 @@ struct CommentsSheetView: View {
                                             }
                                         }
                                     }
-                                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                                Rectangle().fill(Color.brandBorder.opacity(0.5)).frame(height: 0.5)
                                     .padding(.horizontal)
                             }
                         }
@@ -653,48 +977,137 @@ struct CommentsSheetView: View {
                 }
             }
             .invlogScreenBackground()
-            .navigationTitle("Comments")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Comments")
+                        .font(InvlogTheme.body(16, weight: .bold))
+                }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                        .frame(minWidth: 44, minHeight: 44)
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                HStack(spacing: 8) {
-                    TextField("Add a comment...", text: $newComment)
-                        .font(InvlogTheme.body(15))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.brandBorder.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .accessibilityLabel("Write a comment")
-
-                    Button {
-                        Task { await submitComment() }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.brandTextTertiary : Color.brandPrimary)
-                    }
-                    .frame(minWidth: 44, minHeight: 44)
-                    .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityLabel("Send comment")
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color.brandCard)
-                .overlay(alignment: .top) {
-                    Rectangle().fill(Color.brandBorder).frame(height: 0.5)
-                }
+                commentInputBar
             }
             .task {
                 await loadComments()
             }
         }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
     }
 
+    // MARK: - Mini Post Preview
+    private var miniPostPreview: some View {
+        HStack(alignment: .top, spacing: 10) {
+            // Thumbnail
+            if let firstMedia = post.media?.first {
+                let thumbUrl = firstMedia.thumbnailUrl ?? firstMedia.mediumUrl ?? firstMedia.url
+                AsyncImage(url: URL(string: thumbUrl)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        Color.brandBackground
+                    }
+                }
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            // Post info
+            VStack(alignment: .leading, spacing: 4) {
+                // Author
+                HStack(spacing: 6) {
+                    if let avatarUrl = post.author?.avatarUrl {
+                        AsyncImage(url: avatarUrl) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable().scaledToFill()
+                            default:
+                                Circle().fill(Color.brandBackground)
+                            }
+                        }
+                        .frame(width: 20, height: 20)
+                        .clipShape(Circle())
+                    }
+
+                    Text(post.author?.displayName ?? post.author?.username ?? "")
+                        .font(InvlogTheme.body(13, weight: .semibold))
+                        .foregroundColor(Color.brandText)
+                        .lineLimit(1)
+                }
+
+                // Caption
+                if let content = post.content, !content.isEmpty {
+                    Text(content)
+                        .font(InvlogTheme.caption(12))
+                        .foregroundColor(Color.brandTextSecondary)
+                        .lineLimit(2)
+                }
+
+                // Restaurant name
+                if let restaurant = post.restaurant {
+                    HStack(spacing: 3) {
+                        Image(systemName: "mappin")
+                            .font(.system(size: 9))
+                        Text(restaurant.name)
+                            .font(InvlogTheme.caption(11))
+                    }
+                    .foregroundColor(Color.brandTextTertiary)
+                    .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(Color.brandBackground.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Comment Input Bar
+    private var commentInputBar: some View {
+        HStack(spacing: 8) {
+            MentionableTextField(
+                text: $newComment,
+                placeholder: "Add a comment...",
+                axis: .horizontal,
+                lineLimit: 1...3
+            )
+            .font(InvlogTheme.body(15))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.brandBorder.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .accessibilityLabel("Write a comment")
+
+            Button {
+                Task { await submitComment() }
+            } label: {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.brandTextTertiary : Color.brandPrimary)
+            }
+            .frame(minWidth: 44, minHeight: 44)
+            .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityLabel("Send comment")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color.brandCard)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+        }
+    }
+
+    // MARK: - Actions
     private func loadComments() async {
         do {
             let (data, _) = try await APIClient.shared.requestWrapped(

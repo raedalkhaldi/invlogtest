@@ -27,7 +27,8 @@ final class StoryUploadManager: ObservableObject {
 
     private init() {}
 
-    func upload(mediaItem: MediaItem) {
+    /// Upload a story. Note: backend only accepts mediaId — caption/location are stored locally only.
+    func upload(mediaItem: MediaItem, caption: String? = nil, locationName: String? = nil, restaurantId: String? = nil) {
         status = .uploading(progress: 0)
 
         // Observe upload progress
@@ -53,8 +54,14 @@ final class StoryUploadManager: ObservableObject {
 
                 status = .processing
 
-                // Backend now waits for video processing before creating story
+                // Backend only accepts mediaId — caption/content/locationName cause 400
                 try await APIClient.shared.requestVoid(.createStory(mediaId: mediaId))
+
+                // Save caption locally since backend doesn't store it
+                if let caption = caption, !caption.isEmpty {
+                    // We'll save with mediaId as key; the feed refresh will match by recency
+                    StoryCaptionCache.shared.saveForLatest(caption: caption)
+                }
 
                 status = .completed
                 NotificationCenter.default.post(name: .didCreateStory, object: nil)

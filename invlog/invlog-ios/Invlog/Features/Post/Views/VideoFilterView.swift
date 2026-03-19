@@ -12,6 +12,7 @@ enum VideoFilter: String, CaseIterable {
     case cool = "Cool"
     case noir = "Noir"
     case fade = "Fade"
+    case beauty = "Beauty"
 }
 
 // MARK: - VideoFilterView
@@ -24,10 +25,12 @@ struct VideoFilterView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedFilter: VideoFilter = .original
+    @State private var selectedFilterIndex: Int = 0
     @State private var player: AVPlayer?
     @State private var filterThumbnails: [VideoFilter: UIImage] = [:]
     @State private var isExporting = false
     @State private var exportError: String?
+    @State private var dragOffset: CGFloat = 0
 
     private let ciContext = CIContext()
 
@@ -40,8 +43,8 @@ struct VideoFilterView: View {
                 // Video preview area
                 videoPreviewSection
 
-                // Filter selection strip
-                filterSelectionSection
+                // Swipeable filter carousel
+                filterCarouselSection
             }
 
             // Export loading overlay
@@ -102,9 +105,22 @@ struct VideoFilterView: View {
                 Color.black
 
                 if let player {
-                    FilteredVideoPlayerView(player: player)
+                    SimpleVideoPlayerView(player: player)
                         .frame(width: width, height: height)
                         .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
+                }
+
+                // Filter name overlay
+                VStack {
+                    Spacer()
+                    Text(selectedFilter.rawValue)
+                        .font(InvlogTheme.body(14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.5))
+                        .clipShape(Capsule())
+                        .padding(.bottom, 12)
                 }
             }
             .frame(width: width, height: height)
@@ -112,21 +128,71 @@ struct VideoFilterView: View {
         .aspectRatio(4.0 / 5.0, contentMode: .fit)
     }
 
-    // MARK: - Filter Selection
+    // MARK: - Swipeable Filter Carousel
 
-    private var filterSelectionSection: some View {
+    private var filterCarouselSection: some View {
         VStack(spacing: 0) {
             Spacer()
                 .frame(height: InvlogTheme.Spacing.md)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: InvlogTheme.Spacing.sm) {
-                    ForEach(VideoFilter.allCases, id: \.self) { filter in
-                        filterThumbnailButton(for: filter)
+            GeometryReader { geo in
+                let itemWidth: CGFloat = 80
+                let spacing: CGFloat = 12
+                let totalItemWidth = itemWidth + spacing
+                let centerOffset = (geo.size.width - itemWidth) / 2
+
+                HStack(spacing: spacing) {
+                    ForEach(Array(VideoFilter.allCases.enumerated()), id: \.element) { index, filter in
+                        filterCarouselItem(for: filter, isSelected: selectedFilterIndex == index)
+                            .frame(width: itemWidth)
                     }
                 }
-                .padding(.horizontal, InvlogTheme.Spacing.md)
+                .offset(x: centerOffset - CGFloat(selectedFilterIndex) * totalItemWidth + dragOffset)
+                .animation(.interactiveSpring(response: 0.35, dampingFraction: 0.8), value: selectedFilterIndex)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            dragOffset = value.translation.width
+                        }
+                        .onEnded { value in
+                            let threshold: CGFloat = totalItemWidth * 0.3
+                            var newIndex = selectedFilterIndex
+
+                            if value.translation.width < -threshold {
+                                newIndex = min(selectedFilterIndex + 1, VideoFilter.allCases.count - 1)
+                            } else if value.translation.width > threshold {
+                                newIndex = max(selectedFilterIndex - 1, 0)
+                            }
+
+                            // Also account for velocity
+                            let velocity = value.predictedEndTranslation.width - value.translation.width
+                            if velocity < -100 {
+                                newIndex = min(selectedFilterIndex + 1, VideoFilter.allCases.count - 1)
+                            } else if velocity > 100 {
+                                newIndex = max(selectedFilterIndex - 1, 0)
+                            }
+
+                            dragOffset = 0
+                            selectedFilterIndex = newIndex
+                            let newFilter = VideoFilter.allCases[newIndex]
+                            if selectedFilter != newFilter {
+                                selectedFilter = newFilter
+                                applyFilterToPlayer(newFilter)
+                            }
+                        }
+                )
             }
+            .frame(height: 100)
+
+            // Page indicator dots
+            HStack(spacing: 4) {
+                ForEach(0..<VideoFilter.allCases.count, id: \.self) { i in
+                    Circle()
+                        .fill(i == selectedFilterIndex ? Color.brandPrimary : Color.white.opacity(0.3))
+                        .frame(width: 5, height: 5)
+                }
+            }
+            .padding(.top, 8)
 
             Spacer()
                 .frame(height: InvlogTheme.Spacing.lg)
@@ -134,11 +200,10 @@ struct VideoFilterView: View {
         .background(Color.black)
     }
 
-    private func filterThumbnailButton(for filter: VideoFilter) -> some View {
-        let isSelected = selectedFilter == filter
-
-        return Button {
-            guard selectedFilter != filter else { return }
+    private func filterCarouselItem(for filter: VideoFilter, isSelected: Bool) -> some View {
+        Button {
+            guard let index = VideoFilter.allCases.firstIndex(of: filter) else { return }
+            selectedFilterIndex = index
             selectedFilter = filter
             applyFilterToPlayer(filter)
         } label: {
@@ -147,32 +212,28 @@ struct VideoFilterView: View {
                     Image(uiImage: thumbImage)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 72, height: 72)
+                        .frame(width: 64, height: 64)
                         .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                         .overlay(
                             RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
                                 .stroke(
-                                    isSelected ? Color.brandPrimary : Color.brandBorder,
-                                    lineWidth: isSelected ? 2 : 1
+                                    isSelected ? Color.brandPrimary : Color.clear,
+                                    lineWidth: 2
                                 )
                         )
+                        .scaleEffect(isSelected ? 1.1 : 0.9)
+                        .animation(.easeInOut(duration: 0.2), value: isSelected)
                 } else {
                     Image(uiImage: thumbnail)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 72, height: 72)
+                        .frame(width: 64, height: 64)
                         .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                                .stroke(
-                                    isSelected ? Color.brandPrimary : Color.brandBorder,
-                                    lineWidth: isSelected ? 2 : 1
-                                )
-                        )
+                        .scaleEffect(isSelected ? 1.1 : 0.9)
                 }
 
                 Text(filter.rawValue)
-                    .font(InvlogTheme.caption(11))
+                    .font(InvlogTheme.caption(10, weight: isSelected ? .bold : .regular))
                     .foregroundColor(isSelected ? Color.brandPrimary : Color.brandTextSecondary)
             }
         }
@@ -251,7 +312,7 @@ struct VideoFilterView: View {
             playerItem.videoComposition = nil
         } else {
             let composition = AVVideoComposition(asset: asset, applyingCIFiltersWithHandler: { request in
-                let output = self.applyCIFilter(to: request.sourceImage, filter: filter)
+                let output = Self.applyCIFilter(to: request.sourceImage, filter: filter)
                 request.finish(with: output, context: nil)
             })
             playerItem.videoComposition = composition
@@ -305,7 +366,7 @@ struct VideoFilterView: View {
                 var thumbs: [VideoFilter: UIImage] = [:]
 
                 for filter in VideoFilter.allCases {
-                    let filteredCI = Self.applyCIFilterStatic(to: sourceCI, filter: filter)
+                    let filteredCI = Self.applyCIFilter(to: sourceCI, filter: filter)
                     if let filteredCG = context.createCGImage(filteredCI, from: filteredCI.extent) {
                         thumbs[filter] = UIImage(cgImage: filteredCG)
                     }
@@ -352,7 +413,7 @@ struct VideoFilterView: View {
             .appendingPathComponent("filtered_\(UUID().uuidString).mp4")
 
         let videoComposition = AVVideoComposition(asset: asset, applyingCIFiltersWithHandler: { request in
-            let output = self.applyCIFilter(to: request.sourceImage, filter: self.selectedFilter)
+            let output = Self.applyCIFilter(to: request.sourceImage, filter: self.selectedFilter)
             request.finish(with: output, context: nil)
         })
 
@@ -387,7 +448,7 @@ struct VideoFilterView: View {
         generator.maximumSize = CGSize(width: 512, height: 512)
         let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
         let ciImage = CIImage(cgImage: cgImage)
-        let filteredCI = applyCIFilter(to: ciImage, filter: selectedFilter)
+        let filteredCI = Self.applyCIFilter(to: ciImage, filter: selectedFilter)
         guard let filteredCG = ciContext.createCGImage(filteredCI, from: filteredCI.extent) else {
             throw NSError(
                 domain: "VideoFilter",
@@ -402,15 +463,9 @@ struct VideoFilterView: View {
 
     // MARK: - CIFilter Application
 
-    private static func applyCIFilterStatic(to image: CIImage, filter: VideoFilter) -> CIImage {
-        applyCIFilterImpl(to: image, filter: filter)
-    }
-
-    private func applyCIFilter(to image: CIImage, filter: VideoFilter) -> CIImage {
-        Self.applyCIFilterImpl(to: image, filter: filter)
-    }
-
-    private static func applyCIFilterImpl(to image: CIImage, filter: VideoFilter) -> CIImage {
+    /// Single public entry point for applying CI filters. Used by VideoFilterView itself,
+    /// CreateStoryView inline filter export, and filter thumbnail generation.
+    static func applyCIFilter(to image: CIImage, filter: VideoFilter) -> CIImage {
         switch filter {
         case .original:
             return image
@@ -443,38 +498,49 @@ struct VideoFilterView: View {
             let f = CIFilter(name: "CIPhotoEffectFade")!
             f.setValue(image, forKey: kCIInputImageKey)
             return f.outputImage ?? image
+
+        case .beauty:
+            // Skin smooth effect: blend a low-radius Gaussian blur with the original
+            let blurFilter = CIFilter(name: "CIGaussianBlur")!
+            blurFilter.setValue(image, forKey: kCIInputImageKey)
+            blurFilter.setValue(3.0, forKey: kCIInputRadiusKey)
+            guard let blurred = blurFilter.outputImage else { return image }
+
+            // Crop blurred to original extent (CIGaussianBlur extends the image)
+            let croppedBlur = blurred.cropped(to: image.extent)
+
+            // Blend via color matrix to reduce opacity of blur (40%) and original (60%)
+            let alphaFilter = CIFilter(name: "CIColorMatrix")!
+            alphaFilter.setValue(croppedBlur, forKey: kCIInputImageKey)
+            alphaFilter.setValue(CIVector(x: 1, y: 0, z: 0, w: 0), forKey: "inputRVector")
+            alphaFilter.setValue(CIVector(x: 0, y: 1, z: 0, w: 0), forKey: "inputGVector")
+            alphaFilter.setValue(CIVector(x: 0, y: 0, z: 1, w: 0), forKey: "inputBVector")
+            alphaFilter.setValue(CIVector(x: 0, y: 0, z: 0, w: 0.4), forKey: "inputAVector")
+            guard let semiTransparentBlur = alphaFilter.outputImage else { return image }
+
+            // Also reduce original opacity to 0.6
+            let origAlpha = CIFilter(name: "CIColorMatrix")!
+            origAlpha.setValue(image, forKey: kCIInputImageKey)
+            origAlpha.setValue(CIVector(x: 1, y: 0, z: 0, w: 0), forKey: "inputRVector")
+            origAlpha.setValue(CIVector(x: 0, y: 1, z: 0, w: 0), forKey: "inputGVector")
+            origAlpha.setValue(CIVector(x: 0, y: 0, z: 1, w: 0), forKey: "inputBVector")
+            origAlpha.setValue(CIVector(x: 0, y: 0, z: 0, w: 0.6), forKey: "inputAVector")
+            guard let semiOriginal = origAlpha.outputImage else { return image }
+
+            // Composite blur over original
+            let composite = CIFilter(name: "CIAdditionCompositing")!
+            composite.setValue(semiTransparentBlur, forKey: kCIInputImageKey)
+            composite.setValue(semiOriginal, forKey: kCIInputBackgroundImageKey)
+            guard let blended = composite.outputImage else { return image }
+
+            // Slight brightness boost for a "glowy" beauty look
+            let brighten = CIFilter(name: "CIColorControls")!
+            brighten.setValue(blended, forKey: kCIInputImageKey)
+            brighten.setValue(0.03, forKey: kCIInputBrightnessKey)
+            brighten.setValue(1.05, forKey: "inputContrast")
+            return brighten.outputImage ?? blended
         }
     }
 }
 
-// MARK: - Filtered Video Player (UIViewRepresentable)
-
-private struct FilteredVideoPlayerView: UIViewRepresentable {
-    let player: AVPlayer
-
-    func makeUIView(context: Context) -> FilteredPlayerUIView {
-        FilteredPlayerUIView(player: player)
-    }
-
-    func updateUIView(_ uiView: FilteredPlayerUIView, context: Context) {
-        uiView.playerLayer.player = player
-    }
-}
-
-private class FilteredPlayerUIView: UIView {
-    let playerLayer: AVPlayerLayer
-
-    init(player: AVPlayer) {
-        playerLayer = AVPlayerLayer(player: player)
-        super.init(frame: .zero)
-        playerLayer.videoGravity = .resizeAspectFill
-        layer.addSublayer(playerLayer)
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        playerLayer.frame = bounds
-    }
-}
+// Uses shared SimpleVideoPlayerView from Components/

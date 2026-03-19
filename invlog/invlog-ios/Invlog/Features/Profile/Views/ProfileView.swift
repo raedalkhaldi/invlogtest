@@ -77,6 +77,11 @@ struct ProfileView: View {
             .onReceive(NotificationCenter.default.publisher(for: .didCreatePost)) { _ in
                 Task { await loadProfile() }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .didDeletePost)) { notification in
+                if let postId = notification.object as? String {
+                    posts.removeAll { $0.id == postId }
+                }
+            }
     }
 
     @ViewBuilder

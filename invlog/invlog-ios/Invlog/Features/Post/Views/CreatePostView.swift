@@ -38,11 +38,15 @@ struct CreatePostView: View {
     @State private var showPhotoCapture = false
     @State private var showVineRecorder = false
     @State private var showVideoFilter = false
+    @State private var showVideoTrim = false
+    @State private var showVideoOverlay = false
     @State private var recordedVideoURL: URL?
     @State private var recordedVideoThumbnail: UIImage?
     @State private var imagesToCrop: [UIImage] = []
     @State private var currentCropIndex = 0
     @State private var showCropView = false
+    @State private var croppedImages: [UIImage] = []
+    @State private var showPhotoFilter = false
     @State private var visibility = "public"
     @State private var matchingTrips: [Trip] = []
     @State private var selectedTripId: String?
@@ -123,7 +127,7 @@ struct CreatePostView: View {
                 for item in newItems {
                     if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
                         if let video = try? await item.loadTransferable(type: VideoTransferable.self) {
-                            let thumbnail = await generateThumbnail(for: video.url)
+                            let thumbnail = await VideoThumbnailGenerator.generateThumbnail(from: video.url, maxSize: CGSize(width: 512, height: 512))
                             let thumbImage = thumbnail ?? UIImage(systemName: "video.fill")!
                             selectedImages.append(thumbImage)
                             mediaItems.append(.video(video.url, thumbImage))
@@ -171,12 +175,47 @@ struct CreatePostView: View {
             if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
                 NavigationStack {
                     VideoFilterView(videoURL: videoURL, thumbnail: thumb) { filteredURL, filteredThumb in
-                        mediaItems.append(.video(filteredURL, filteredThumb))
-                        selectedImages.append(filteredThumb)
+                        recordedVideoURL = filteredURL
+                        recordedVideoThumbnail = filteredThumb
                         showVideoFilter = false
-                        recordedVideoURL = nil
-                        recordedVideoThumbnail = nil
+                        // Chain to trim view
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showVideoTrim = true
+                        }
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $showVideoTrim) {
+            if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
+                NavigationStack {
+                    VideoTrimView(videoURL: videoURL, thumbnail: thumb) { trimmedURL, trimmedThumb in
+                        recordedVideoURL = trimmedURL
+                        recordedVideoThumbnail = trimmedThumb
+                        showVideoTrim = false
+                        // Chain to overlay editor
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showVideoOverlay = true
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showVideoOverlay) {
+            if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
+                NavigationStack {
+                    VideoOverlayEditorView(
+                        videoURL: videoURL,
+                        thumbnail: thumb,
+                        placeName: selectedPlace?.name,
+                        onComplete: { finalURL, finalThumb in
+                            mediaItems.append(.video(finalURL, finalThumb))
+                            selectedImages.append(finalThumb)
+                            showVideoOverlay = false
+                            recordedVideoURL = nil
+                            recordedVideoThumbnail = nil
+                        }
+                    )
                 }
             }
         }
@@ -191,15 +230,28 @@ struct CreatePostView: View {
                         imageNumber: currentCropIndex + 1,
                         totalImages: imagesToCrop.count
                     ) { croppedImage in
-                        selectedImages.append(croppedImage)
-                        mediaItems.append(.image(croppedImage))
+                        croppedImages.append(croppedImage)
                         if currentCropIndex + 1 < imagesToCrop.count {
                             currentCropIndex += 1
                         } else {
                             showCropView = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                showPhotoFilter = true
+                            }
                         }
                     }
                     .id(currentCropIndex)
+                }
+            }
+        }
+        .sheet(isPresented: $showPhotoFilter) {
+            NavigationStack {
+                ImageFilterView(images: croppedImages) { filteredImages in
+                    for img in filteredImages {
+                        selectedImages.append(img)
+                        mediaItems.append(.image(img))
+                    }
+                    croppedImages = []
                 }
             }
         }
@@ -223,11 +275,14 @@ struct CreatePostView: View {
 
     @ViewBuilder
     private var textInputSection: some View {
-        TextField("Share your experience...", text: $content, axis: .vertical)
-            .font(InvlogTheme.body(15))
-            .lineLimit(5...10)
-            .padding()
-            .accessibilityLabel("Post content")
+        MentionableTextField(
+            text: $content,
+            placeholder: "Share your experience...",
+            lineLimit: 5...10
+        )
+        .font(InvlogTheme.body(15))
+        .padding()
+        .accessibilityLabel("Post content")
     }
 
     @ViewBuilder
@@ -581,18 +636,7 @@ struct CreatePostView: View {
         }
     }
 
-    private func generateThumbnail(for url: URL) async -> UIImage? {
-        let asset = AVURLAsset(url: url)
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 512, height: 512)
-        do {
-            let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
-            return UIImage(cgImage: cgImage)
-        } catch {
-            return nil
-        }
-    }
+    // Uses shared VideoThumbnailGenerator
 
     @ViewBuilder
     private func uploadOverlay(for state: MediaUploadService.UploadState) -> some View {

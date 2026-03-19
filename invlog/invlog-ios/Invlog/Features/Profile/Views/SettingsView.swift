@@ -6,6 +6,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteAlert = false
     @State private var showLogoutAlert = false
+    @State private var showErrorLog = false
+    @State private var showShareLog = false
 
     var body: some View {
         NavigationStack {
@@ -40,6 +42,31 @@ struct SettingsView: View {
                         Text("Notification Preferences")
                     } label: {
                         Label("Notifications", systemImage: "bell")
+                    }
+                    .frame(minHeight: 44)
+                }
+
+                Section("Debug") {
+                    Button {
+                        showErrorLog = true
+                    } label: {
+                        Label("View Error Log", systemImage: "doc.text.magnifyingglass")
+                            .foregroundColor(Color.brandText)
+                    }
+                    .frame(minHeight: 44)
+
+                    Button {
+                        showShareLog = true
+                    } label: {
+                        Label("Share Error Log", systemImage: "square.and.arrow.up")
+                            .foregroundColor(Color.brandText)
+                    }
+                    .frame(minHeight: 44)
+
+                    Button(role: .destructive) {
+                        ErrorLogger.shared.clearLog()
+                    } label: {
+                        Label("Clear Error Log", systemImage: "trash")
                     }
                     .frame(minHeight: 44)
                 }
@@ -112,6 +139,43 @@ struct SettingsView: View {
             } message: {
                 Text("This action cannot be undone. Your account and all data will be permanently deleted after 30 days.")
             }
+            .sheet(isPresented: $showErrorLog) {
+                ErrorLogView()
+            }
+            .sheet(isPresented: $showShareLog) {
+                ShareSheetView(items: [ErrorLogger.shared.getLog()])
+            }
+        }
+    }
+}
+
+// MARK: - Error Log Viewer
+
+struct ErrorLogView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var logContent = ""
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Text(logContent)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(Color.brandText)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .invlogScreenBackground()
+            .navigationTitle("Error Log")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+            }
+        }
+        .onAppear {
+            logContent = ErrorLogger.shared.getLog()
         }
     }
 }

@@ -59,6 +59,11 @@ struct MainTabView: View {
                 }
             )
         }
+        .onChange(of: selectedTab) { newTab in
+            if newTab == .notifications {
+                NotificationCenter.default.post(name: .didSelectNotificationsTab, object: nil)
+            }
+        }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .confirmationDialog("Create", isPresented: $showCreateOptions, titleVisibility: .hidden) {
             Button {

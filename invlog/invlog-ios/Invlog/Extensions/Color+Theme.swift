@@ -15,10 +15,10 @@ extension Color {
     static let brandSecondary = Color(hex: 0xF59F00)        // golden yellow
     static let brandAccent = Color(hex: 0x12B886)           // teal/green
 
-    // Adaptive colors — dark mode uses Instagram-like dark tones
-    static let brandBackground = Color(light: Color(hex: 0xFAFAF8), dark: Color(hex: 0x000000))
-    static let brandCard = Color(light: .white, dark: Color(hex: 0x1C1C1E))
-    static let brandBorder = Color(light: Color(hex: 0xE8E5E0), dark: Color(hex: 0x38383A))
+    // Adaptive colors — warmer cream background in light mode
+    static let brandBackground = Color(light: Color(hex: 0xF5EFE8), dark: Color(hex: 0x000000))
+    static let brandCard = Color(light: Color(hex: 0xFFFFFF), dark: Color(hex: 0x1C1C1E))
+    static let brandBorder = Color(light: Color(hex: 0xEDE8E2), dark: Color(hex: 0x38383A))
     static let brandText = Color(light: Color(hex: 0x1A1A1A), dark: Color(hex: 0xF5F5F5))
     static let brandTextSecondary = Color(light: Color(hex: 0x7C7C78), dark: Color(hex: 0xA0A0A0))
     static let brandTextTertiary = Color(light: Color(hex: 0xB0AEA8), dark: Color(hex: 0x6C6C70))
