@@ -873,11 +873,7 @@ struct EditPostSheet: View {
         isSaving = true
         saveError = nil
         do {
-            var newMediaIds: [String]?
-            if !newMediaItems.isEmpty {
-                newMediaIds = try await uploadService.uploadMedia(newMediaItems)
-            }
-
+            // Save text/rating/visibility changes (backend doesn't support adding media)
             try await APIClient.shared.requestVoid(
                 .updatePost(
                     id: post.id,
@@ -885,11 +881,15 @@ struct EditPostSheet: View {
                     rating: rating,
                     visibility: visibility,
                     removeMediaIds: removedMediaIds.isEmpty ? nil : Array(removedMediaIds),
-                    addMediaIds: newMediaIds
+                    addMediaIds: nil
                 )
             )
             NotificationCenter.default.post(name: .didCreatePost, object: nil)
-            dismiss()
+            if !newMediaItems.isEmpty {
+                saveError = "Changes saved! Adding media to existing posts isn't supported yet."
+            } else {
+                dismiss()
+            }
         } catch {
             saveError = error.localizedDescription
         }

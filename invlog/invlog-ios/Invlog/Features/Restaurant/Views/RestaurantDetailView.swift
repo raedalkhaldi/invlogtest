@@ -606,13 +606,14 @@ struct PhotoViewerSheet: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            LazyImage(url: url) { state in
-                if let image = state.image {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
                     image
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if state.error != nil {
+                case .failure:
                     VStack(spacing: 8) {
                         Image(systemName: "photo")
                             .font(.largeTitle)
@@ -621,13 +622,14 @@ struct PhotoViewerSheet: View {
                             .font(InvlogTheme.body(14))
                             .foregroundColor(.white.opacity(0.5))
                     }
-                } else {
+                case .empty:
                     ProgressView()
                         .tint(.white)
                         .scaleEffect(1.2)
+                @unknown default:
+                    ProgressView().tint(.white)
                 }
             }
-            .priority(.high)
 
             VStack {
                 HStack {
