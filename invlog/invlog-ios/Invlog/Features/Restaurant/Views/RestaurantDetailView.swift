@@ -17,6 +17,8 @@ struct RestaurantDetailView: View {
     @State private var isFollowing = false
     @State private var showCheckIn = false
     @State private var error: String?
+    @State private var selectedPhotoURL: URL?
+    @State private var showPhotoViewer = false
 
     var body: some View {
         Group {
@@ -71,6 +73,11 @@ struct RestaurantDetailView: View {
         }
         .task {
             await loadRestaurant()
+        }
+        .fullScreenCover(isPresented: $showPhotoViewer) {
+            if let photoURL = selectedPhotoURL {
+                PhotoViewerSheet(url: photoURL)
+            }
         }
     }
 
@@ -378,7 +385,7 @@ struct RestaurantDetailView: View {
                 }
 
                 ForEach(recentCheckIns.prefix(5)) { checkIn in
-                    CheckInRow(checkIn: checkIn)
+                    CheckInRow(checkIn: checkIn, showUserPrimary: true)
                 }
             }
         }
@@ -432,9 +439,13 @@ struct RestaurantDetailView: View {
                     .font(InvlogTheme.heading(16, weight: .bold))
                     .foregroundColor(Color.brandText)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 4) {
-                        ForEach(restaurantMedia.prefix(12)) { media in
+                let columns = [GridItem(.adaptive(minimum: 110), spacing: 4)]
+                LazyVGrid(columns: columns, spacing: 4) {
+                    ForEach(restaurantMedia.prefix(12)) { media in
+                        Button {
+                            selectedPhotoURL = URL(string: media.mediumUrl ?? media.url)
+                            showPhotoViewer = true
+                        } label: {
                             LazyImage(url: URL(string: media.thumbnailUrl ?? media.mediumUrl ?? media.url)) { state in
                                 if let image = state.image {
                                     image.resizable().scaledToFill()
@@ -444,9 +455,10 @@ struct RestaurantDetailView: View {
                                     Rectangle().fill(Color.brandBorder)
                                 }
                             }
-                            .frame(width: 100, height: 100)
+                            .frame(height: 120)
                             .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -581,5 +593,45 @@ struct MenuItemRow: View {
                 .font(InvlogTheme.body(14, weight: .bold))
                 .foregroundColor(Color.brandText)
         }
+    }
+}
+
+// MARK: - Photo Viewer
+
+private struct PhotoViewerSheet: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            LazyImage(url: url) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFit()
+                } else if state.isLoading {
+                    ProgressView().tint(.white)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white.opacity(0.8))
+                            .shadow(color: .black.opacity(0.5), radius: 4)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .padding()
+                }
+                Spacer()
+            }
+        }
+        .statusBarHidden()
     }
 }

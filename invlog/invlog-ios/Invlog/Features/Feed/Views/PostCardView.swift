@@ -1,5 +1,4 @@
 import SwiftUI
-import PhotosUI
 @preconcurrency import NukeUI
 
 struct PostCardView: View {
@@ -632,12 +631,6 @@ struct EditPostSheet: View {
     @State private var removedMediaIds: Set<String> = []
     @State private var isSaving = false
 
-    // New media
-    @State private var selectedItems: [PhotosPickerItem] = []
-    @State private var newMediaItems: [MediaItem] = []
-    @State private var newMediaPreviews: [UIImage] = []
-    @StateObject private var uploadService = MediaUploadService()
-
     init(post: Post) {
         self.post = post
         _content = State(initialValue: post.content ?? "")
@@ -655,7 +648,6 @@ struct EditPostSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     contentField
                     mediaGrid
-                    addMediaSection
                     ratingSection
                     visibilitySection
                     Spacer()
@@ -684,36 +676,18 @@ struct EditPostSheet: View {
                     .disabled(isSaving)
                 }
             }
-            .onChange(of: selectedItems) { newItems in
-                Task {
-                    for item in newItems {
-                        if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
-                            if let video = try? await item.loadTransferable(type: VideoTransferable.self) {
-                                let thumb = await VideoThumbnailGenerator.generateThumbnail(from: video.url) ?? UIImage(systemName: "video.fill")!
-                                newMediaPreviews.append(thumb)
-                                newMediaItems.append(.video(video.url, thumb))
-                            }
-                        } else if let data = try? await item.loadTransferable(type: Data.self),
-                                  let image = UIImage(data: data) {
-                            newMediaPreviews.append(image)
-                            newMediaItems.append(.image(image))
-                        }
-                    }
-                    selectedItems = []
-                    if !newMediaItems.isEmpty {
-                        uploadService.startEagerUpload(newMediaItems)
-                    }
-                }
-            }
         }
     }
 
     private var contentField: some View {
-        TextField("Share your experience...", text: $content, axis: .vertical)
-            .font(InvlogTheme.body(15))
-            .lineLimit(5...10)
-            .padding()
-            .accessibilityLabel("Post content")
+        MentionableTextField(
+            text: $content,
+            placeholder: "Share your experience...",
+            lineLimit: 5...10
+        )
+        .font(InvlogTheme.body(15))
+        .padding()
+        .accessibilityLabel("Post content")
     }
 
     @ViewBuilder
@@ -766,64 +740,6 @@ struct EditPostSheet: View {
         }
     }
 
-    @ViewBuilder
-    private var addMediaSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !newMediaPreviews.isEmpty {
-                Text("New Media")
-                    .font(InvlogTheme.body(14, weight: .semibold))
-                    .foregroundColor(Color.brandText)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(Array(newMediaPreviews.enumerated()), id: \.offset) { index, preview in
-                            ZStack(alignment: .topTrailing) {
-                                Image(uiImage: preview)
-                                    .resizable().scaledToFill()
-                                    .frame(width: 80, height: 80)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                                Button {
-                                    newMediaPreviews.remove(at: index)
-                                    newMediaItems.remove(at: index)
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(.white)
-                                        .shadow(radius: 2)
-                                }
-                                .offset(x: 4, y: -4)
-                            }
-                        }
-                    }
-                }
-            }
-
-            PhotosPicker(
-                selection: $selectedItems,
-                maxSelectionCount: 10,
-                matching: .any(of: [.images, .videos])
-            ) {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus.circle.fill")
-                        .foregroundColor(Color.brandPrimary)
-                    Text("Add Photos or Videos")
-                        .font(InvlogTheme.body(14, weight: .semibold))
-                        .foregroundColor(Color.brandText)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(Color.brandCard)
-                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                .overlay(
-                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                        .stroke(Color.brandBorder, lineWidth: 1)
-                )
-            }
-        }
-        .padding(.horizontal)
-    }
-
     private var ratingSection: some View {
         HStack(spacing: 4) {
             Text("Rating")
@@ -864,13 +780,6 @@ struct EditPostSheet: View {
     private func saveChanges() async {
         isSaving = true
         do {
-            // Upload any new media first
-            var newMediaIds: [String]?
-            if !newMediaItems.isEmpty {
-                let ids = try await uploadService.uploadMedia(newMediaItems)
-                newMediaIds = ids
-            }
-
             try await APIClient.shared.requestVoid(
                 .updatePost(
                     id: post.id,
@@ -878,7 +787,7 @@ struct EditPostSheet: View {
                     rating: rating,
                     visibility: visibility,
                     removeMediaIds: removedMediaIds.isEmpty ? nil : Array(removedMediaIds),
-                    addMediaIds: newMediaIds
+                    addMediaIds: nil
                 )
             )
             NotificationCenter.default.post(name: .didCreatePost, object: nil)
