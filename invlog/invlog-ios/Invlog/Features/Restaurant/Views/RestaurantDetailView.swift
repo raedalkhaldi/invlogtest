@@ -598,7 +598,7 @@ struct MenuItemRow: View {
 
 // MARK: - Photo Viewer
 
-private struct PhotoViewerSheet: View {
+struct PhotoViewerSheet: View {
     let url: URL
     @Environment(\.dismiss) private var dismiss
 
@@ -608,12 +608,26 @@ private struct PhotoViewerSheet: View {
 
             LazyImage(url: url) { state in
                 if let image = state.image {
-                    image.resizable().scaledToFit()
-                } else if state.isLoading {
-                    ProgressView().tint(.white)
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if state.error != nil {
+                    VStack(spacing: 8) {
+                        Image(systemName: "photo")
+                            .font(.largeTitle)
+                            .foregroundColor(.white.opacity(0.5))
+                        Text("Could not load image")
+                            .font(InvlogTheme.body(14))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                } else {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.2)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .priority(.high)
 
             VStack {
                 HStack {

@@ -347,7 +347,7 @@ enum APIEndpoint {
             if let rating { body["rating"] = rating }
             if let visibility { body["visibility"] = visibility }
             if let removeMediaIds, !removeMediaIds.isEmpty { body["removeMediaIds"] = removeMediaIds }
-            if let addMediaIds, !addMediaIds.isEmpty { body["mediaIds"] = addMediaIds }
+            if let addMediaIds, !addMediaIds.isEmpty { body["addMediaIds"] = addMediaIds }
             return body
         case .updateProfile(let displayName, let bio, let isPrivate, let avatarUrl):
             var body: [String: Any] = [:]
