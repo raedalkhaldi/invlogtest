@@ -93,24 +93,42 @@ private struct WrappingMentionText: View {
     let onMentionTap: ((String) -> Void)?
 
     var body: some View {
-        // Build attributed text using Text concatenation
-        let attributedText = parts.reduce(Text("")) { result, part in
-            if part.isMention {
-                return result + Text(part.text)
-                    .font(font)
-                    .bold()
-                    .foregroundColor(mentionColor)
+        // Build attributed text — mentions rendered as markdown links so they're tappable
+        let attributedText: Text = {
+            if onMentionTap != nil {
+                // Use markdown links for tappable mentions
+                return parts.reduce(Text("")) { result, part in
+                    if part.isMention, let username = part.username {
+                        return result + Text(.init("[\(part.text)](mention://\(username))"))
+                            .font(font)
+                            .bold()
+                    } else {
+                        return result + Text(part.text)
+                            .font(font)
+                            .foregroundColor(color)
+                    }
+                }
             } else {
-                return result + Text(part.text)
-                    .font(font)
-                    .foregroundColor(color)
+                // No tap handler — just styled text
+                return parts.reduce(Text("")) { result, part in
+                    if part.isMention {
+                        return result + Text(part.text)
+                            .font(font)
+                            .bold()
+                            .foregroundColor(mentionColor)
+                    } else {
+                        return result + Text(part.text)
+                            .font(font)
+                            .foregroundColor(color)
+                    }
+                }
             }
-        }
+        }()
 
-        // If we have a tap handler, overlay invisible buttons for each mention
         if let onMentionTap = onMentionTap {
             attributedText
                 .lineLimit(lineLimit)
+                .tint(mentionColor)
                 .environment(\.openURL, OpenURLAction { url in
                     if url.scheme == "mention", let username = url.host {
                         onMentionTap(username)

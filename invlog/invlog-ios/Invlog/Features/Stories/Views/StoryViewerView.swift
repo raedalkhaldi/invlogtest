@@ -48,6 +48,10 @@ struct StoryViewerView: View {
     // Caption expansion
     @State private var isCaptionExpanded = false
 
+    // Edit caption
+    @State private var showEditCaption = false
+    @State private var editCaptionText = ""
+
     init(storyGroups: [StoryGroup], initialGroup: StoryGroup, selectedUsername: Binding<String?> = .constant(nil), storiesViewModel: StoriesViewModel) {
         self.storyGroups = storyGroups
         self.initialGroup = initialGroup
@@ -164,6 +168,16 @@ struct StoryViewerView: View {
                     localLikedByUsers: storyLikedByUsers[entry.story.id] ?? []
                 )
                 .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $showEditCaption) {
+            if let entry = currentEntry {
+                EditVlogCaptionSheet(
+                    storyId: entry.story.id,
+                    caption: $editCaptionText
+                )
+                .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
             }
         }
@@ -285,6 +299,18 @@ struct StoryViewerView: View {
             .frame(minWidth: 44, minHeight: 44)
 
             if isOwnStory {
+                Button {
+                    if let entry = currentEntry {
+                        editCaptionText = entry.story.caption ?? StoryCaptionCache.shared.caption(for: entry.story.id) ?? ""
+                    }
+                    showEditCaption = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.body).foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                }
+                .frame(minWidth: 44, minHeight: 44)
+
                 Button {
                     showDeleteConfirm = true
                 } label: {
@@ -670,6 +696,59 @@ final class StoryCaptionCache {
 
     private func allCaptions() -> [String: String] {
         UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+    }
+}
+
+// MARK: - Edit Vlog Caption Sheet
+
+struct EditVlogCaptionSheet: View {
+    let storyId: String
+    @Binding var caption: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Edit Caption")
+                    .font(InvlogTheme.heading(16, weight: .bold))
+                    .foregroundColor(Color.brandText)
+
+                MentionableTextField(
+                    text: $caption,
+                    placeholder: "Add a caption...",
+                    lineLimit: 3...8
+                )
+                .font(InvlogTheme.body(15))
+                .padding(12)
+                .background(Color.brandCard)
+                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                        .stroke(Color.brandBorder, lineWidth: 1)
+                )
+
+                Spacer()
+            }
+            .padding()
+            .invlogScreenBackground()
+            .navigationTitle("Edit Vlog")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        StoryCaptionCache.shared.save(caption: caption, for: storyId)
+                        dismiss()
+                    }
+                    .font(InvlogTheme.body(15, weight: .bold))
+                    .foregroundColor(Color.brandPrimary)
+                    .frame(minWidth: 44, minHeight: 44)
+                }
+            }
+        }
     }
 }
 

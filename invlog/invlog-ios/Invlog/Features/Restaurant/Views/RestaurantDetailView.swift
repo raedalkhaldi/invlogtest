@@ -116,6 +116,7 @@ struct RestaurantDetailView: View {
                     mapSection(restaurant)
 
                     Group {
+                        currentlyHereSection
                         menuSection(restaurant)
                         checkInsSection(restaurant)
                         photoGallerySection
@@ -289,6 +290,71 @@ struct RestaurantDetailView: View {
         }
     }
 
+    // MARK: - Currently Here
+
+    @ViewBuilder
+    private var currentlyHereSection: some View {
+        let twoHoursAgo = Date().addingTimeInterval(-2 * 60 * 60)
+        let currentUsers = recentCheckIns.filter { $0.createdAt > twoHoursAgo }
+
+        if !currentUsers.isEmpty {
+            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.brandAccent)
+                        .frame(width: 8, height: 8)
+                    Text("Currently Here")
+                        .font(InvlogTheme.heading(16, weight: .bold))
+                        .foregroundColor(Color.brandText)
+                    Text("\(currentUsers.count)")
+                        .font(InvlogTheme.caption(12, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.brandAccent)
+                        .clipShape(Capsule())
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(currentUsers) { checkIn in
+                            if let user = checkIn.user {
+                                NavigationLink(destination: ProfileView(userId: user.username)) {
+                                    VStack(spacing: 4) {
+                                        LazyImage(url: user.avatarUrl) { state in
+                                            if let image = state.image {
+                                                image.resizable().scaledToFill()
+                                            } else {
+                                                Image(systemName: "person.circle.fill")
+                                                    .font(.system(size: 28))
+                                                    .foregroundColor(Color.brandTextTertiary)
+                                            }
+                                        }
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.brandAccent, lineWidth: 2)
+                                        )
+
+                                        Text(user.displayName ?? user.username ?? "")
+                                            .font(InvlogTheme.caption(10, weight: .medium))
+                                            .foregroundColor(Color.brandTextSecondary)
+                                            .lineLimit(1)
+                                            .frame(width: 56)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Check-Ins
 
     @ViewBuilder
@@ -418,7 +484,7 @@ struct RestaurantDetailView: View {
             isFollowing = data.isFollowedByMe ?? false
 
             let (checkInData, _) = try await APIClient.shared.requestWrapped(
-                .restaurantCheckins(restaurantId: data.id, page: 1, perPage: 5),
+                .restaurantCheckins(restaurantId: data.id, page: 1, perPage: 20),
                 responseType: [CheckIn].self
             )
             recentCheckIns = checkInData
