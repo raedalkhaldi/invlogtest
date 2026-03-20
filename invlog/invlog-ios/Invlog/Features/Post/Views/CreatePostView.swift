@@ -254,14 +254,31 @@ struct CreatePostView: View {
         .sheet(isPresented: $showPhotoFilter) {
             NavigationStack {
                 ImageFilterView(images: croppedImages) { result in
-                    for img in result {
+                    filteredImages = result
+                    croppedImages = []
+                    showPhotoFilter = false
+                    if !filteredImages.isEmpty {
+                        currentOverlayImageIndex = 0
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            showPhotoOverlay = true
+                        }
+                    }
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showPhotoOverlay) {
+            PhotoOverlayFlowView(
+                images: filteredImages,
+                placeName: selectedPlace?.name,
+                onComplete: { overlayedImages in
+                    for img in overlayedImages {
                         selectedImages.append(img)
                         mediaItems.append(.image(img))
                     }
-                    croppedImages = []
-                    showPhotoFilter = false
+                    filteredImages = []
+                    showPhotoOverlay = false
                 }
-            }
+            )
         }
         .interactiveDismissDisabled(hasContent)
         .onChange(of: mediaItems.count) { _ in
