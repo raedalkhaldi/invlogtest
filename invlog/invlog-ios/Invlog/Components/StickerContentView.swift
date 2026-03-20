@@ -86,16 +86,8 @@ struct StickerContentView: View {
                             onMentionTap: onMentionTap
                         )
                     case .sticker(let url):
-                        LazyImage(request: ImageRequest(url: url, processors: [])) { state in
-                            if let image = state.image {
-                                image.resizable().scaledToFit()
-                            } else {
-                                Color.brandBorder.opacity(0.3)
-                                    .overlay(ProgressView().scaleEffect(0.7))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                        }
-                        .frame(width: 140, height: 140)
+                        AnimatedGIFView(url: url)
+                            .frame(width: 140, height: 140)
                     }
                 }
             }

@@ -236,16 +236,9 @@ struct CommentRowView: View {
 
                 if let stickerURL {
                     // Render sticker as animated GIF
-                    LazyImage(request: ImageRequest(url: stickerURL, processors: [])) { state in
-                        if let image = state.image {
-                            image.resizable().scaledToFit()
-                        } else {
-                            Color.brandBorder.opacity(0.3)
-                                .overlay(ProgressView().scaleEffect(0.7))
-                        }
-                    }
-                    .frame(width: 120, height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    AnimatedGIFView(url: stickerURL)
+                        .frame(width: 120, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 } else {
                     MentionText(
                         content: comment.content,

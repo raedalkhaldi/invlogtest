@@ -620,17 +620,11 @@ struct CreateStoryView: View {
             let baseWidth: CGFloat = 100 * item.wrappedValue.scale
             let stickerHeight = baseWidth / aspectRatio
 
-            LazyImage(request: ImageRequest(url: url, processors: [])) { state in
-                if let image = state.image {
-                    image.resizable().scaledToFit()
-                } else {
-                    Color.clear
-                }
-            }
-            .frame(width: baseWidth, height: stickerHeight)
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
+            AnimatedGIFView(url: url)
+                .frame(width: baseWidth, height: stickerHeight)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
             )
             .position(item.wrappedValue.position)
             .gesture(

@@ -248,20 +248,12 @@ struct VideoOverlayEditorView: View {
             let stickerWidth = baseWidth * item.wrappedValue.scale
             let stickerHeight = stickerWidth / aspectRatio
 
-            LazyImage(request: ImageRequest(url: url, processors: [])) { state in
-                if let image = state.image {
-                    image
-                        .resizable()
-                        .scaledToFit()
-                } else {
-                    Color.clear
-                }
-            }
-            .frame(width: stickerWidth, height: stickerHeight)
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
-            )
+            AnimatedGIFView(url: url)
+                .frame(width: stickerWidth, height: stickerHeight)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
+                )
             .position(item.wrappedValue.position)
             .gesture(stickerGesture(item: item, containerSize: containerSize))
             .onTapGesture {

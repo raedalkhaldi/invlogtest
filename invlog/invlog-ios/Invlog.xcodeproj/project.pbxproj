@@ -109,6 +109,7 @@
 		STIK10020003000400050002 /* StickerPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = STIK10020003000400050001 /* StickerPickerView.swift */; };
 		GIPH10020003000400050002 /* GiphyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = GIPH10020003000400050001 /* GiphyService.swift */; };
 		SCON10020003000400050002 /* StickerContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SCON10020003000400050001 /* StickerContentView.swift */; };
+		AGIF10020003000400050002 /* AnimatedGIFView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AGIF10020003000400050001 /* AnimatedGIFView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -213,6 +214,7 @@
 		STIK10020003000400050001 /* StickerPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StickerPickerView.swift; path = StickerPickerView.swift; sourceTree = "<group>"; };
 		GIPH10020003000400050001 /* GiphyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GiphyService.swift; path = GiphyService.swift; sourceTree = "<group>"; };
 		SCON10020003000400050001 /* StickerContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StickerContentView.swift; path = StickerContentView.swift; sourceTree = "<group>"; };
+		AGIF10020003000400050001 /* AnimatedGIFView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnimatedGIFView.swift; path = AnimatedGIFView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -437,6 +439,7 @@
 				MENT10020003000400050005 /* MentionText.swift */,
 				STIK10020003000400050001 /* StickerPickerView.swift */,
 				SCON10020003000400050001 /* StickerContentView.swift */,
+				AGIF10020003000400050001 /* AnimatedGIFView.swift */,
 			);
 			name = Components;
 			path = Components;
@@ -829,6 +832,7 @@
 				STIK10020003000400050002 /* StickerPickerView.swift in Sources */,
 				GIPH10020003000400050002 /* GiphyService.swift in Sources */,
 				SCON10020003000400050002 /* StickerContentView.swift in Sources */,
+				AGIF10020003000400050002 /* AnimatedGIFView.swift in Sources */,
 				89BDFFC44D13446A8419E098 /* MentionableTextField.swift in Sources */,
 				ABAE697AF2E58930B4134787 /* AppState.swift in Sources */,
 				011E3679163AB92EF5EFB81A /* InvlogApp.swift in Sources */,
