@@ -909,6 +909,7 @@ struct CommentsSheetView: View {
     @State private var newComment = ""
     @State private var isLoading = true
     @State private var replyingTo: Comment? = nil
+    @State private var showStickerPicker = false
 
     private var postId: String { post.id }
     private var postAuthorId: String { post.authorId }
@@ -1075,6 +1076,16 @@ struct CommentsSheetView: View {
     // MARK: - Comment Input Bar
     private var commentInputBar: some View {
         HStack(spacing: 8) {
+            // Sticker button
+            Button {
+                showStickerPicker = true
+            } label: {
+                Image(systemName: "face.smiling")
+                    .font(.system(size: 22))
+                    .foregroundColor(Color.brandTextTertiary)
+            }
+            .frame(minWidth: 36, minHeight: 36)
+
             MentionableTextField(
                 text: $newComment,
                 placeholder: "Add a comment...",
@@ -1104,6 +1115,13 @@ struct CommentsSheetView: View {
         .background(Color.brandCard)
         .overlay(alignment: .top) {
             Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+        }
+        .sheet(isPresented: $showStickerPicker) {
+            StickerPickerView { sticker in
+                // Send sticker as a comment with special format
+                Task { await submitStickerComment(sticker) }
+            }
+            .presentationDetents([.medium, .large])
         }
     }
 
@@ -1136,6 +1154,21 @@ struct CommentsSheetView: View {
             onCommentAdded?()
         } catch {
             newComment = content
+        }
+    }
+
+    private func submitStickerComment(_ sticker: GiphySticker) async {
+        let content = "[sticker:\(sticker.previewUrl.absoluteString)]"
+        do {
+            let (comment, _) = try await APIClient.shared.requestWrapped(
+                .createComment(postId: postId, content: content, parentId: nil),
+                responseType: Comment.self
+            )
+            comments.append(comment)
+            commentCount += 1
+            onCommentAdded?()
+        } catch {
+            // Silent fail for sticker
         }
     }
 
