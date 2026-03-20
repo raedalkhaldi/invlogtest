@@ -1,4 +1,5 @@
 import SwiftUI
+import Nuke
 @preconcurrency import NukeUI
 
 struct PostDetailView: View {
@@ -235,7 +236,7 @@ struct CommentRowView: View {
 
                 if let stickerURL {
                     // Render sticker as animated GIF
-                    LazyImage(url: stickerURL) { state in
+                    LazyImage(request: ImageRequest(url: stickerURL, processors: [])) { state in
                         if let image = state.image {
                             image.resizable().scaledToFit()
                         } else {

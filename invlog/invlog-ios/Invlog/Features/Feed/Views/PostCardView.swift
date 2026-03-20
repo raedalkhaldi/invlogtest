@@ -130,9 +130,9 @@ struct PostCardView: View {
             .padding(.top, InvlogTheme.Card.padding)
             .padding(.bottom, InvlogTheme.Spacing.xs)
 
-            // Content
+            // Content (with inline sticker support)
             if let content = post.content, !content.isEmpty {
-                MentionText(
+                StickerContentView(
                     content: content,
                     font: InvlogTheme.body(15),
                     color: Color.brandText,

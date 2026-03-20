@@ -248,7 +248,7 @@ struct VideoOverlayEditorView: View {
             let stickerWidth = baseWidth * item.wrappedValue.scale
             let stickerHeight = stickerWidth / aspectRatio
 
-            LazyImage(url: url) { state in
+            LazyImage(request: ImageRequest(url: url, processors: [])) { state in
                 if let image = state.image {
                     image
                         .resizable()
