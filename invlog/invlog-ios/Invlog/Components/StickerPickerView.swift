@@ -1,4 +1,5 @@
 import SwiftUI
+import Nuke
 @preconcurrency import NukeUI
 
 @MainActor
@@ -192,7 +193,7 @@ struct StickerPickerView: View {
     }
 
     private func stickerCell(_ sticker: GiphySticker) -> some View {
-        LazyImage(url: sticker.previewUrl) { state in
+        LazyImage(request: ImageRequest(url: sticker.previewUrl, processors: [])) { state in
             if let image = state.image {
                 image
                     .resizable()

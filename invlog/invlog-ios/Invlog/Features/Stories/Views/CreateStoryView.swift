@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import AVFoundation
 import CoreImage
+import Nuke
 @preconcurrency import NukeUI
 
 @MainActor
@@ -619,7 +620,7 @@ struct CreateStoryView: View {
             let baseWidth: CGFloat = 100 * item.wrappedValue.scale
             let stickerHeight = baseWidth / aspectRatio
 
-            LazyImage(url: url) { state in
+            LazyImage(request: ImageRequest(url: url, processors: [])) { state in
                 if let image = state.image {
                     image.resizable().scaledToFit()
                 } else {

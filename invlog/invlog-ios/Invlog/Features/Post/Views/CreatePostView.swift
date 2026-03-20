@@ -49,6 +49,7 @@ struct CreatePostView: View {
     @State private var showPhotoFilter = false
     @State private var showPhotoOverlay = false
     @State private var filteredImages: [UIImage] = []
+    @State private var showDescriptionStickerPicker = false
     @State private var currentOverlayImageIndex = 0
     @State private var visibility = "public"
     @State private var matchingTrips: [Trip] = []
@@ -253,35 +254,12 @@ struct CreatePostView: View {
         .sheet(isPresented: $showPhotoFilter) {
             NavigationStack {
                 ImageFilterView(images: croppedImages) { result in
-                    filteredImages = result
+                    for img in result {
+                        selectedImages.append(img)
+                        mediaItems.append(.image(img))
+                    }
                     croppedImages = []
                     showPhotoFilter = false
-                    if !filteredImages.isEmpty {
-                        currentOverlayImageIndex = 0
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                            showPhotoOverlay = true
-                        }
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showPhotoOverlay) {
-            NavigationStack {
-                if currentOverlayImageIndex < filteredImages.count {
-                    VideoOverlayEditorView(
-                        image: filteredImages[currentOverlayImageIndex],
-                        placeName: selectedPlace?.name
-                    ) { overlayedImage in
-                        selectedImages.append(overlayedImage)
-                        mediaItems.append(.image(overlayedImage))
-
-                        if currentOverlayImageIndex + 1 < filteredImages.count {
-                            currentOverlayImageIndex += 1
-                        } else {
-                            filteredImages = []
-                            showPhotoOverlay = false
-                        }
-                    }
                 }
             }
         }
@@ -305,14 +283,49 @@ struct CreatePostView: View {
 
     @ViewBuilder
     private var textInputSection: some View {
-        MentionableTextField(
-            text: $content,
-            placeholder: "Share your experience...",
-            lineLimit: 5...10
-        )
-        .font(InvlogTheme.body(15))
-        .padding()
-        .accessibilityLabel("Post content")
+        VStack(alignment: .leading, spacing: 0) {
+            MentionableTextField(
+                text: $content,
+                placeholder: "Share your experience...",
+                lineLimit: 5...10
+            )
+            .font(InvlogTheme.body(15))
+            .padding()
+            .accessibilityLabel("Post content")
+
+            // Sticker button row
+            HStack(spacing: 12) {
+                Button {
+                    showDescriptionStickerPicker = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "face.smiling")
+                            .font(.system(size: 16))
+                        Text("Sticker")
+                            .font(InvlogTheme.caption(12, weight: .medium))
+                    }
+                    .foregroundColor(Color.brandTextSecondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.brandBorder.opacity(0.4))
+                    .clipShape(Capsule())
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+        .sheet(isPresented: $showDescriptionStickerPicker) {
+            StickerPickerView { sticker in
+                // Append sticker as inline token in content
+                if !content.isEmpty && !content.hasSuffix("\n") {
+                    content += "\n"
+                }
+                content += "[sticker:\(sticker.previewUrl.absoluteString)]"
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
     @ViewBuilder
