@@ -9,6 +9,7 @@ struct PostDetailView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var navigateToMention: String? = nil
+    @State private var showStickerPicker = false
 
     var body: some View {
         Group {
@@ -66,6 +67,15 @@ struct PostDetailView: View {
 
                 // Comment Input
                 HStack(spacing: 8) {
+                    Button {
+                        showStickerPicker = true
+                    } label: {
+                        Image(systemName: "face.smiling")
+                            .font(.system(size: 22))
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
+                    .frame(minWidth: 36, minHeight: 36)
+
                     MentionableTextField(
                         text: $newComment,
                         placeholder: "Add a comment...",
@@ -94,6 +104,12 @@ struct PostDetailView: View {
                 .background(Color.brandCard)
                 .overlay(alignment: .top) {
                     Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                }
+                .sheet(isPresented: $showStickerPicker) {
+                    StickerPickerView { sticker in
+                        Task { await submitStickerComment(sticker) }
+                    }
+                    .presentationDetents([.medium, .large])
                 }
             }
         }
@@ -165,11 +181,32 @@ struct PostDetailView: View {
             newComment = content
         }
     }
+
+    private func submitStickerComment(_ sticker: GiphySticker) async {
+        let content = "[sticker:\(sticker.previewUrl.absoluteString)]"
+        do {
+            let (comment, _) = try await APIClient.shared.requestWrapped(
+                .createComment(postId: postId, content: content, parentId: nil),
+                responseType: Comment.self
+            )
+            comments.insert(comment, at: 0)
+        } catch {
+            // Silent fail
+        }
+    }
 }
 
 struct CommentRowView: View {
     let comment: Comment
     var onMentionTap: ((String) -> Void)? = nil
+
+    /// Check if comment is a sticker (format: [sticker:URL])
+    private var stickerURL: URL? {
+        let content = comment.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard content.hasPrefix("[sticker:"), content.hasSuffix("]") else { return nil }
+        let urlStr = String(content.dropFirst(9).dropLast(1))
+        return URL(string: urlStr)
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -196,13 +233,27 @@ struct CommentRowView: View {
                         .foregroundColor(Color.brandTextTertiary)
                 }
 
-                MentionText(
-                    content: comment.content,
-                    font: InvlogTheme.body(14),
-                    color: Color.brandText,
-                    mentionColor: Color.brandPrimary,
-                    onMentionTap: onMentionTap
-                )
+                if let stickerURL {
+                    // Render sticker as animated GIF
+                    LazyImage(url: stickerURL) { state in
+                        if let image = state.image {
+                            image.resizable().scaledToFit()
+                        } else {
+                            Color.brandBorder.opacity(0.3)
+                                .overlay(ProgressView().scaleEffect(0.7))
+                        }
+                    }
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    MentionText(
+                        content: comment.content,
+                        font: InvlogTheme.body(14),
+                        color: Color.brandText,
+                        mentionColor: Color.brandPrimary,
+                        onMentionTap: onMentionTap
+                    )
+                }
             }
         }
     }

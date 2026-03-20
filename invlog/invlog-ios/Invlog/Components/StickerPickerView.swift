@@ -224,7 +224,7 @@ struct StickerPickerView: View {
                 .font(InvlogTheme.caption(10))
                 .foregroundColor(Color.brandTextTertiary)
             +
-            Text("GIPHY")
+            Text("Tenor")
                 .font(InvlogTheme.caption(10, weight: .bold))
                 .foregroundColor(Color.brandTextTertiary)
             Spacer()
