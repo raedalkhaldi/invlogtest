@@ -193,27 +193,9 @@ struct StickerPickerView: View {
     }
 
     private func stickerCell(_ sticker: GiphySticker) -> some View {
-        LazyImage(request: ImageRequest(url: sticker.previewUrl, processors: [])) { state in
-            if let image = state.image {
-                image
-                    .resizable()
-                    .scaledToFit()
-            } else if state.isLoading {
-                Color.brandBorder.opacity(0.3)
-                    .overlay(
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    )
-            } else {
-                Color.brandBorder.opacity(0.3)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .foregroundColor(Color.brandTextTertiary)
-                    )
-            }
-        }
-        .frame(height: 100)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        AnimatedGIFView(url: sticker.previewUrl)
+            .frame(height: 100)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Giphy Attribution
