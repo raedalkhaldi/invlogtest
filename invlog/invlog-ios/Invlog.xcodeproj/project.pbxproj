@@ -106,6 +106,8 @@
 		89BDFFC44D13446A8419E098 /* MentionableTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64299AE648642B9AC170958 /* MentionableTextField.swift */; };
 		6C429FB611E34E1BA22619C5 /* LikedBySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 167795038F5E439CACD96180 /* LikedBySheet.swift */; };
 		MENT10020003000400050006 /* MentionText.swift in Sources */ = {isa = PBXBuildFile; fileRef = MENT10020003000400050005 /* MentionText.swift */; };
+		STIK10020003000400050002 /* StickerPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = STIK10020003000400050001 /* StickerPickerView.swift */; };
+		GIPH10020003000400050002 /* GiphyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = GIPH10020003000400050001 /* GiphyService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -207,6 +209,8 @@
 		B64299AE648642B9AC170958 /* MentionableTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MentionableTextField.swift; path = MentionableTextField.swift; sourceTree = "<group>"; };
 		167795038F5E439CACD96180 /* LikedBySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LikedBySheet.swift; path = LikedBySheet.swift; sourceTree = "<group>"; };
 		MENT10020003000400050005 /* MentionText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MentionText.swift; path = MentionText.swift; sourceTree = "<group>"; };
+		STIK10020003000400050001 /* StickerPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StickerPickerView.swift; path = StickerPickerView.swift; sourceTree = "<group>"; };
+		GIPH10020003000400050001 /* GiphyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GiphyService.swift; path = GiphyService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -429,6 +433,7 @@
 				B64299AE648642B9AC170958 /* MentionableTextField.swift */,
 				167795038F5E439CACD96180 /* LikedBySheet.swift */,
 				MENT10020003000400050005 /* MentionText.swift */,
+				STIK10020003000400050001 /* StickerPickerView.swift */,
 			);
 			name = Components;
 			path = Components;
@@ -699,6 +704,7 @@
 				FA4F79292681E1E43D798F23 /* APIEndpoint.swift */,
 				709047DEC9A035F4805E5850 /* APIError.swift */,
 				ERRL000200020002ERRL0002 /* ErrorLogger.swift */,
+				GIPH10020003000400050001 /* GiphyService.swift */,
 			);
 			name = Network;
 			path = Network;
@@ -817,6 +823,8 @@
 			files = (
 				6C429FB611E34E1BA22619C5 /* LikedBySheet.swift in Sources */,
 				MENT10020003000400050006 /* MentionText.swift in Sources */,
+				STIK10020003000400050002 /* StickerPickerView.swift in Sources */,
+				GIPH10020003000400050002 /* GiphyService.swift in Sources */,
 				89BDFFC44D13446A8419E098 /* MentionableTextField.swift in Sources */,
 				ABAE697AF2E58930B4134787 /* AppState.swift in Sources */,
 				011E3679163AB92EF5EFB81A /* InvlogApp.swift in Sources */,

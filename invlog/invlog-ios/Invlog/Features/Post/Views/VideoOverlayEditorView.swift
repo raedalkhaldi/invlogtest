@@ -1,5 +1,7 @@
 import SwiftUI
 import AVFoundation
+@preconcurrency import NukeUI
+import Nuke
 
 // MARK: - Overlay Item Model
 
@@ -9,18 +11,26 @@ struct VideoOverlayItem: Identifiable {
     var position: CGPoint
     var fontSize: OverlayFontSize
     var color: OverlayColor
+    var scale: CGFloat = 1.0  // For sticker pinch-to-resize
 
     enum OverlayKind: Equatable {
         case text(String)
         case location(String)
         case mention(String)
+        case sticker(url: URL, width: CGFloat, height: CGFloat)
 
         var displayText: String {
             switch self {
             case .text(let t): return t
             case .location(let name): return name
             case .mention(let username): return "@\(username)"
+            case .sticker: return ""
             }
+        }
+
+        var isSticker: Bool {
+            if case .sticker = self { return true }
+            return false
         }
     }
 }
@@ -70,13 +80,41 @@ enum OverlayColor: String, CaseIterable {
     }
 }
 
-// MARK: - VideoOverlayEditorView
+// MARK: - VideoOverlayEditorView (supports both video and photo)
 
+@MainActor
 struct VideoOverlayEditorView: View {
-    let videoURL: URL
+    // Video mode
+    let videoURL: URL?
     let thumbnail: UIImage
     let placeName: String?
     let onComplete: (URL, UIImage) -> Void
+
+    // Photo mode
+    let photoImage: UIImage?
+    let onCompletePhoto: ((UIImage) -> Void)?
+
+    /// Video mode initializer
+    init(videoURL: URL, thumbnail: UIImage, placeName: String? = nil, onComplete: @escaping (URL, UIImage) -> Void) {
+        self.videoURL = videoURL
+        self.thumbnail = thumbnail
+        self.placeName = placeName
+        self.onComplete = onComplete
+        self.photoImage = nil
+        self.onCompletePhoto = nil
+    }
+
+    /// Photo mode initializer
+    init(image: UIImage, placeName: String? = nil, onCompletePhoto: @escaping (UIImage) -> Void) {
+        self.videoURL = nil
+        self.thumbnail = image
+        self.placeName = placeName
+        self.onComplete = { _, _ in }
+        self.photoImage = image
+        self.onCompletePhoto = onCompletePhoto
+    }
+
+    private var isPhotoMode: Bool { photoImage != nil }
 
     @Environment(\.dismiss) private var dismiss
 
@@ -95,10 +133,13 @@ struct VideoOverlayEditorView: View {
     @State private var showAddMentionSheet = false
     @State private var newMentionUsername = ""
 
+    // Sticker picker
+    @State private var showStickerPicker = false
+
     // Editing state
     @State private var selectedOverlayId: UUID?
 
-    // Video preview size for coordinate mapping
+    // Preview size for coordinate mapping
     @State private var previewSize: CGSize = .zero
 
     var body: some View {
@@ -106,7 +147,7 @@ struct VideoOverlayEditorView: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                videoPreviewWithOverlays
+                mediaPreviewWithOverlays
                 controlsSection
             }
 
@@ -137,7 +178,9 @@ struct VideoOverlayEditorView: View {
         }
         .toolbarBackground(.black, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .onAppear { setupPlayer() }
+        .onAppear {
+            if !isPhotoMode { setupPlayer() }
+        }
         .onDisappear { cleanUpPlayer() }
         .alert("Export Failed", isPresented: .init(
             get: { exportError != nil },
@@ -153,11 +196,17 @@ struct VideoOverlayEditorView: View {
         .sheet(isPresented: $showAddMentionSheet) {
             addMentionSheet
         }
+        .sheet(isPresented: $showStickerPicker) {
+            StickerPickerView { sticker in
+                addStickerOverlay(sticker)
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
-    // MARK: - Video Preview with Overlays
+    // MARK: - Media Preview with Overlays
 
-    private var videoPreviewWithOverlays: some View {
+    private var mediaPreviewWithOverlays: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
             let height = width * (5.0 / 4.0)
@@ -165,7 +214,13 @@ struct VideoOverlayEditorView: View {
             ZStack {
                 Color.black
 
-                if let player {
+                if isPhotoMode, let photoImage {
+                    Image(uiImage: photoImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: width, height: height)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
+                } else if let player {
                     SimpleVideoPlayerView(player: player)
                         .frame(width: width, height: height)
                         .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
@@ -182,35 +237,81 @@ struct VideoOverlayEditorView: View {
         .aspectRatio(4.0 / 5.0, contentMode: .fit)
     }
 
+    @ViewBuilder
     private func overlayItemView(item: Binding<VideoOverlayItem>, containerSize: CGSize) -> some View {
         let isSelected = selectedOverlayId == item.wrappedValue.id
 
-        return Text(item.wrappedValue.kind.displayText)
-            .font(.system(size: item.wrappedValue.fontSize.pointSize, weight: .bold))
-            .foregroundColor(item.wrappedValue.color.swiftUIColor)
-            .shadow(color: .black.opacity(0.6), radius: 2, x: 1, y: 1)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.black.opacity(0.3))
-            )
+        if case .sticker(let url, let width, let height) = item.wrappedValue.kind {
+            // Sticker overlay
+            let aspectRatio = width / max(height, 1)
+            let baseWidth: CGFloat = 120
+            let stickerWidth = baseWidth * item.wrappedValue.scale
+            let stickerHeight = stickerWidth / aspectRatio
+
+            LazyImage(url: url) { state in
+                if let image = state.image {
+                    image
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(width: stickerWidth, height: stickerHeight)
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 4)
                     .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
             )
             .position(item.wrappedValue.position)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        let newX = min(max(value.location.x, 0), containerSize.width)
-                        let newY = min(max(value.location.y, 0), containerSize.height)
-                        item.wrappedValue.position = CGPoint(x: newX, y: newY)
-                    }
-            )
+            .gesture(stickerGesture(item: item, containerSize: containerSize))
             .onTapGesture {
                 selectedOverlayId = (selectedOverlayId == item.wrappedValue.id) ? nil : item.wrappedValue.id
             }
+        } else {
+            // Text/location/mention overlay
+            Text(item.wrappedValue.kind.displayText)
+                .font(.system(size: item.wrappedValue.fontSize.pointSize, weight: .bold))
+                .foregroundColor(item.wrappedValue.color.swiftUIColor)
+                .shadow(color: .black.opacity(0.6), radius: 2, x: 1, y: 1)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.black.opacity(0.3))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
+                )
+                .position(item.wrappedValue.position)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let newX = min(max(value.location.x, 0), containerSize.width)
+                            let newY = min(max(value.location.y, 0), containerSize.height)
+                            item.wrappedValue.position = CGPoint(x: newX, y: newY)
+                        }
+                )
+                .onTapGesture {
+                    selectedOverlayId = (selectedOverlayId == item.wrappedValue.id) ? nil : item.wrappedValue.id
+                }
+        }
+    }
+
+    private func stickerGesture(item: Binding<VideoOverlayItem>, containerSize: CGSize) -> some Gesture {
+        SimultaneousGesture(
+            DragGesture()
+                .onChanged { value in
+                    let newX = min(max(value.location.x, 0), containerSize.width)
+                    let newY = min(max(value.location.y, 0), containerSize.height)
+                    item.wrappedValue.position = CGPoint(x: newX, y: newY)
+                },
+            MagnificationGesture()
+                .onChanged { value in
+                    let newScale = item.wrappedValue.scale * value
+                    item.wrappedValue.scale = min(max(newScale, 0.3), 4.0)
+                }
+        )
     }
 
     // MARK: - Controls
@@ -221,6 +322,10 @@ struct VideoOverlayEditorView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: InvlogTheme.Spacing.sm) {
+                    overlayActionButton(icon: "face.smiling", label: "Sticker") {
+                        showStickerPicker = true
+                    }
+
                     overlayActionButton(icon: "textformat", label: "Text") {
                         newTextContent = ""
                         newFontSize = .medium
@@ -249,7 +354,7 @@ struct VideoOverlayEditorView: View {
             }
 
             if overlays.isEmpty {
-                Text("Tap buttons above to add text, location, or mentions")
+                Text("Add stickers, text, location, or mentions")
                     .font(InvlogTheme.caption(12))
                     .foregroundColor(Color.brandTextTertiary)
                     .padding(.bottom, InvlogTheme.Spacing.sm)
@@ -417,6 +522,19 @@ struct VideoOverlayEditorView: View {
         selectedOverlayId = item.id
     }
 
+    private func addStickerOverlay(_ sticker: GiphySticker) {
+        let center = CGPoint(x: previewSize.width / 2, y: previewSize.height / 2)
+        let item = VideoOverlayItem(
+            kind: .sticker(url: sticker.url, width: sticker.width, height: sticker.height),
+            position: center,
+            fontSize: .medium,
+            color: .white,
+            scale: 1.0
+        )
+        overlays.append(item)
+        selectedOverlayId = item.id
+    }
+
     private func removeSelectedOverlay() {
         guard let id = selectedOverlayId else { return }
         overlays.removeAll { $0.id == id }
@@ -433,7 +551,7 @@ struct VideoOverlayEditorView: View {
                     .progressViewStyle(.circular)
                     .tint(.white)
                     .scaleEffect(1.2)
-                Text("Burning overlays...")
+                Text(isPhotoMode ? "Applying stickers..." : "Burning overlays...")
                     .font(InvlogTheme.body(14, weight: .semibold))
                     .foregroundColor(.white)
             }
@@ -443,9 +561,10 @@ struct VideoOverlayEditorView: View {
         }
     }
 
-    // MARK: - Player Setup
+    // MARK: - Player Setup (Video only)
 
     private func setupPlayer() {
+        guard let videoURL else { return }
         let asset = AVURLAsset(url: videoURL)
         let playerItem = AVPlayerItem(asset: asset)
         let avPlayer = AVPlayer(playerItem: playerItem)
@@ -480,8 +599,44 @@ struct VideoOverlayEditorView: View {
     // MARK: - Export
 
     private func handleExport() {
+        if isPhotoMode {
+            handlePhotoExport()
+        } else {
+            handleVideoExport()
+        }
+    }
+
+    private func handlePhotoExport() {
+        guard let photoImage else { return }
+
         if overlays.isEmpty {
-            // No overlays, pass through directly
+            onCompletePhoto?(photoImage)
+            dismiss()
+            return
+        }
+
+        isExporting = true
+        let overlaysCopy = overlays
+        let previewSizeCopy = previewSize
+
+        Task.detached(priority: .userInitiated) {
+            let result = await Self.compositePhotoOverlays(
+                baseImage: photoImage,
+                overlays: overlaysCopy,
+                previewSize: previewSizeCopy
+            )
+            await MainActor.run {
+                isExporting = false
+                onCompletePhoto?(result)
+                dismiss()
+            }
+        }
+    }
+
+    private func handleVideoExport() {
+        guard let videoURL else { return }
+
+        if overlays.isEmpty {
             cleanUpPlayer()
             onComplete(videoURL, thumbnail)
             dismiss()
@@ -493,7 +648,8 @@ struct VideoOverlayEditorView: View {
         let previewSizeCopy = previewSize
         Task {
             do {
-                let (exportedURL, exportedThumb) = try await exportWithOverlays(
+                let (exportedURL, exportedThumb) = try await exportVideoWithOverlays(
+                    videoURL: videoURL,
                     overlays: overlaysCopy,
                     previewSize: previewSizeCopy
                 )
@@ -512,7 +668,99 @@ struct VideoOverlayEditorView: View {
         }
     }
 
-    private func exportWithOverlays(overlays: [VideoOverlayItem], previewSize: CGSize) async throws -> (URL, UIImage) {
+    // MARK: - Photo Export (composite overlays onto image)
+
+    private static func compositePhotoOverlays(
+        baseImage: UIImage,
+        overlays: [VideoOverlayItem],
+        previewSize: CGSize
+    ) async -> UIImage {
+        let imageSize = baseImage.size
+        let scaleX = imageSize.width / previewSize.width
+        let scaleY = imageSize.height / previewSize.height
+
+        // Prefetch sticker images
+        var stickerImages: [URL: UIImage] = [:]
+        for item in overlays {
+            if case .sticker(let url, _, _) = item.kind {
+                if let (data, _) = try? await URLSession.shared.data(from: url),
+                   let img = UIImage(data: data) {
+                    stickerImages[url] = img
+                }
+            }
+        }
+
+        let renderer = UIGraphicsImageRenderer(size: imageSize)
+        return renderer.image { context in
+            // Draw base image
+            baseImage.draw(in: CGRect(origin: .zero, size: imageSize))
+
+            for item in overlays {
+                switch item.kind {
+                case .sticker(let url, let w, let h):
+                    guard let stickerImg = stickerImages[url] else { continue }
+                    let aspectRatio = w / max(h, 1)
+                    let baseWidth: CGFloat = 120 * item.scale
+                    let stickerWidth = baseWidth * scaleX
+                    let stickerHeight = stickerWidth / aspectRatio
+                    let x = item.position.x * scaleX - stickerWidth / 2
+                    let y = item.position.y * scaleY - stickerHeight / 2
+                    stickerImg.draw(in: CGRect(x: x, y: y, width: stickerWidth, height: stickerHeight))
+
+                case .text(let text), .location(let text), .mention(let text):
+                    let displayText = item.kind.displayText
+                    let fontSize = item.fontSize.pointSize * scaleX
+                    let font = UIFont.boldSystemFont(ofSize: fontSize)
+                    let attributes: [NSAttributedString.Key: Any] = [
+                        .font: font,
+                        .foregroundColor: item.color.uiColor,
+                        .shadow: {
+                            let shadow = NSShadow()
+                            shadow.shadowColor = UIColor.black.withAlphaComponent(0.6)
+                            shadow.shadowOffset = CGSize(width: 1 * scaleX, height: 1 * scaleY)
+                            shadow.shadowBlurRadius = 2 * scaleX
+                            return shadow
+                        }()
+                    ]
+                    let maxWidth = imageSize.width * 0.9
+                    let textSize = (displayText as NSString).boundingRect(
+                        with: CGSize(width: maxWidth, height: .greatestFiniteMagnitude),
+                        options: [.usesLineFragmentOrigin, .usesFontLeading],
+                        attributes: attributes,
+                        context: nil
+                    ).size
+
+                    let bgWidth = textSize.width + 20 * scaleX
+                    let bgHeight = textSize.height + 12 * scaleY
+                    let x = item.position.x * scaleX - bgWidth / 2
+                    let y = item.position.y * scaleY - bgHeight / 2
+
+                    // Draw background
+                    let bgRect = CGRect(x: x, y: y, width: bgWidth, height: bgHeight)
+                    let bgPath = UIBezierPath(roundedRect: bgRect, cornerRadius: 6 * scaleX)
+                    UIColor.black.withAlphaComponent(0.3).setFill()
+                    bgPath.fill()
+
+                    // Draw text
+                    let textRect = CGRect(
+                        x: x + 10 * scaleX,
+                        y: y + 6 * scaleY,
+                        width: textSize.width,
+                        height: textSize.height
+                    )
+                    (displayText as NSString).draw(in: textRect, withAttributes: attributes)
+                }
+            }
+        }
+    }
+
+    // MARK: - Video Export (burn overlays into video)
+
+    private func exportVideoWithOverlays(
+        videoURL: URL,
+        overlays: [VideoOverlayItem],
+        previewSize: CGSize
+    ) async throws -> (URL, UIImage) {
         let screenScale = await MainActor.run { UIScreen.main.scale }
         let asset = AVURLAsset(url: videoURL)
         let outputURL = FileManager.default.temporaryDirectory
@@ -527,6 +775,18 @@ struct VideoOverlayEditorView: View {
         let transform = videoTrack.preferredTransform
         let isRotated = abs(transform.b) == 1.0 && abs(transform.c) == 1.0
         let videoSize = isRotated ? CGSize(width: naturalSize.height, height: naturalSize.width) : naturalSize
+
+        // Prefetch sticker images for video burn
+        var stickerCGImages: [URL: CGImage] = [:]
+        for item in overlays {
+            if case .sticker(let url, _, _) = item.kind {
+                if let (data, _) = try? await URLSession.shared.data(from: url),
+                   let img = UIImage(data: data),
+                   let cgImg = img.cgImage {
+                    stickerCGImages[url] = cgImg
+                }
+            }
+        }
 
         // Build composition
         let composition = AVMutableComposition()
@@ -553,41 +813,57 @@ struct VideoOverlayEditorView: View {
         let scaleY = videoSize.height / previewSize.height
 
         for item in overlays {
-            let textLayer = CATextLayer()
-            textLayer.string = item.kind.displayText
-            textLayer.font = UIFont.boldSystemFont(ofSize: item.fontSize.pointSize * scaleX) as CFTypeRef
-            textLayer.fontSize = item.fontSize.pointSize * scaleX
-            textLayer.foregroundColor = item.color.uiColor.cgColor
-            textLayer.shadowColor = UIColor.black.cgColor
-            textLayer.shadowOpacity = 0.6
-            textLayer.shadowOffset = CGSize(width: 1 * scaleX, height: 1 * scaleY)
-            textLayer.shadowRadius = 2 * scaleX
-            textLayer.alignmentMode = .center
-            textLayer.contentsScale = screenScale
-            textLayer.isWrapped = true
+            switch item.kind {
+            case .sticker(let url, let w, let h):
+                guard let cgImage = stickerCGImages[url] else { continue }
+                let stickerLayer = CALayer()
+                stickerLayer.contents = cgImage
+                stickerLayer.contentsGravity = .resizeAspect
 
-            // Calculate size
-            let maxWidth = videoSize.width * 0.9
-            let textSize = (item.kind.displayText as NSString).boundingRect(
-                with: CGSize(width: maxWidth, height: .greatestFiniteMagnitude),
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: [.font: UIFont.boldSystemFont(ofSize: item.fontSize.pointSize * scaleX)],
-                context: nil
-            ).size
+                let aspectRatio = w / max(h, 1)
+                let baseWidth: CGFloat = 120 * item.scale
+                let stickerWidth = baseWidth * scaleX
+                let stickerHeight = stickerWidth / aspectRatio
+                let x = item.position.x * scaleX - stickerWidth / 2
+                // CA coordinates: y=0 is bottom
+                let y = videoSize.height - (item.position.y * scaleY) - stickerHeight / 2
 
-            let layerWidth = min(textSize.width + 20 * scaleX, maxWidth)
-            let layerHeight = textSize.height + 12 * scaleY
+                stickerLayer.frame = CGRect(x: x, y: y, width: stickerWidth, height: stickerHeight)
+                overlayLayer.addSublayer(stickerLayer)
 
-            // Map position from preview coordinates to video coordinates
-            // In Core Animation, y=0 is at bottom
-            let videoX = item.position.x * scaleX - layerWidth / 2
-            let videoY = videoSize.height - (item.position.y * scaleY) - layerHeight / 2
+            default:
+                let textLayer = CATextLayer()
+                textLayer.string = item.kind.displayText
+                textLayer.font = UIFont.boldSystemFont(ofSize: item.fontSize.pointSize * scaleX) as CFTypeRef
+                textLayer.fontSize = item.fontSize.pointSize * scaleX
+                textLayer.foregroundColor = item.color.uiColor.cgColor
+                textLayer.shadowColor = UIColor.black.cgColor
+                textLayer.shadowOpacity = 0.6
+                textLayer.shadowOffset = CGSize(width: 1 * scaleX, height: 1 * scaleY)
+                textLayer.shadowRadius = 2 * scaleX
+                textLayer.alignmentMode = .center
+                textLayer.contentsScale = screenScale
+                textLayer.isWrapped = true
 
-            textLayer.frame = CGRect(x: videoX, y: videoY, width: layerWidth, height: layerHeight)
-            textLayer.backgroundColor = UIColor.black.withAlphaComponent(0.3).cgColor
-            textLayer.cornerRadius = 6 * scaleX
+                let maxWidth = videoSize.width * 0.9
+                let textSize = (item.kind.displayText as NSString).boundingRect(
+                    with: CGSize(width: maxWidth, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: [.font: UIFont.boldSystemFont(ofSize: item.fontSize.pointSize * scaleX)],
+                    context: nil
+                ).size
 
-            overlayLayer.addSublayer(textLayer)
+                let layerWidth = min(textSize.width + 20 * scaleX, maxWidth)
+                let layerHeight = textSize.height + 12 * scaleY
+                let videoX = item.position.x * scaleX - layerWidth / 2
+                let videoY = videoSize.height - (item.position.y * scaleY) - layerHeight / 2
+
+                textLayer.frame = CGRect(x: videoX, y: videoY, width: layerWidth, height: layerHeight)
+                textLayer.backgroundColor = UIColor.black.withAlphaComponent(0.3).cgColor
+                textLayer.cornerRadius = 6 * scaleX
+
+                overlayLayer.addSublayer(textLayer)
+            }
         }
 
         // Build video composition with overlay
