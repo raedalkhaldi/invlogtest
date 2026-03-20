@@ -2,7 +2,9 @@ import SwiftUI
 import PhotosUI
 import AVFoundation
 import CoreImage
+@preconcurrency import NukeUI
 
+@MainActor
 struct CreateStoryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedItem: PhotosPickerItem?
@@ -25,6 +27,12 @@ struct CreateStoryView: View {
     @State private var filterThumbnails: [VideoFilter: UIImage] = [:]
     @State private var filterDragOffset: CGFloat = 0
     @State private var isExportingFilter = false
+
+    // Sticker overlays
+    @State private var showStickerPicker = false
+    @State private var stickerOverlays: [VideoOverlayItem] = []
+    @State private var selectedStickerOverlayId: UUID?
+    @State private var stickerPreviewSize: CGSize = .zero
 
     var body: some View {
         NavigationStack {
@@ -128,6 +136,21 @@ struct CreateStoryView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showStickerPicker) {
+                StickerPickerView { sticker in
+                    let center = CGPoint(x: stickerPreviewSize.width / 2, y: stickerPreviewSize.height / 2)
+                    let item = VideoOverlayItem(
+                        kind: .sticker(url: sticker.url, width: sticker.width, height: sticker.height),
+                        position: center,
+                        fontSize: .medium,
+                        color: .white,
+                        scale: 1.0
+                    )
+                    stickerOverlays.append(item)
+                    selectedStickerOverlayId = item.id
+                }
+                .presentationDetents([.medium, .large])
+            }
         }
     }
 
@@ -150,7 +173,13 @@ struct CreateStoryView: View {
                                 .scaledToFit()
                                 .frame(width: geo.size.width, height: geo.size.height)
                         }
+
+                        // Sticker overlays on preview
+                        ForEach($stickerOverlays) { $item in
+                            storyStickerView(item: $item, containerSize: geo.size)
+                        }
                     }
+                    .onAppear { stickerPreviewSize = geo.size }
                 }
                 .frame(height: UIScreen.main.bounds.height * 0.45)
                 .clipped()
@@ -192,6 +221,22 @@ struct CreateStoryView: View {
                             .background(Color.white.opacity(0.15))
                             .clipShape(Capsule())
                         }
+                    }
+
+                    Button {
+                        showStickerPicker = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "face.smiling")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Sticker")
+                                .font(InvlogTheme.body(14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.15))
+                        .clipShape(Capsule())
                     }
 
                     PhotosPicker(
@@ -482,16 +527,39 @@ struct CreateStoryView: View {
     }
 
     private func doShare(videoURL: URL?, thumbnail: UIImage?) {
-        let mediaItem: MediaItem
-        if isVideo, let videoURL, let thumbnail {
-            mediaItem = .video(videoURL, thumbnail)
-        } else if let image = selectedImage {
-            mediaItem = .image(image)
+        // If there are sticker overlays, composite them first
+        if !stickerOverlays.isEmpty {
+            isExportingFilter = true
+            Task { @MainActor in
+                if isVideo, let videoURL, let thumbnail {
+                    // For video: composite stickers onto thumbnail only (video sticker burn is heavy)
+                    let compositedThumb = await compositeStickerOverlays(onto: thumbnail)
+                    isExportingFilter = false
+                    uploadStory(mediaItem: .video(videoURL, compositedThumb))
+                } else if let image = thumbnail ?? selectedImage {
+                    let composited = await compositeStickerOverlays(onto: image)
+                    isExportingFilter = false
+                    uploadStory(mediaItem: .image(composited))
+                } else {
+                    isExportingFilter = false
+                    errorMessage = "No media selected."
+                }
+            }
         } else {
-            errorMessage = "No media selected."
-            return
+            let mediaItem: MediaItem
+            if isVideo, let videoURL, let thumbnail {
+                mediaItem = .video(videoURL, thumbnail)
+            } else if let image = thumbnail ?? selectedImage {
+                mediaItem = .image(image)
+            } else {
+                errorMessage = "No media selected."
+                return
+            }
+            uploadStory(mediaItem: mediaItem)
         }
+    }
 
+    private func uploadStory(mediaItem: MediaItem) {
         Task { @MainActor in
             StoryUploadManager.shared.upload(
                 mediaItem: mediaItem,
@@ -501,6 +569,88 @@ struct CreateStoryView: View {
             )
         }
         dismiss()
+    }
+
+    private func compositeStickerOverlays(onto image: UIImage) async -> UIImage {
+        let previewSize = stickerPreviewSize
+        let overlays = stickerOverlays
+
+        return await Task.detached(priority: .userInitiated) {
+            let imageSize = image.size
+            let scaleX = imageSize.width / max(previewSize.width, 1)
+            let scaleY = imageSize.height / max(previewSize.height, 1)
+
+            // Prefetch sticker images
+            var stickerImages: [URL: UIImage] = [:]
+            for item in overlays {
+                if case .sticker(let url, _, _) = item.kind {
+                    if let (data, _) = try? await URLSession.shared.data(from: url),
+                       let img = UIImage(data: data) {
+                        stickerImages[url] = img
+                    }
+                }
+            }
+
+            let renderer = UIGraphicsImageRenderer(size: imageSize)
+            return renderer.image { _ in
+                image.draw(in: CGRect(origin: .zero, size: imageSize))
+
+                for item in overlays {
+                    if case .sticker(let url, let w, let h) = item.kind {
+                        guard let stickerImg = stickerImages[url] else { continue }
+                        let aspectRatio = w / max(h, 1)
+                        let baseWidth: CGFloat = 120 * item.scale
+                        let stickerWidth = baseWidth * scaleX
+                        let stickerHeight = stickerWidth / aspectRatio
+                        let x = item.position.x * scaleX - stickerWidth / 2
+                        let y = item.position.y * scaleY - stickerHeight / 2
+                        stickerImg.draw(in: CGRect(x: x, y: y, width: stickerWidth, height: stickerHeight))
+                    }
+                }
+            }
+        }.value
+    }
+
+    @ViewBuilder
+    private func storyStickerView(item: Binding<VideoOverlayItem>, containerSize: CGSize) -> some View {
+        if case .sticker(let url, let width, let height) = item.wrappedValue.kind {
+            let isSelected = selectedStickerOverlayId == item.wrappedValue.id
+            let aspectRatio = width / max(height, 1)
+            let baseWidth: CGFloat = 100 * item.wrappedValue.scale
+            let stickerHeight = baseWidth / aspectRatio
+
+            LazyImage(url: url) { state in
+                if let image = state.image {
+                    image.resizable().scaledToFit()
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(width: baseWidth, height: stickerHeight)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
+            )
+            .position(item.wrappedValue.position)
+            .gesture(
+                SimultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let x = min(max(value.location.x, 0), containerSize.width)
+                            let y = min(max(value.location.y, 0), containerSize.height)
+                            item.wrappedValue.position = CGPoint(x: x, y: y)
+                        },
+                    MagnificationGesture()
+                        .onChanged { value in
+                            let s = item.wrappedValue.scale * value
+                            item.wrappedValue.scale = min(max(s, 0.3), 4.0)
+                        }
+                )
+            )
+            .onTapGesture {
+                selectedStickerOverlayId = (selectedStickerOverlayId == item.wrappedValue.id) ? nil : item.wrappedValue.id
+            }
+        }
     }
 
     // MARK: - Filter Export

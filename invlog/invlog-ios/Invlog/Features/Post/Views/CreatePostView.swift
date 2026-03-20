@@ -47,6 +47,9 @@ struct CreatePostView: View {
     @State private var showCropView = false
     @State private var croppedImages: [UIImage] = []
     @State private var showPhotoFilter = false
+    @State private var showPhotoOverlay = false
+    @State private var filteredImages: [UIImage] = []
+    @State private var currentOverlayImageIndex = 0
     @State private var visibility = "public"
     @State private var matchingTrips: [Trip] = []
     @State private var selectedTripId: String?
@@ -219,10 +222,13 @@ struct CreatePostView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $showCropView) {
-            imagesToCrop = []
-            currentCropIndex = 0
-        } content: {
+        .fullScreenCover(isPresented: $showCropView, onDismiss: {
+            // Only reset if crop was completed (images moved to croppedImages)
+            if croppedImages.isEmpty {
+                imagesToCrop = []
+                currentCropIndex = 0
+            }
+        }) {
             if currentCropIndex < imagesToCrop.count {
                 NavigationStack {
                     ImageCropView(
@@ -246,12 +252,36 @@ struct CreatePostView: View {
         }
         .sheet(isPresented: $showPhotoFilter) {
             NavigationStack {
-                ImageFilterView(images: croppedImages) { filteredImages in
-                    for img in filteredImages {
-                        selectedImages.append(img)
-                        mediaItems.append(.image(img))
-                    }
+                ImageFilterView(images: croppedImages) { result in
+                    filteredImages = result
                     croppedImages = []
+                    showPhotoFilter = false
+                    if !filteredImages.isEmpty {
+                        currentOverlayImageIndex = 0
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            showPhotoOverlay = true
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showPhotoOverlay) {
+            NavigationStack {
+                if currentOverlayImageIndex < filteredImages.count {
+                    VideoOverlayEditorView(
+                        image: filteredImages[currentOverlayImageIndex],
+                        placeName: selectedPlace?.name
+                    ) { overlayedImage in
+                        selectedImages.append(overlayedImage)
+                        mediaItems.append(.image(overlayedImage))
+
+                        if currentOverlayImageIndex + 1 < filteredImages.count {
+                            currentOverlayImageIndex += 1
+                        } else {
+                            filteredImages = []
+                            showPhotoOverlay = false
+                        }
+                    }
                 }
             }
         }

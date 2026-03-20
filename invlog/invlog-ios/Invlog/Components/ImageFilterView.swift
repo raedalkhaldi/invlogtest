@@ -243,7 +243,7 @@ struct ImageFilterView: View {
                 }
                 return thumbs
             }.value
-            filterThumbnails = result
+            await MainActor.run { filterThumbnails = result }
         }
     }
 
