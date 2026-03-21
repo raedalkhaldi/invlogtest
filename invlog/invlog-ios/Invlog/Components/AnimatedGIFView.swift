@@ -13,6 +13,7 @@ struct AnimatedGIFView: UIViewRepresentable {
         imageView.contentMode = contentMode
         imageView.clipsToBounds = true
         imageView.backgroundColor = .clear
+        imageView.isUserInteractionEnabled = false // Let touches pass through to parent Button
         imageView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         imageView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         return imageView
