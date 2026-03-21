@@ -266,7 +266,16 @@ struct CreatePostView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $showPhotoOverlay) {
+        .fullScreenCover(isPresented: $showPhotoOverlay, onDismiss: {
+            // If dismissed via "Back" without completing, add unprocessed images
+            if !filteredImages.isEmpty {
+                for img in filteredImages {
+                    selectedImages.append(img)
+                    mediaItems.append(.image(img))
+                }
+                filteredImages = []
+            }
+        }) {
             PhotoOverlayFlowView(
                 images: filteredImages,
                 placeName: selectedPlace?.name,

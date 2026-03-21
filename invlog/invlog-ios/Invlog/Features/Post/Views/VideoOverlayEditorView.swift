@@ -603,7 +603,7 @@ struct VideoOverlayEditorView: View {
 
         if overlays.isEmpty {
             onCompletePhoto?(photoImage)
-            dismiss()
+            // Don't dismiss — parent (PhotoOverlayFlowView) manages dismissal
             return
         }
 
@@ -620,7 +620,7 @@ struct VideoOverlayEditorView: View {
             await MainActor.run {
                 isExporting = false
                 onCompletePhoto?(result)
-                dismiss()
+                // Don't dismiss — parent manages dismissal
             }
         }
     }
