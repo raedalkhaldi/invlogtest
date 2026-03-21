@@ -265,7 +265,7 @@ struct VideoOverlayEditorView: View {
                 selectedOverlayId = (selectedOverlayId == item.wrappedValue.id) ? nil : item.wrappedValue.id
             }
         } else {
-            // Text/location/mention overlay
+            // Text/location/mention overlay — draggable AND pinch-resizable
             Text(item.wrappedValue.kind.displayText)
                 .font(.system(size: item.wrappedValue.fontSize.pointSize, weight: .bold))
                 .foregroundColor(item.wrappedValue.color.swiftUIColor)
@@ -280,14 +280,22 @@ struct VideoOverlayEditorView: View {
                     RoundedRectangle(cornerRadius: 6)
                         .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
                 )
+                .scaleEffect(item.wrappedValue.scale)
                 .position(item.wrappedValue.position)
                 .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            let newX = min(max(value.location.x, 0), containerSize.width)
-                            let newY = min(max(value.location.y, 0), containerSize.height)
-                            item.wrappedValue.position = CGPoint(x: newX, y: newY)
-                        }
+                    SimultaneousGesture(
+                        DragGesture()
+                            .onChanged { value in
+                                let newX = min(max(value.location.x, 0), containerSize.width)
+                                let newY = min(max(value.location.y, 0), containerSize.height)
+                                item.wrappedValue.position = CGPoint(x: newX, y: newY)
+                            },
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let newScale = item.wrappedValue.scale * value
+                                item.wrappedValue.scale = min(max(newScale, 0.5), 3.0)
+                            }
+                    )
                 )
                 .onTapGesture {
                     selectedOverlayId = (selectedOverlayId == item.wrappedValue.id) ? nil : item.wrappedValue.id

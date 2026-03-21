@@ -16,7 +16,7 @@ struct CustomTabBarView: View {
 
             HStack(spacing: 0) {
                 tabButton(.feed, icon: "fork.knife", label: "Feed")
-                tabButton(.search, icon: "magnifyingglass", label: "Discover")
+                tabButton(.search, icon: "magnifyingglass", label: "Explore")
 
                 // Center: Circular check-in button with gradient
                 Button(action: onCreateTapped) {

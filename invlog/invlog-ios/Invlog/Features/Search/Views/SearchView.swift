@@ -73,6 +73,19 @@ struct SearchView: View {
             case .fineDining: return ["fine dining"]
             }
         }
+
+        var emoji: String {
+            switch self {
+            case .all: return "🌍"
+            case .restaurants: return "🍕"
+            case .coffee: return "☕"
+            case .bars: return "🍸"
+            case .desserts: return "🧁"
+            case .bakery: return "🥐"
+            case .fastFood: return "🍔"
+            case .fineDining: return "🍷"
+            }
+        }
     }
 
     var body: some View {
@@ -195,7 +208,7 @@ struct SearchView: View {
                                                     selectedPlaceCategory = category
                                                 }
                                             } label: {
-                                                Text(category.rawValue)
+                                                Text("\(category.emoji) \(category.rawValue)")
                                                     .font(InvlogTheme.caption(12, weight: .bold))
                                                     .padding(.horizontal, 14)
                                                     .padding(.vertical, 6)
@@ -417,7 +430,7 @@ struct SearchView: View {
             }
         }
         .invlogScreenBackground()
-        .navigationTitle("Discover")
+        .navigationTitle("Explore")
         .searchable(text: $searchText, prompt: "Search food, places, people...")
         .onChange(of: searchText) { _ in
             triggerSearch()

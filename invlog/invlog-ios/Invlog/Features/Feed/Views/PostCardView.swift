@@ -97,6 +97,18 @@ struct PostCardView: View {
                 Spacer(minLength: 0)
 
                 HStack(spacing: 8) {
+                    // Rating stars (inline in header)
+                    if let rating = post.rating, rating > 0 {
+                        HStack(spacing: 1) {
+                            ForEach(1...5, id: \.self) { star in
+                                Image(systemName: star <= rating ? "star.fill" : "star")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(star <= rating ? Color.brandSecondary : Color.brandTextTertiary)
+                            }
+                        }
+                        .accessibilityLabel("\(rating) out of 5 stars")
+                    }
+
                     if let visibility = post.visibility, visibility != "public" {
                         Image(systemName: visibility == "followers" ? "person.2.fill" : "lock.fill")
                             .font(.system(size: 10))
@@ -133,20 +145,6 @@ struct PostCardView: View {
                 )
                 .padding(.horizontal, InvlogTheme.Card.padding)
                 .padding(.bottom, InvlogTheme.Spacing.xs)
-            }
-
-            // Rating
-            if let rating = post.rating {
-                HStack(spacing: 2) {
-                    ForEach(1...5, id: \.self) { star in
-                        Image(systemName: star <= rating ? "star.fill" : "star")
-                            .font(.caption)
-                            .foregroundColor(star <= rating ? Color.brandSecondary : Color.brandTextTertiary)
-                    }
-                }
-                .padding(.horizontal, InvlogTheme.Card.padding)
-                .padding(.bottom, InvlogTheme.Spacing.xs)
-                .accessibilityLabel("\(rating) out of 5 stars")
             }
 
             // Media
@@ -280,6 +278,23 @@ struct PostCardView: View {
                 .buttonStyle(.borderless)
                 .padding(.horizontal, InvlogTheme.Card.padding)
                 .padding(.top, InvlogTheme.Spacing.xs)
+                .padding(.bottom, InvlogTheme.Spacing.xs)
+            }
+            // Category tags
+            if let cuisines = post.restaurant?.cuisineType, !cuisines.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(cuisines, id: \.self) { tag in
+                            Text(tag)
+                                .font(InvlogTheme.caption(11, weight: .semibold))
+                                .foregroundColor(Color.brandPrimary)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .overlay(Capsule().stroke(Color.brandPrimary, lineWidth: 1))
+                        }
+                    }
+                }
+                .padding(.horizontal, InvlogTheme.Card.padding)
                 .padding(.bottom, InvlogTheme.Spacing.xs)
             }
         }
@@ -512,27 +527,13 @@ struct PostCardView: View {
             Button {
                 showShareSheet = true
             } label: {
-                Image(systemName: "square.and.arrow.up")
+                Image(systemName: "paperplane")
                     .foregroundColor(Color.brandTextSecondary)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderless)
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Share post")
-
-            // Stats
-            if isOwnPost {
-                Button {
-                    showPostStats = true
-                } label: {
-                    Image(systemName: "chart.bar")
-                        .foregroundColor(Color.brandTextSecondary)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel("Post stats")
-            }
 
             Button {
                 toggleBookmark()

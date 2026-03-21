@@ -82,17 +82,8 @@ struct MainTabView: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        .confirmationDialog("Create", isPresented: $showCreateOptions, titleVisibility: .hidden) {
-            Button {
-                showCreatePost = true
-            } label: {
-                Label("Check In", systemImage: "mappin.and.ellipse")
-            }
-            Button {
-                showCreateTrip = true
-            } label: {
-                Label("Create Trip", systemImage: "map")
-            }
+        .sheet(isPresented: $showCreateOptions) {
+            CreateOptionsSheet(showCreatePost: $showCreatePost, showCreateTrip: $showCreateTrip)
         }
         .sheet(isPresented: $showCreatePost) {
             NavigationStack {
