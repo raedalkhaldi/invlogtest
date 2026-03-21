@@ -620,12 +620,17 @@ struct CreateStoryView: View {
             let baseWidth: CGFloat = 100 * item.wrappedValue.scale
             let stickerHeight = baseWidth / aspectRatio
 
-            AnimatedGIFView(url: url)
-                .frame(width: baseWidth, height: stickerHeight)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
+            ZStack {
+                AnimatedGIFView(url: url)
+                    .allowsHitTesting(false)
+                Color.clear
+            }
+            .frame(width: baseWidth, height: stickerHeight)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
             )
+            .contentShape(Rectangle())
             .position(item.wrappedValue.position)
             .gesture(
                 SimultaneousGesture(

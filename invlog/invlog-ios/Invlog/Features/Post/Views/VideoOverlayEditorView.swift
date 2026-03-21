@@ -248,12 +248,17 @@ struct VideoOverlayEditorView: View {
             let stickerWidth = baseWidth * item.wrappedValue.scale
             let stickerHeight = stickerWidth / aspectRatio
 
-            AnimatedGIFView(url: url)
-                .frame(width: stickerWidth, height: stickerHeight)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
-                )
+            ZStack {
+                AnimatedGIFView(url: url)
+                    .allowsHitTesting(false)
+                Color.clear
+            }
+            .frame(width: stickerWidth, height: stickerHeight)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
+            )
+            .contentShape(Rectangle())
             .position(item.wrappedValue.position)
             .gesture(stickerGesture(item: item, containerSize: containerSize))
             .onTapGesture {
