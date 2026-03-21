@@ -50,8 +50,8 @@ struct PlacePeekSheet: View {
 
             // Stats row
             HStack(spacing: 20) {
-                if let rating = restaurant.avgRating, rating > 0 {
-                    Label(String(format: "%.1f", rating), systemImage: "star.fill")
+                if restaurant.avgRating > 0 {
+                    Label(String(format: "%.1f", restaurant.avgRating), systemImage: "star.fill")
                         .font(InvlogTheme.body(13, weight: .semibold))
                         .foregroundColor(Color.brandSecondary)
                 }
