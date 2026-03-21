@@ -910,103 +910,127 @@ struct CommentsSheetView: View {
     @State private var isLoading = true
     @State private var replyingTo: Comment? = nil
     @State private var showStickerPicker = false
+    @State private var navigateToMention: String? = nil
 
     private var postId: String { post.id }
     private var postAuthorId: String { post.authorId }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Mini post preview at top
-                miniPostPreview
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                    .padding(.bottom, 4)
+        VStack(spacing: 0) {
+            // Drag indicator
+            Capsule()
+                .fill(Color.brandBorder)
+                .frame(width: 36, height: 5)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
 
-                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
-
-                // Comment count header
-                HStack {
-                    Text("\(commentCount) comments")
-                        .font(InvlogTheme.body(14, weight: .semibold))
-                        .foregroundColor(Color.brandText)
-                    Spacer()
+            // Header
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.brandTextSecondary)
+                        .frame(width: 30, height: 30)
+                        .background(Color.brandBorder.opacity(0.5))
+                        .clipShape(Circle())
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
+                .frame(minWidth: 44, minHeight: 44)
 
-                // Comments list
-                if isLoading {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                } else if comments.isEmpty {
-                    Spacer()
-                    VStack(spacing: 12) {
-                        Image(systemName: "bubble.right")
-                            .font(.system(size: 32))
-                            .foregroundColor(Color.brandTextTertiary)
-                        Text("No comments yet")
-                            .font(InvlogTheme.body(14))
-                            .foregroundColor(Color.brandTextSecondary)
-                        Text("Be the first to comment")
-                            .font(InvlogTheme.caption(12))
-                            .foregroundColor(Color.brandTextTertiary)
-                    }
-                    Spacer()
-                } else {
+                Spacer()
+
+                Text("\(commentCount) Comments")
+                    .font(InvlogTheme.body(16, weight: .bold))
+                    .foregroundColor(Color.brandText)
+
+                Spacer()
+
+                // Balance spacer
+                Color.clear.frame(width: 44, height: 44)
+            }
+            .padding(.horizontal, 8)
+
+            // Mini post preview
+            miniPostPreview
+                .padding(.horizontal, 12)
+                .padding(.bottom, 6)
+
+            Rectangle().fill(Color.brandBorder.opacity(0.5)).frame(height: 0.5)
+
+            // Comments list
+            if isLoading {
+                Spacer()
+                ProgressView()
+                Spacer()
+            } else if comments.isEmpty {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "bubble.right")
+                        .font(.system(size: 36))
+                        .foregroundColor(Color.brandTextTertiary)
+                    Text("No comments yet")
+                        .font(InvlogTheme.body(15, weight: .semibold))
+                        .foregroundColor(Color.brandTextSecondary)
+                    Text("Be the first to comment")
+                        .font(InvlogTheme.caption(13))
+                        .foregroundColor(Color.brandTextTertiary)
+                }
+                Spacer()
+            } else {
+                ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(comments) { comment in
-                                CommentRowView(comment: comment)
-                                    .padding(.horizontal)
-                                    .padding(.vertical, 10)
-                                    .contextMenu {
-                                        if canDeleteComment(comment) {
-                                            Button(role: .destructive) {
-                                                Task { await deleteComment(comment) }
-                                            } label: {
-                                                Label("Delete Comment", systemImage: "trash")
-                                            }
+                                CommentRowView(
+                                    comment: comment,
+                                    onMentionTap: { username in
+                                        navigateToMention = username
+                                    }
+                                )
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .contextMenu {
+                                    if canDeleteComment(comment) {
+                                        Button(role: .destructive) {
+                                            Task { await deleteComment(comment) }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
                                         }
                                     }
-                                Rectangle().fill(Color.brandBorder.opacity(0.5)).frame(height: 0.5)
-                                    .padding(.horizontal)
+                                }
+                                .id(comment.id)
+
+                                if comment.id != comments.last?.id {
+                                    Rectangle().fill(Color.brandBorder.opacity(0.4)).frame(height: 0.5)
+                                        .padding(.leading, 56)
+                                }
+                            }
+                        }
+                        .padding(.top, 4)
+                    }
+                    .onChange(of: comments.count) { _ in
+                        if let lastId = comments.last?.id {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                proxy.scrollTo(lastId, anchor: .bottom)
                             }
                         }
                     }
                 }
             }
-            .invlogScreenBackground()
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Comments")
-                        .font(InvlogTheme.body(16, weight: .bold))
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color.brandTextSecondary)
-                    }
-                    .frame(minWidth: 44, minHeight: 44)
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                commentInputBar
-            }
-            .task {
-                await loadComments()
-            }
         }
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
+        .background(Color.brandCard)
+        .safeAreaInset(edge: .bottom) {
+            commentInputBar
+        }
+        .task {
+            await loadComments()
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.hidden)
     }
 
     // MARK: - Mini Post Preview
     private var miniPostPreview: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             // Thumbnail
             if let firstMedia = post.media?.first {
                 let thumbUrl = firstMedia.thumbnailUrl ?? firstMedia.mediumUrl ?? firstMedia.url
@@ -1015,27 +1039,27 @@ struct CommentsSheetView: View {
                     case .success(let image):
                         image.resizable().scaledToFill()
                     default:
-                        Color.brandBackground
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.brandBackground)
                     }
                 }
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
 
             // Post info
-            VStack(alignment: .leading, spacing: 4) {
-                // Author
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 5) {
                     if let avatarUrl = post.author?.avatarUrl {
                         AsyncImage(url: avatarUrl) { phase in
                             switch phase {
                             case .success(let image):
                                 image.resizable().scaledToFill()
                             default:
-                                Circle().fill(Color.brandBackground)
+                                Circle().fill(Color.brandBorder)
                             }
                         }
-                        .frame(width: 20, height: 20)
+                        .frame(width: 18, height: 18)
                         .clipShape(Circle())
                     }
 
@@ -1043,34 +1067,34 @@ struct CommentsSheetView: View {
                         .font(InvlogTheme.body(13, weight: .semibold))
                         .foregroundColor(Color.brandText)
                         .lineLimit(1)
+
+                    if let restaurant = post.restaurant {
+                        Text("·")
+                            .foregroundColor(Color.brandTextTertiary)
+                        HStack(spacing: 2) {
+                            Image(systemName: "mappin")
+                                .font(.system(size: 8))
+                            Text(restaurant.name)
+                                .font(InvlogTheme.caption(11))
+                        }
+                        .foregroundColor(Color.brandTextTertiary)
+                        .lineLimit(1)
+                    }
                 }
 
-                // Caption
                 if let content = post.content, !content.isEmpty {
-                    Text(content)
+                    Text(content.replacingOccurrences(of: "\\[sticker:[^\\]]*\\]", with: "🎨", options: .regularExpression))
                         .font(InvlogTheme.caption(12))
                         .foregroundColor(Color.brandTextSecondary)
-                        .lineLimit(2)
-                }
-
-                // Restaurant name
-                if let restaurant = post.restaurant {
-                    HStack(spacing: 3) {
-                        Image(systemName: "mappin")
-                            .font(.system(size: 9))
-                        Text(restaurant.name)
-                            .font(InvlogTheme.caption(11))
-                    }
-                    .foregroundColor(Color.brandTextTertiary)
-                    .lineLimit(1)
+                        .lineLimit(1)
                 }
             }
 
             Spacer(minLength: 0)
         }
-        .padding(10)
-        .background(Color.brandBackground.opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(8)
+        .background(Color.brandBackground.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Comment Input Bar
