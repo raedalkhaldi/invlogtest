@@ -13,6 +13,11 @@ struct MainTabView: View {
     @State private var notificationsPath = NavigationPath()
     @State private var profilePath = NavigationPath()
 
+    // Smooth swipe state
+    @State private var dragOffset: CGFloat = 0
+    @State private var isDragging = false
+    @GestureState private var gestureOffset: CGFloat = 0
+
     enum Tab: Int, CaseIterable {
         case feed
         case search
@@ -22,54 +27,54 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Content — all tabs alive via opacity for state preservation
-            ZStack {
-                NavigationStack(path: $feedPath) {
-                    FeedView()
-                }
-                .opacity(selectedTab == .feed ? 1 : 0)
+        GeometryReader { geo in
+            let screenWidth = geo.size.width
 
-                NavigationStack(path: $searchPath) {
-                    SearchView()
-                }
-                .opacity(selectedTab == .search ? 1 : 0)
-
-                NavigationStack(path: $notificationsPath) {
-                    NotificationsListView()
-                }
-                .opacity(selectedTab == .notifications ? 1 : 0)
-
-                NavigationStack(path: $profilePath) {
-                    ProfileView(userId: nil)
-                }
-                .opacity(selectedTab == .profile ? 1 : 0)
-            }
-            .gesture(
-                DragGesture(minimumDistance: 60, coordinateSpace: .local)
-                    .onEnded { value in
-                        guard isAtTabRoot else { return }
-                        guard abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
-                        if value.translation.width < -60 {
-                            switchToAdjacentTab(forward: true)
-                        } else if value.translation.width > 60 {
-                            switchToAdjacentTab(forward: false)
-                        }
+            ZStack(alignment: .bottom) {
+                // Content — smooth sliding tabs
+                ZStack {
+                    ForEach(navigableTabs, id: \.rawValue) { tab in
+                        tabContent(for: tab)
+                            .frame(width: screenWidth)
+                            .offset(x: offsetForTab(tab, screenWidth: screenWidth))
                     }
-            )
-            .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: InvlogTheme.TabBar.contentHeight)
-            }
-
-            // Custom tab bar overlay
-            CustomTabBarView(
-                selectedTab: $selectedTab,
-                onCreateTapped: { showCreateOptions = true },
-                unreadCount: appState.unreadNotificationCount,
-                onTabReselected: { tab in
-                    popToRoot(tab)
                 }
-            )
+                .gesture(
+                    isAtTabRoot ?
+                    DragGesture(minimumDistance: 25, coordinateSpace: .local)
+                        .updating($gestureOffset) { value, state, _ in
+                            // Only allow horizontal swipes
+                            guard abs(value.translation.width) > abs(value.translation.height) * 1.2 else { return }
+                            state = value.translation.width
+                        }
+                        .onEnded { value in
+                            guard abs(value.translation.width) > abs(value.translation.height) * 1.2 else { return }
+
+                            let threshold: CGFloat = screenWidth * 0.25
+                            let velocity = value.predictedEndTranslation.width - value.translation.width
+
+                            if value.translation.width + velocity < -threshold {
+                                switchToAdjacentTab(forward: true)
+                            } else if value.translation.width + velocity > threshold {
+                                switchToAdjacentTab(forward: false)
+                            }
+                        }
+                    : nil
+                )
+                .safeAreaInset(edge: .bottom) {
+                    Color.clear.frame(height: InvlogTheme.TabBar.contentHeight)
+                }
+
+                // Custom tab bar overlay
+                CustomTabBarView(
+                    selectedTab: $selectedTab,
+                    onCreateTapped: { showCreateOptions = true },
+                    unreadCount: appState.unreadNotificationCount,
+                    onTabReselected: { tab in
+                        popToRoot(tab)
+                    }
+                )
+            }
         }
         .onChange(of: selectedTab) { newTab in
             if newTab == .notifications {
@@ -101,9 +106,44 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - Swipe Tab Navigation
+    // MARK: - Tab Content
+
+    @ViewBuilder
+    private func tabContent(for tab: Tab) -> some View {
+        switch tab {
+        case .feed:
+            NavigationStack(path: $feedPath) { FeedView() }
+        case .search:
+            NavigationStack(path: $searchPath) { SearchView() }
+        case .notifications:
+            NavigationStack(path: $notificationsPath) { NotificationsListView() }
+        case .profile:
+            NavigationStack(path: $profilePath) { ProfileView(userId: nil) }
+        case .create:
+            EmptyView()
+        }
+    }
+
+    // MARK: - Smooth Swipe Navigation
 
     private let navigableTabs: [Tab] = [.feed, .search, .notifications, .profile]
+
+    private var currentTabIndex: Int {
+        navigableTabs.firstIndex(of: selectedTab) ?? 0
+    }
+
+    private func offsetForTab(_ tab: Tab, screenWidth: CGFloat) -> CGFloat {
+        guard let tabIndex = navigableTabs.firstIndex(of: tab) else { return 0 }
+        let indexDiff = CGFloat(tabIndex - currentTabIndex)
+        let baseOffset = indexDiff * screenWidth
+
+        // Only show adjacent tabs (current ± 1) for performance
+        if abs(indexDiff) > 1 && gestureOffset == 0 {
+            return baseOffset // Off-screen, won't be visible
+        }
+
+        return baseOffset + gestureOffset
+    }
 
     private var isAtTabRoot: Bool {
         switch selectedTab {
@@ -116,12 +156,11 @@ struct MainTabView: View {
     }
 
     private func switchToAdjacentTab(forward: Bool) {
-        guard let currentIndex = navigableTabs.firstIndex(of: selectedTab) else { return }
         let nextIndex = forward
-            ? min(currentIndex + 1, navigableTabs.count - 1)
-            : max(currentIndex - 1, 0)
-        guard nextIndex != currentIndex else { return }
-        withAnimation(.easeInOut(duration: 0.25)) {
+            ? min(currentTabIndex + 1, navigableTabs.count - 1)
+            : max(currentTabIndex - 1, 0)
+        guard nextIndex != currentTabIndex else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
             selectedTab = navigableTabs[nextIndex]
         }
     }
