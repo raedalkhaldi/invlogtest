@@ -43,47 +43,55 @@ struct StickerPickerView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Search bar
-                searchBar
-
-                // Category strip
-                categoryStrip
-
-                Divider()
-
-                // Sticker grid
-                if isLoading && stickers.isEmpty {
-                    Spacer()
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Spacer()
-                } else if stickers.isEmpty {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Image(systemName: "face.dashed")
-                            .font(.system(size: 40))
-                            .foregroundColor(Color.brandTextTertiary)
-                        Text("No stickers found")
-                            .font(InvlogTheme.body(14))
-                            .foregroundColor(Color.brandTextSecondary)
-                    }
-                    Spacer()
-                } else {
-                    stickerGrid
-                }
-
-                // Giphy attribution
-                giphyAttribution
+        VStack(spacing: 0) {
+            // Header bar (replaces NavigationStack toolbar)
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .font(InvlogTheme.body(15))
+                    .foregroundColor(Color.brandPrimary)
+                    .frame(minWidth: 44, minHeight: 44)
+                Spacer()
+                Text("Stickers")
+                    .font(InvlogTheme.body(16, weight: .semibold))
+                    .foregroundColor(Color.brandText)
+                Spacer()
+                Color.clear.frame(width: 44, height: 44)
             }
-            .navigationTitle("Stickers")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+            .padding(.horizontal, 12)
+
+            Divider()
+
+            // Search bar
+            searchBar
+
+            // Category strip
+            categoryStrip
+
+            Divider()
+
+            // Sticker grid
+            if isLoading && stickers.isEmpty {
+                Spacer()
+                ProgressView()
+                    .scaleEffect(1.2)
+                Spacer()
+            } else if stickers.isEmpty {
+                Spacer()
+                VStack(spacing: 8) {
+                    Image(systemName: "face.dashed")
+                        .font(.system(size: 40))
+                        .foregroundColor(Color.brandTextTertiary)
+                    Text("No stickers found")
+                        .font(InvlogTheme.body(14))
+                        .foregroundColor(Color.brandTextSecondary)
                 }
+                Spacer()
+            } else {
+                stickerGrid
             }
+
+            // Tenor attribution
+            giphyAttribution
         }
         .task {
             await loadStickers()
@@ -176,6 +184,7 @@ struct StickerPickerView: View {
                         stickerCell(sticker)
                     }
                     .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                 }
 
                 // Load more trigger
