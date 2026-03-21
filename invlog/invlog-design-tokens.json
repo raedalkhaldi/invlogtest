@@ -1,0 +1,328 @@
+{
+  "meta": {
+    "name": "Invlog Design System",
+    "version": "1.0",
+    "description": "Design tokens extracted from Invlog iOS app for Figma import",
+    "format": "Figma Tokens Studio compatible"
+  },
+
+  "colors": {
+    "brand": {
+      "primary": {
+        "value": "#E8590C",
+        "description": "Warm orange — main CTA, accents, active states"
+      },
+      "primary-dark": {
+        "value": "#D44A08",
+        "description": "Darker orange — used in gradients (right side)"
+      },
+      "secondary": {
+        "value": "#F59F00",
+        "description": "Golden yellow — badges, highlights"
+      },
+      "accent": {
+        "value": "#12B886",
+        "description": "Teal/green — success states, check-in confirmations"
+      }
+    },
+
+    "light-mode": {
+      "background": {
+        "value": "#F5EFE8",
+        "description": "Warm cream — main screen background"
+      },
+      "card": {
+        "value": "#FFFFFF",
+        "description": "White — card surfaces, sheets"
+      },
+      "border": {
+        "value": "#EDE8E2",
+        "description": "Warm light gray — dividers, card borders (when used)"
+      },
+      "text-primary": {
+        "value": "#1A1A1A",
+        "description": "Near-black — headings, body text"
+      },
+      "text-secondary": {
+        "value": "#7C7C78",
+        "description": "Medium gray — captions, timestamps, labels"
+      },
+      "text-tertiary": {
+        "value": "#B0AEA8",
+        "description": "Light gray — placeholders, disabled text"
+      },
+      "orange-light": {
+        "value": "#FFF4EC",
+        "description": "Very light orange — selected states, highlights"
+      },
+      "yellow-light": {
+        "value": "#FFF9DB",
+        "description": "Very light yellow — badge backgrounds"
+      },
+      "teal-light": {
+        "value": "#E6FCF5",
+        "description": "Very light teal — success backgrounds"
+      },
+      "purple-light": {
+        "value": "#F3F0FF",
+        "description": "Very light purple — special badges"
+      }
+    },
+
+    "dark-mode": {
+      "background": {
+        "value": "#000000",
+        "description": "Pure black — OLED-friendly"
+      },
+      "card": {
+        "value": "#1C1C1E",
+        "description": "Dark gray — card surfaces"
+      },
+      "border": {
+        "value": "#38383A",
+        "description": "Medium dark gray — dividers"
+      },
+      "text-primary": {
+        "value": "#F5F5F5",
+        "description": "Near-white — headings, body text"
+      },
+      "text-secondary": {
+        "value": "#A0A0A0",
+        "description": "Medium gray — captions"
+      },
+      "text-tertiary": {
+        "value": "#6C6C70",
+        "description": "Dark gray — placeholders"
+      },
+      "orange-light": {
+        "value": "#3D2010",
+        "description": "Deep brown-orange — selected states"
+      },
+      "yellow-light": {
+        "value": "#3D3410",
+        "description": "Deep brown-yellow — badge backgrounds"
+      },
+      "teal-light": {
+        "value": "#0D3028",
+        "description": "Deep teal — success backgrounds"
+      },
+      "purple-light": {
+        "value": "#25203D",
+        "description": "Deep purple — special badges"
+      }
+    }
+  },
+
+  "typography": {
+    "font-family": "SF Pro Rounded",
+    "design": "rounded",
+    "styles": {
+      "heading-xl": {
+        "size": 28,
+        "weight": "Heavy (900)",
+        "line-height": 34,
+        "usage": "Screen titles"
+      },
+      "heading-lg": {
+        "size": 22,
+        "weight": "Heavy (900)",
+        "line-height": 28,
+        "usage": "Section headers"
+      },
+      "heading-md": {
+        "size": 18,
+        "weight": "Heavy (900)",
+        "line-height": 24,
+        "usage": "Card titles"
+      },
+      "body-lg": {
+        "size": 16,
+        "weight": "Semibold (600)",
+        "line-height": 22,
+        "usage": "Primary body text, button labels"
+      },
+      "body-md": {
+        "size": 15,
+        "weight": "Medium (500)",
+        "line-height": 20,
+        "usage": "Post content, descriptions"
+      },
+      "body-sm": {
+        "size": 14,
+        "weight": "Medium (500)",
+        "line-height": 18,
+        "usage": "Comments, secondary content"
+      },
+      "caption-lg": {
+        "size": 13,
+        "weight": "Semibold (600)",
+        "line-height": 16,
+        "usage": "Filter pills, tabs"
+      },
+      "caption-md": {
+        "size": 12,
+        "weight": "Medium (500)",
+        "line-height": 16,
+        "usage": "Timestamps, badges"
+      },
+      "caption-sm": {
+        "size": 11,
+        "weight": "Medium (500)",
+        "line-height": 14,
+        "usage": "Tertiary labels, status text"
+      },
+      "caption-xs": {
+        "size": 10,
+        "weight": "Medium (500)",
+        "line-height": 12,
+        "usage": "Attribution text, fine print"
+      }
+    }
+  },
+
+  "spacing": {
+    "xxs": { "value": 4, "description": "Minimal gap (icon padding)" },
+    "xs": { "value": 8, "description": "Tight gap (between inline elements)" },
+    "sm": { "value": 12, "description": "Small gap (within cards)" },
+    "md": { "value": 16, "description": "Standard gap (card padding, section spacing)" },
+    "lg": { "value": 20, "description": "Large gap (between sections)" },
+    "xl": { "value": 24, "description": "Extra large gap (screen edges)" },
+    "xxl": { "value": 32, "description": "Maximum gap (major section breaks)" }
+  },
+
+  "border-radius": {
+    "sm": { "value": 10, "description": "Small inputs, pills" },
+    "md": { "value": 14, "description": "Buttons, medium containers" },
+    "lg": { "value": 18, "description": "Cards (main card radius)" },
+    "xl": { "value": 24, "description": "Large containers, sheets" },
+    "full": { "value": 999, "description": "Capsule/circle (pills, avatars)" }
+  },
+
+  "shadows": {
+    "card": {
+      "color": "rgba(0, 0, 0, 0.08)",
+      "blur": 16,
+      "x": 0,
+      "y": 6,
+      "description": "Soft elevated card shadow"
+    },
+    "accent-button": {
+      "color": "rgba(232, 89, 12, 0.35)",
+      "blur": 10,
+      "x": 0,
+      "y": 5,
+      "description": "Orange glow under CTA buttons"
+    },
+    "tab-bar-button": {
+      "color": "rgba(232, 89, 12, 0.45)",
+      "blur": 14,
+      "x": 0,
+      "y": 6,
+      "description": "Strong orange glow under center + button"
+    }
+  },
+
+  "avatars": {
+    "small": { "value": 32, "description": "Inline mentions, comment avatars" },
+    "medium": { "value": 40, "description": "List items, notifications" },
+    "large": { "value": 56, "description": "Post headers, check-in cards" },
+    "profile": { "value": 80, "description": "Profile page header" },
+    "story-ring": { "value": 66, "description": "Story circle outer ring" },
+    "story-inner": { "value": 58, "description": "Story circle inner avatar" }
+  },
+
+  "components": {
+    "card": {
+      "corner-radius": 18,
+      "border-width": 0,
+      "padding": 16,
+      "background": "colors.light-mode.card",
+      "shadow": "shadows.card",
+      "description": "Borderless cards with soft shadow — clean, elevated look"
+    },
+    "primary-button": {
+      "height": 44,
+      "corner-radius": 10,
+      "background": "colors.light-mode.text-primary",
+      "text-color": "colors.light-mode.background",
+      "font": "typography.styles.body-md (Bold)",
+      "description": "Dark background, light text — secondary actions"
+    },
+    "accent-button": {
+      "height": 54,
+      "shape": "Capsule (full radius)",
+      "background": "Linear gradient: #E8590C → #D44A08 (left to right)",
+      "text-color": "#FFFFFF",
+      "font": "typography.styles.body-lg (Bold)",
+      "shadow": "shadows.accent-button",
+      "press-animation": "scale to 0.97",
+      "description": "Main CTA — gradient orange capsule with glow shadow"
+    },
+    "secondary-button": {
+      "height": 44,
+      "corner-radius": 10,
+      "background": "colors.light-mode.card",
+      "border": "1px colors.light-mode.border",
+      "text-color": "colors.light-mode.text-primary",
+      "font": "typography.styles.body-md (Bold)",
+      "description": "Outlined button — secondary actions"
+    },
+    "filter-pill": {
+      "padding-h": 16,
+      "padding-v": 8,
+      "shape": "Capsule",
+      "active-bg": "colors.light-mode.text-primary",
+      "active-text": "colors.light-mode.background",
+      "inactive-bg": "colors.light-mode.card",
+      "inactive-text": "colors.light-mode.text-secondary",
+      "inactive-border": "1px colors.light-mode.border",
+      "font": "typography.styles.caption-lg",
+      "description": "Horizontal scrolling filter tabs"
+    },
+    "tab-bar": {
+      "height": 96,
+      "safe-area-bottom": 34,
+      "background": "systemUltraThinMaterial blur",
+      "center-button-size": 58,
+      "center-button-shape": "Circle",
+      "center-button-gradient": "Linear: #E8590C → #D44A08",
+      "center-button-offset-y": -14,
+      "center-button-icon": "plus (SF Symbol, weight: black, size: 24)",
+      "description": "Floating blur tab bar with elevated orange + button"
+    },
+    "story-ring": {
+      "outer-size": 66,
+      "inner-size": 58,
+      "ring-color": "Linear gradient: #E8590C → #F59F00",
+      "ring-width": 3,
+      "gap": 1,
+      "description": "Orange-to-gold gradient ring around story avatar"
+    }
+  },
+
+  "screens": [
+    "Feed (main feed with post cards)",
+    "Post Card (expanded — media carousel, content, actions, comments)",
+    "Create Post (place picker, media, caption, rating, visibility)",
+    "Create Vlog/Story (camera, filters, sticker overlays, caption)",
+    "Story Viewer (fullscreen media with progress bar, reactions)",
+    "Profile (avatar, stats, post grid)",
+    "Other User Profile (follow button, post grid)",
+    "Place/Restaurant Detail (info, media gallery, check-ins, reviews)",
+    "Notifications/Activity List",
+    "Search/Explore",
+    "Settings",
+    "Photo Capture",
+    "Video Recorder (Vine-style)",
+    "Image Crop View",
+    "Image Filter View",
+    "Video Overlay Editor (text, stickers, mentions)",
+    "Sticker Picker (search, categories, Tenor grid)",
+    "Comments Sheet (TikTok-style with mini post preview)",
+    "Trips List & Trip Detail",
+    "Edit Post Sheet",
+    "Liked By Sheet",
+    "Post Stats Sheet",
+    "Vlog Stats Sheet (Viewers + Liked By tabs)"
+  ]
+}

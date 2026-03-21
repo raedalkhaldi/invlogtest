@@ -205,6 +205,7 @@ struct StickerPickerView: View {
         AnimatedGIFView(url: sticker.previewUrl)
             .frame(height: 100)
             .clipShape(RoundedRectangle(cornerRadius: 8))
+            .allowsHitTesting(false)
     }
 
     // MARK: - Giphy Attribution
