@@ -22,6 +22,7 @@ struct ProfileView: View {
     @State private var error: String?
     @State private var messageConversation: Conversation?
     @State private var showBlockConfirm = false
+    @State private var showGrid = true
 
     private var isCurrentUser: Bool { userId == nil }
 
@@ -96,13 +97,83 @@ struct ProfileView: View {
                             messageConversation = conversation
                         }
                     )
-                    LazyVStack(spacing: InvlogTheme.Spacing.sm) {
-                        ForEach(posts) { post in
-                            PostCardView(post: post)
+                    // Posts header with Grid/List toggle
+                    HStack {
+                        Text("Posts")
+                            .font(InvlogTheme.body(16, weight: .bold))
+                            .foregroundColor(Color.brandText)
+                        Spacer()
+                        HStack(spacing: 0) {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) { showGrid = true }
+                            } label: {
+                                Image(systemName: "square.grid.3x3.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(showGrid ? Color.brandPrimary : Color.brandTextTertiary)
+                                    .frame(width: 36, height: 32)
+                            }
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) { showGrid = false }
+                            } label: {
+                                Image(systemName: "list.bullet")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(!showGrid ? Color.brandPrimary : Color.brandTextTertiary)
+                                    .frame(width: 36, height: 32)
+                            }
                         }
+                        .background(Color.brandBorder.opacity(0.4))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     .padding(.horizontal, InvlogTheme.Spacing.md)
                     .padding(.top, InvlogTheme.Spacing.md)
+
+                    if showGrid {
+                        // Photo grid (3 columns)
+                        let gridColumns = [
+                            GridItem(.flexible(), spacing: 2),
+                            GridItem(.flexible(), spacing: 2),
+                            GridItem(.flexible(), spacing: 2)
+                        ]
+                        LazyVGrid(columns: gridColumns, spacing: 2) {
+                            ForEach(posts) { post in
+                                NavigationLink(value: post.id) {
+                                    if let firstMedia = post.media?.first {
+                                        let thumbUrl = firstMedia.thumbnailUrl ?? firstMedia.mediumUrl ?? firstMedia.url
+                                        AsyncImage(url: URL(string: thumbUrl)) { phase in
+                                            switch phase {
+                                            case .success(let image):
+                                                image.resizable().scaledToFill()
+                                            default:
+                                                Color.brandBackground
+                                            }
+                                        }
+                                        .frame(minHeight: 120)
+                                        .clipped()
+                                    } else {
+                                        Color.brandBackground
+                                            .frame(minHeight: 120)
+                                            .overlay(
+                                                Text(post.content?.prefix(50) ?? "")
+                                                    .font(InvlogTheme.caption(11))
+                                                    .foregroundColor(Color.brandTextSecondary)
+                                                    .padding(8)
+                                            )
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, InvlogTheme.Spacing.md)
+                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
+                    } else {
+                        // List view
+                        LazyVStack(spacing: InvlogTheme.Spacing.sm) {
+                            ForEach(posts) { post in
+                                PostCardView(post: post)
+                            }
+                        }
+                        .padding(.horizontal, InvlogTheme.Spacing.md)
+                    }
                 }
             } else if isLoading {
                 ProgressView()
@@ -235,209 +306,127 @@ struct ProfileHeaderView: View {
         _isFollowing = State(initialValue: user.isFollowedByMe ?? false)
     }
 
+    @State private var showEditProfile = false
+    @State private var showShareProfile = false
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header background
-            ZStack {
-                Color.brandPrimary.opacity(0.15)
-                    .frame(height: 100)
+            // Horizontal profile header (Figma-inspired)
+            HStack(alignment: .top, spacing: 16) {
+                LazyImage(url: user.avatarUrl) { state in
+                    if let image = state.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(Color.brandTextTertiary)
+                    }
+                }
+                .frame(width: 90, height: 90)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.brandCard, lineWidth: 3))
+                .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
+                .accessibilityLabel("\(user.displayName ?? user.username)'s profile picture")
 
-                VStack(spacing: 0) {
-                    Spacer()
-                    LazyImage(url: user.avatarUrl) { state in
-                        if let image = state.image {
-                            image.resizable().scaledToFill()
-                        } else {
-                            Image(systemName: "person.circle.fill")
-                                .font(.system(size: 80))
-                                .foregroundColor(Color.brandTextTertiary)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text(user.displayName ?? user.username)
+                            .font(InvlogTheme.heading(20, weight: .bold))
+                            .foregroundColor(Color.brandText)
+                        if user.isVerified {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundColor(.blue)
+                                .accessibilityLabel("Verified")
                         }
                     }
-                    .frame(width: InvlogTheme.Avatar.profile, height: InvlogTheme.Avatar.profile)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.brandCard, lineWidth: 3))
-                    .offset(y: InvlogTheme.Avatar.profile / 2)
-                }
-            }
-            .frame(height: 100)
-            .padding(.bottom, InvlogTheme.Avatar.profile / 2 + InvlogTheme.Spacing.sm)
-            .accessibilityLabel("\(user.displayName ?? user.username)'s profile picture")
 
-            // Name & Info
-            VStack(spacing: 6) {
-                HStack(spacing: 4) {
-                    Text(user.displayName ?? user.username)
-                        .font(InvlogTheme.heading(22, weight: .bold))
-                        .foregroundColor(Color.brandText)
-                    if user.isVerified {
-                        Image(systemName: "checkmark.seal.fill")
-                            .foregroundColor(.blue)
-                            .accessibilityLabel("Verified")
+                    Text("@\(user.username)")
+                        .font(InvlogTheme.caption(13))
+                        .foregroundColor(Color.brandTextSecondary)
+
+                    if let bio = user.bio, !bio.isEmpty {
+                        Text(bio)
+                            .font(InvlogTheme.body(13))
+                            .foregroundColor(Color.brandText)
+                            .lineLimit(2)
+                            .padding(.top, 2)
                     }
+
+                    // Level chip
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.caption2)
+                        Text("Lvl 5 Foodie")
+                            .font(InvlogTheme.caption(10, weight: .bold))
+                    }
+                    .foregroundColor(Color.brandSecondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.brandYellowLight)
+                    .clipShape(Capsule())
+                    .padding(.top, 2)
                 }
 
-                Text("@\(user.username)")
-                    .font(InvlogTheme.caption(13))
-                    .foregroundColor(Color.brandTextSecondary)
-
-                // Level chip placeholder
-                HStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .font(.caption2)
-                    Text("Lvl 5 Foodie")
-                        .font(InvlogTheme.caption(11, weight: .bold))
-                }
-                .foregroundColor(Color.brandSecondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.brandYellowLight)
-                .clipShape(Capsule())
-
-                if let bio = user.bio, !bio.isEmpty {
-                    Text(bio)
-                        .font(InvlogTheme.body(14))
-                        .foregroundColor(Color.brandText)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 4)
-                }
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, InvlogTheme.Spacing.md)
+            .padding(.top, InvlogTheme.Spacing.md)
 
             // Stats
-            HStack(spacing: 32) {
+            HStack(spacing: 0) {
                 StatView(count: user.postCount, label: "Posts")
+                    .frame(maxWidth: .infinity)
 
                 NavigationLink(value: FollowListDestination(userId: user.id, mode: .followers)) {
                     StatView(count: user.followerCount, label: "Followers")
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
 
                 NavigationLink(value: FollowListDestination(userId: user.id, mode: .following)) {
                     StatView(count: user.followingCount, label: "Following")
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
             }
             .padding(.top, InvlogTheme.Spacing.md)
-
-            // Check-ins link
-            NavigationLink(value: CheckInListDestination(userId: user.id)) {
-                HStack(spacing: 8) {
-                    Image(systemName: "mappin.and.ellipse")
-                        .foregroundColor(Color.brandPrimary)
-                    Text("Check-in History")
-                        .font(InvlogTheme.body(14, weight: .semibold))
-                        .foregroundColor(Color.brandText)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(Color.brandTextTertiary)
-                }
-                .padding(InvlogTheme.Spacing.sm)
-                .background(Color.brandCard)
-                .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                .overlay(
-                    RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                        .stroke(Color.brandBorder, lineWidth: 1)
-                )
-            }
             .padding(.horizontal, InvlogTheme.Spacing.md)
-            .padding(.top, InvlogTheme.Spacing.sm)
-            .accessibilityLabel("View check-in history")
-
-            // My Trips link
-            if isCurrentUser {
-                NavigationLink(value: TripsListDestination()) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "map.fill")
-                            .foregroundColor(Color.brandAccent)
-                        Text("My Trips")
-                            .font(InvlogTheme.body(14, weight: .semibold))
-                            .foregroundColor(Color.brandText)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(Color.brandTextTertiary)
-                    }
-                    .padding(InvlogTheme.Spacing.sm)
-                    .background(Color.brandCard)
-                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                            .stroke(Color.brandBorder, lineWidth: 1)
-                    )
-                }
-                .padding(.horizontal, InvlogTheme.Spacing.md)
-                .padding(.top, InvlogTheme.Spacing.xxs)
-                .accessibilityLabel("View my trips")
-            }
-
-            // Saved items (only visible to current user)
-            if isCurrentUser {
-                NavigationLink(destination: BookmarksView()) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bookmark.fill")
-                            .foregroundColor(Color.brandSecondary)
-                        Text("Saved")
-                            .font(InvlogTheme.body(14, weight: .semibold))
-                            .foregroundColor(Color.brandText)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(Color.brandTextTertiary)
-                    }
-                    .padding(InvlogTheme.Spacing.sm)
-                    .background(Color.brandCard)
-                    .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                            .stroke(Color.brandBorder, lineWidth: 1)
-                    )
-                }
-                .padding(.horizontal, InvlogTheme.Spacing.md)
-                .padding(.top, InvlogTheme.Spacing.xxs)
-                .accessibilityLabel("View saved posts")
-            }
-
-            // XP progress placeholder
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("XP Progress")
-                        .font(InvlogTheme.caption(11, weight: .bold))
-                        .foregroundColor(Color.brandTextSecondary)
-                    Spacer()
-                    Text("750 / 1000 XP")
-                        .font(InvlogTheme.caption(11))
-                        .foregroundColor(Color.brandTextTertiary)
-                }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.brandBorder)
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.brandPrimary, Color.brandSecondary],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: geo.size.width * 0.75)
-                    }
-                }
-                .frame(height: 6)
-            }
-            .padding(InvlogTheme.Spacing.sm)
-            .background(Color.brandCard)
-            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
-            .overlay(
-                RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
-                    .stroke(Color.brandBorder, lineWidth: 1)
-            )
-            .padding(.horizontal, InvlogTheme.Spacing.md)
-            .padding(.top, InvlogTheme.Spacing.xs)
 
             // Action Buttons
-            if !isCurrentUser {
+            if isCurrentUser {
+                HStack(spacing: 12) {
+                    Button {
+                        showEditProfile = true
+                    } label: {
+                        Text("Edit Profile")
+                            .font(InvlogTheme.body(14, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                            .background(Color.brandPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                    }
+
+                    Button {
+                        let url = "https://invlog.app/user/\(user.username)"
+                        UIPasteboard.general.string = url
+                    } label: {
+                        Text("Share Profile")
+                            .font(InvlogTheme.body(14, weight: .bold))
+                            .foregroundColor(Color.brandText)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                            .background(Color.brandCard)
+                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm)
+                                    .stroke(Color.brandBorder, lineWidth: 1)
+                            )
+                    }
+                }
+                .padding(.horizontal, InvlogTheme.Spacing.md)
+                .padding(.top, InvlogTheme.Spacing.md)
+            } else {
                 HStack(spacing: 12) {
                     profileFollowButton
 
@@ -446,8 +435,7 @@ struct ProfileHeaderView: View {
                     } label: {
                         HStack(spacing: 6) {
                             if isSendingMessage {
-                                ProgressView()
-                                    .scaleEffect(0.8)
+                                ProgressView().scaleEffect(0.8)
                             } else {
                                 Image(systemName: "envelope")
                             }
@@ -455,7 +443,7 @@ struct ProfileHeaderView: View {
                         }
                         .font(InvlogTheme.body(14, weight: .bold))
                         .frame(maxWidth: .infinity)
-                        .frame(height: 44)
+                        .frame(height: 40)
                         .background(Color.brandCard)
                         .foregroundColor(Color.brandText)
                         .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.sm))
@@ -465,13 +453,111 @@ struct ProfileHeaderView: View {
                         )
                     }
                     .disabled(isSendingMessage)
-                    .accessibilityLabel("Message \(user.username)")
                 }
                 .padding(.horizontal, InvlogTheme.Spacing.md)
                 .padding(.top, InvlogTheme.Spacing.md)
             }
+
+            // Achievements
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Achievements")
+                    .font(InvlogTheme.body(15, weight: .bold))
+                    .foregroundColor(Color.brandText)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        achievementBadge(icon: "🏆", title: "Top Reviewer", bg: Color.brandOrangeLight)
+                        achievementBadge(icon: "⭐", title: "\(user.postCount) Posts", bg: Color.brandYellowLight)
+                        achievementBadge(icon: "🌍", title: "Globe Trotter", bg: Color.brandTealLight)
+                        achievementBadge(icon: "🍕", title: "Foodie Expert", bg: Color.brandPurpleLight)
+                    }
+                }
+            }
+            .padding(.horizontal, InvlogTheme.Spacing.md)
+            .padding(.top, InvlogTheme.Spacing.md)
+
+            // Quick links (compact horizontal row)
+            HStack(spacing: 8) {
+                NavigationLink(value: CheckInListDestination(userId: user.id)) {
+                    quickLinkPill(icon: "mappin.and.ellipse", label: "Check-ins", color: Color.brandPrimary)
+                }
+                .buttonStyle(.plain)
+
+                if isCurrentUser {
+                    NavigationLink(value: TripsListDestination()) {
+                        quickLinkPill(icon: "map.fill", label: "Trips", color: Color.brandAccent)
+                    }
+                    .buttonStyle(.plain)
+
+                    NavigationLink(destination: BookmarksView()) {
+                        quickLinkPill(icon: "bookmark.fill", label: "Saved", color: Color.brandSecondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, InvlogTheme.Spacing.md)
+            .padding(.top, InvlogTheme.Spacing.sm)
+
+            // XP progress
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("XP Progress")
+                        .font(InvlogTheme.caption(11, weight: .bold))
+                        .foregroundColor(Color.brandTextSecondary)
+                    Spacer()
+                    Text("750 / 1000 XP")
+                        .font(InvlogTheme.caption(10))
+                        .foregroundColor(Color.brandTextTertiary)
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.brandBorder)
+                        Capsule()
+                            .fill(LinearGradient(colors: [Color.brandPrimary, Color.brandSecondary], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: geo.size.width * 0.75)
+                    }
+                }
+                .frame(height: 5)
+            }
+            .padding(.horizontal, InvlogTheme.Spacing.md)
+            .padding(.top, InvlogTheme.Spacing.sm)
         }
         .padding(.bottom, InvlogTheme.Spacing.md)
+        .sheet(isPresented: $showEditProfile) {
+            NavigationStack {
+                EditProfileView()
+            }
+        }
+    }
+
+    private func achievementBadge(icon: String, title: String, bg: Color) -> some View {
+        VStack(spacing: 6) {
+            Text(icon)
+                .font(.system(size: 28))
+            Text(title)
+                .font(InvlogTheme.caption(10, weight: .semibold))
+                .foregroundColor(Color.brandText)
+                .lineLimit(1)
+        }
+        .frame(width: 80, height: 80)
+        .background(bg)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func quickLinkPill(icon: String, label: String, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .foregroundColor(color)
+            Text(label)
+                .font(InvlogTheme.caption(11, weight: .semibold))
+                .foregroundColor(Color.brandText)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.brandCard)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(Color.brandBorder, lineWidth: 1))
     }
 
     @ViewBuilder

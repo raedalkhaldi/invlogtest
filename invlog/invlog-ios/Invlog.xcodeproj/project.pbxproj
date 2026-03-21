@@ -116,6 +116,7 @@
 		PPEK10020003000400050002 /* PlacePeekSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PPEK10020003000400050001 /* PlacePeekSheet.swift */; };
 		CSHR10020003000400050002 /* CustomShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSHR10020003000400050001 /* CustomShareSheet.swift */; };
 		FFLT10020003000400050002 /* FeedFilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFLT10020003000400050001 /* FeedFilterSheet.swift */; };
+		CRSH10020003000400050002 /* CreateOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CRSH10020003000400050001 /* CreateOptionsSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -226,6 +227,7 @@
 		QACT10020003000400050001 /* PostQuickActionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostQuickActionsSheet.swift; path = PostQuickActionsSheet.swift; sourceTree = "<group>"; };
 		PPEK10020003000400050001 /* PlacePeekSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlacePeekSheet.swift; path = PlacePeekSheet.swift; sourceTree = "<group>"; };
 		CSHR10020003000400050001 /* CustomShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CustomShareSheet.swift; path = CustomShareSheet.swift; sourceTree = "<group>"; };
+		CRSH10020003000400050001 /* CreateOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CreateOptionsSheet.swift; path = CreateOptionsSheet.swift; sourceTree = "<group>"; };
 		FFLT10020003000400050001 /* FeedFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeedFilterSheet.swift; path = FeedFilterSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -453,6 +455,7 @@
 				SCON10020003000400050001 /* StickerContentView.swift */,
 				AGIF10020003000400050001 /* AnimatedGIFView.swift */,
 				POFL10020003000400050001 /* PhotoOverlayFlowView.swift */,
+				CRSH10020003000400050001 /* CreateOptionsSheet.swift */,
 				REAC10020003000400050001 /* ReactionPickerView.swift */,
 				QACT10020003000400050001 /* PostQuickActionsSheet.swift */,
 				PPEK10020003000400050001 /* PlacePeekSheet.swift */,
@@ -852,6 +855,7 @@
 				SCON10020003000400050002 /* StickerContentView.swift in Sources */,
 				AGIF10020003000400050002 /* AnimatedGIFView.swift in Sources */,
 				POFL10020003000400050002 /* PhotoOverlayFlowView.swift in Sources */,
+				CRSH10020003000400050002 /* CreateOptionsSheet.swift in Sources */,
 				REAC10020003000400050002 /* ReactionPickerView.swift in Sources */,
 				QACT10020003000400050002 /* PostQuickActionsSheet.swift in Sources */,
 				PPEK10020003000400050002 /* PlacePeekSheet.swift in Sources */,
