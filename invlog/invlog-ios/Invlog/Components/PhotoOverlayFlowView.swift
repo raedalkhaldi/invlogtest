@@ -19,28 +19,17 @@ struct PhotoOverlayFlowView: View {
                     image: images[currentIndex],
                     placeName: placeName
                 ) { overlayedImage in
-                    results.append(overlayedImage)
+                    var updatedResults = results
+                    updatedResults.append(overlayedImage)
+                    results = updatedResults
 
                     if currentIndex + 1 < images.count {
                         currentIndex += 1
                     } else {
-                        // All done
-                        onComplete(results)
+                        onComplete(updatedResults)
                     }
                 }
-                .id(currentIndex) // Force view recreation for each image
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Skip All") {
-                    // Skip overlay — add remaining unedited images
-                    var finalResults = results
-                    for i in currentIndex..<images.count {
-                        finalResults.append(images[i])
-                    }
-                    onComplete(finalResults)
-                }
+                .id(currentIndex)
             }
         }
     }
