@@ -23,6 +23,11 @@ struct PostCardView: View {
     @State private var showLikedBy = false
     @State private var showPostStats = false
     @State private var navigateToMention: String? = nil
+    @State private var showReactionPicker = false
+    @State private var selectedReaction: String? = nil
+    @State private var showQuickActions = false
+    @State private var showPlacePeek = false
+    @State private var navigateToRestaurant = false
 
     private var isOwnPost: Bool {
         post.authorId == appState.currentUser?.id
@@ -98,25 +103,9 @@ struct PostCardView: View {
                             .foregroundColor(Color.brandTextTertiary)
                     }
 
-                    Menu {
-                        if isOwnPost {
-                            Button {
-                                showEditSheet = true
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            Button(role: .destructive) {
-                                showDeleteConfirm = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        } else {
-                            Button(role: .destructive) {
-                                showBlockConfirm = true
-                            } label: {
-                                Label("Block User", systemImage: "slash.circle")
-                            }
-                        }
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        showQuickActions = true
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 14, weight: .semibold))
@@ -301,6 +290,17 @@ struct PostCardView: View {
                 }
                 .hidden()
 
+                // Navigation for place peek → full profile
+                if let restaurant = post.restaurant {
+                    NavigationLink(
+                        destination: RestaurantDetailView(restaurantSlug: restaurant.slug),
+                        isActive: $navigateToRestaurant
+                    ) {
+                        EmptyView()
+                    }
+                    .hidden()
+                }
+
                 // Navigation for @mention taps
                 NavigationLink(
                     destination: Group {
@@ -319,17 +319,41 @@ struct PostCardView: View {
             }
         )
         .invlogCard()
+        .onTapGesture {
+            if showReactionPicker {
+                withAnimation(.spring(response: 0.3)) { showReactionPicker = false }
+            }
+        }
         .opacity(isDeleted ? 0 : 1)
         .frame(height: isDeleted ? 0 : nil)
         .clipped()
         .sheet(isPresented: $showShareSheet) {
-            ShareSheetView(items: [shareText])
+            CustomShareSheet(post: post)
         }
         .sheet(isPresented: $showComments) {
             CommentsSheetView(post: post, commentCount: $commentCount, onCommentAdded: onCommentAdded)
         }
         .sheet(isPresented: $showEditSheet) {
             EditPostSheet(post: post)
+        }
+        .sheet(isPresented: $showQuickActions) {
+            PostQuickActionsSheet(
+                post: post,
+                isOwnPost: isOwnPost,
+                onEdit: { showEditSheet = true },
+                onDelete: { showDeleteConfirm = true },
+                onShare: { showShareSheet = true },
+                onCopyLink: { UIPasteboard.general.string = "https://invlog.app/post/\(post.id)" },
+                onBookmark: { toggleBookmark() },
+                onReport: { /* TODO: report API */ }
+            )
+        }
+        .sheet(isPresented: $showPlacePeek) {
+            if let restaurant = post.restaurant {
+                PlacePeekSheet(restaurant: restaurant) {
+                    navigateToRestaurant = true
+                }
+            }
         }
         .sheet(isPresented: $showLikedBy) {
             LikedBySheet(postId: post.id)
@@ -410,8 +434,13 @@ struct PostCardView: View {
                 toggleLike()
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: isLiked ? "heart.fill" : "heart")
-                        .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
+                    if let reaction = selectedReaction, isLiked {
+                        Text(reaction)
+                            .font(.system(size: 18))
+                    } else {
+                        Image(systemName: isLiked ? "heart.fill" : "heart")
+                            .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
+                    }
                     if likeCount > 0 {
                         Button {
                             showLikedBy = true
@@ -428,6 +457,23 @@ struct PostCardView: View {
             .buttonStyle(.borderless)
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+            .onLongPressGesture(minimumDuration: 0.4) {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                showReactionPicker = true
+            }
+            .overlay(alignment: .top) {
+                if showReactionPicker {
+                    ReactionPickerView { emoji in
+                        selectedReaction = emoji
+                        if !isLiked { toggleLike() }
+                        withAnimation(.spring(response: 0.3)) {
+                            showReactionPicker = false
+                        }
+                    }
+                    .offset(y: -56)
+                    .zIndex(100)
+                }
+            }
 
             Button {
                 showComments = true
@@ -505,7 +551,9 @@ struct PostCardView: View {
                 )
                 .lineLimit(1)
 
-                NavigationLink(destination: RestaurantDetailView(restaurantSlug: restaurant.slug)) {
+                Button {
+                    showPlacePeek = true
+                } label: {
                     Text(placeName)
                         .font(InvlogTheme.body(14, weight: .bold))
                         .foregroundColor(Color.brandPrimary)
