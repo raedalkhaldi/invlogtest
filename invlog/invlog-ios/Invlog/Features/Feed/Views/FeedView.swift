@@ -8,6 +8,12 @@ struct FeedView: View {
     @ObservedObject private var storyUploader = StoryUploadManager.shared
     @EnvironmentObject private var appState: AppState
     private let prefetcher = ImagePrefetcher()
+    @State private var showFilterSheet = false
+    @State private var activeFilters = FeedFilters()
+
+    private var filteredPosts: [Post] {
+        activeFilters.apply(to: viewModel.posts)
+    }
 
     var body: some View {
         Group {
@@ -54,7 +60,7 @@ struct FeedView: View {
                         .listRowBackground(Color.clear)
                     }
 
-                    ForEach(viewModel.posts) { post in
+                    ForEach(filteredPosts) { post in
                         PostCardView(post: post)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
@@ -99,6 +105,14 @@ struct FeedView: View {
                     .font(InvlogTheme.heading(22, weight: .bold))
                     .foregroundColor(Color.brandText)
             }
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button { showFilterSheet = true } label: {
+                    Image(systemName: activeFilters.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        .foregroundColor(activeFilters.isActive ? Color.brandPrimary : Color.brandText)
+                }
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("Filter feed")
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink(destination: ConversationsListView()) {
                     Image(systemName: "paperplane")
@@ -107,6 +121,9 @@ struct FeedView: View {
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("Messages")
             }
+        }
+        .sheet(isPresented: $showFilterSheet) {
+            FeedFilterSheet(filters: $activeFilters)
         }
         .navigationDestination(for: Restaurant.self) { restaurant in
             RestaurantDetailView(restaurantSlug: restaurant.slug)

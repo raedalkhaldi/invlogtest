@@ -111,6 +111,11 @@
 		SCON10020003000400050002 /* StickerContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SCON10020003000400050001 /* StickerContentView.swift */; };
 		AGIF10020003000400050002 /* AnimatedGIFView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AGIF10020003000400050001 /* AnimatedGIFView.swift */; };
 		POFL10020003000400050002 /* PhotoOverlayFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = POFL10020003000400050001 /* PhotoOverlayFlowView.swift */; };
+		REAC10020003000400050002 /* ReactionPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = REAC10020003000400050001 /* ReactionPickerView.swift */; };
+		QACT10020003000400050002 /* PostQuickActionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = QACT10020003000400050001 /* PostQuickActionsSheet.swift */; };
+		PPEK10020003000400050002 /* PlacePeekSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PPEK10020003000400050001 /* PlacePeekSheet.swift */; };
+		CSHR10020003000400050002 /* CustomShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSHR10020003000400050001 /* CustomShareSheet.swift */; };
+		FFLT10020003000400050002 /* FeedFilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFLT10020003000400050001 /* FeedFilterSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -217,6 +222,11 @@
 		SCON10020003000400050001 /* StickerContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StickerContentView.swift; path = StickerContentView.swift; sourceTree = "<group>"; };
 		AGIF10020003000400050001 /* AnimatedGIFView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnimatedGIFView.swift; path = AnimatedGIFView.swift; sourceTree = "<group>"; };
 		POFL10020003000400050001 /* PhotoOverlayFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoOverlayFlowView.swift; path = PhotoOverlayFlowView.swift; sourceTree = "<group>"; };
+		REAC10020003000400050001 /* ReactionPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReactionPickerView.swift; path = ReactionPickerView.swift; sourceTree = "<group>"; };
+		QACT10020003000400050001 /* PostQuickActionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostQuickActionsSheet.swift; path = PostQuickActionsSheet.swift; sourceTree = "<group>"; };
+		PPEK10020003000400050001 /* PlacePeekSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlacePeekSheet.swift; path = PlacePeekSheet.swift; sourceTree = "<group>"; };
+		CSHR10020003000400050001 /* CustomShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CustomShareSheet.swift; path = CustomShareSheet.swift; sourceTree = "<group>"; };
+		FFLT10020003000400050001 /* FeedFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeedFilterSheet.swift; path = FeedFilterSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -443,6 +453,11 @@
 				SCON10020003000400050001 /* StickerContentView.swift */,
 				AGIF10020003000400050001 /* AnimatedGIFView.swift */,
 				POFL10020003000400050001 /* PhotoOverlayFlowView.swift */,
+				REAC10020003000400050001 /* ReactionPickerView.swift */,
+				QACT10020003000400050001 /* PostQuickActionsSheet.swift */,
+				PPEK10020003000400050001 /* PlacePeekSheet.swift */,
+				CSHR10020003000400050001 /* CustomShareSheet.swift */,
+				FFLT10020003000400050001 /* FeedFilterSheet.swift */,
 			);
 			name = Components;
 			path = Components;
@@ -837,6 +852,11 @@
 				SCON10020003000400050002 /* StickerContentView.swift in Sources */,
 				AGIF10020003000400050002 /* AnimatedGIFView.swift in Sources */,
 				POFL10020003000400050002 /* PhotoOverlayFlowView.swift in Sources */,
+				REAC10020003000400050002 /* ReactionPickerView.swift in Sources */,
+				QACT10020003000400050002 /* PostQuickActionsSheet.swift in Sources */,
+				PPEK10020003000400050002 /* PlacePeekSheet.swift in Sources */,
+				CSHR10020003000400050002 /* CustomShareSheet.swift in Sources */,
+				FFLT10020003000400050002 /* FeedFilterSheet.swift in Sources */,
 				89BDFFC44D13446A8419E098 /* MentionableTextField.swift in Sources */,
 				ABAE697AF2E58930B4134787 /* AppState.swift in Sources */,
 				011E3679163AB92EF5EFB81A /* InvlogApp.swift in Sources */,

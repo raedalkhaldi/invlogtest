@@ -45,6 +45,18 @@ struct MainTabView: View {
                 }
                 .opacity(selectedTab == .profile ? 1 : 0)
             }
+            .gesture(
+                DragGesture(minimumDistance: 60, coordinateSpace: .local)
+                    .onEnded { value in
+                        guard isAtTabRoot else { return }
+                        guard abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
+                        if value.translation.width < -60 {
+                            switchToAdjacentTab(forward: true)
+                        } else if value.translation.width > 60 {
+                            switchToAdjacentTab(forward: false)
+                        }
+                    }
+            )
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: InvlogTheme.TabBar.contentHeight)
             }
@@ -86,6 +98,31 @@ struct MainTabView: View {
             NavigationStack {
                 CreateTripView()
             }
+        }
+    }
+
+    // MARK: - Swipe Tab Navigation
+
+    private let navigableTabs: [Tab] = [.feed, .search, .notifications, .profile]
+
+    private var isAtTabRoot: Bool {
+        switch selectedTab {
+        case .feed: return feedPath.isEmpty
+        case .search: return searchPath.isEmpty
+        case .notifications: return notificationsPath.isEmpty
+        case .profile: return profilePath.isEmpty
+        case .create: return true
+        }
+    }
+
+    private func switchToAdjacentTab(forward: Bool) {
+        guard let currentIndex = navigableTabs.firstIndex(of: selectedTab) else { return }
+        let nextIndex = forward
+            ? min(currentIndex + 1, navigableTabs.count - 1)
+            : max(currentIndex - 1, 0)
+        guard nextIndex != currentIndex else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            selectedTab = navigableTabs[nextIndex]
         }
     }
 
