@@ -319,10 +319,14 @@ struct PostCardView: View {
             }
         )
         .invlogCard()
-        .onTapGesture {
-            if showReactionPicker {
-                withAnimation(.spring(response: 0.3)) { showReactionPicker = false }
-            }
+        .onChange(of: showComments) { _ in
+            if showReactionPicker { showReactionPicker = false }
+        }
+        .onChange(of: showShareSheet) { _ in
+            if showReactionPicker { showReactionPicker = false }
+        }
+        .onChange(of: showQuickActions) { _ in
+            if showReactionPicker { showReactionPicker = false }
         }
         .opacity(isDeleted ? 0 : 1)
         .frame(height: isDeleted ? 0 : nil)
@@ -430,37 +434,51 @@ struct PostCardView: View {
 
     private var actionsBar: some View {
         HStack(spacing: 0) {
-            Button {
-                toggleLike()
-            } label: {
-                HStack(spacing: 4) {
-                    if let reaction = selectedReaction, isLiked {
-                        Text(reaction)
-                            .font(.system(size: 18))
+            // Like button + count (separate touch targets)
+            HStack(spacing: 2) {
+                Button {
+                    if showReactionPicker {
+                        withAnimation(.spring(response: 0.3)) { showReactionPicker = false }
                     } else {
-                        Image(systemName: isLiked ? "heart.fill" : "heart")
-                            .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
+                        toggleLike()
                     }
-                    if likeCount > 0 {
-                        Button {
-                            showLikedBy = true
-                        } label: {
-                            Text("\(likeCount)")
-                                .font(InvlogTheme.caption(13, weight: .semibold))
-                                .foregroundColor(Color.brandTextSecondary)
+                } label: {
+                    Group {
+                        if let reaction = selectedReaction, isLiked {
+                            Text(reaction)
+                                .font(.system(size: 18))
+                        } else {
+                            Image(systemName: isLiked ? "heart.fill" : "heart")
+                                .foregroundColor(isLiked ? .red : Color.brandTextSecondary)
                         }
-                        .buttonStyle(.borderless)
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.borderless)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.4)
+                        .onEnded { _ in
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showReactionPicker = true
+                            }
+                        }
+                )
+
+                if likeCount > 0 {
+                    Button {
+                        showLikedBy = true
+                    } label: {
+                        Text("\(likeCount)")
+                            .font(InvlogTheme.caption(13, weight: .semibold))
+                            .foregroundColor(Color.brandTextSecondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .frame(minWidth: 30, minHeight: 44)
+                }
             }
-            .buttonStyle(.borderless)
-            .frame(minWidth: 44, minHeight: 44)
-            .accessibilityLabel(isLiked ? "Unlike post" : "Like post")
-            .onLongPressGesture(minimumDuration: 0.4) {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                showReactionPicker = true
-            }
+            .frame(maxWidth: .infinity)
             .overlay(alignment: .top) {
                 if showReactionPicker {
                     ReactionPickerView { emoji in
@@ -472,6 +490,7 @@ struct PostCardView: View {
                     }
                     .offset(y: -56)
                     .zIndex(100)
+                    .transition(.scale(scale: 0.5, anchor: .bottom).combined(with: .opacity))
                 }
             }
 

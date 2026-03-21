@@ -177,14 +177,12 @@ struct StickerPickerView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(stickers) { sticker in
-                    Button {
-                        onStickerSelected(sticker)
-                        dismiss()
-                    } label: {
-                        stickerCell(sticker)
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Rectangle())
+                    stickerCell(sticker)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onStickerSelected(sticker)
+                            dismiss()
+                        }
                 }
 
                 // Load more trigger
