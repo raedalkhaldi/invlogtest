@@ -1,7 +1,5 @@
 import SwiftUI
 import AVFoundation
-@preconcurrency import NukeUI
-import Nuke
 
 // MARK: - Overlay Item Model
 
@@ -714,7 +712,7 @@ struct VideoOverlayEditorView: View {
 
                 case .text(let text), .location(let text), .mention(let text):
                     let displayText = item.kind.displayText
-                    let fontSize = item.fontSize.pointSize * scaleX
+                    let fontSize = item.fontSize.pointSize * item.scale * scaleX
                     let font = UIFont.boldSystemFont(ofSize: fontSize)
                     let attributes: [NSAttributedString.Key: Any] = [
                         .font: font,
@@ -837,10 +835,11 @@ struct VideoOverlayEditorView: View {
                 overlayLayer.addSublayer(stickerLayer)
 
             default:
+                let scaledFontSize = item.fontSize.pointSize * item.scale * scaleX
                 let textLayer = CATextLayer()
                 textLayer.string = item.kind.displayText
-                textLayer.font = UIFont.boldSystemFont(ofSize: item.fontSize.pointSize * scaleX) as CFTypeRef
-                textLayer.fontSize = item.fontSize.pointSize * scaleX
+                textLayer.font = UIFont.boldSystemFont(ofSize: scaledFontSize) as CFTypeRef
+                textLayer.fontSize = scaledFontSize
                 textLayer.foregroundColor = item.color.uiColor.cgColor
                 textLayer.shadowColor = UIColor.black.cgColor
                 textLayer.shadowOpacity = 0.6
@@ -854,7 +853,7 @@ struct VideoOverlayEditorView: View {
                 let textSize = (item.kind.displayText as NSString).boundingRect(
                     with: CGSize(width: maxWidth, height: .greatestFiniteMagnitude),
                     options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: [.font: UIFont.boldSystemFont(ofSize: item.fontSize.pointSize * scaleX)],
+                    attributes: [.font: UIFont.boldSystemFont(ofSize: scaledFontSize)],
                     context: nil
                 ).size
 
