@@ -588,8 +588,11 @@ struct VineRecorderView: View {
 
         let outputURL: URL
         if segments.count == 1 {
-            // Single segment — no merge needed
-            outputURL = segments[0]
+            // Single segment — copy to a new path so cleanupSegments() won't delete it
+            let safeURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("vlog_single_\(UUID().uuidString).mov")
+            try? FileManager.default.copyItem(at: segments[0], to: safeURL)
+            outputURL = safeURL
         } else {
             // Merge multiple segments
             let composition = AVMutableComposition()
