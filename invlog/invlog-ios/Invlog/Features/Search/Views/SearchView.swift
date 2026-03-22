@@ -17,7 +17,7 @@ struct SearchView: View {
     @State private var exploreTrips: [Trip] = []
     @State private var isLoadingTrips = false
     @State private var selectedPlaceCategory: PlaceCategoryFilter = .all
-    @State private var mapkitNearbyItems: [MKMapItem] = []
+    @State private var foursquareNearbyItems: [FoursquarePlace] = []
 
     enum SearchFilter: String, CaseIterable {
         case all = "All"
@@ -47,14 +47,28 @@ struct SearchView: View {
 
         var id: String { rawValue }
 
-        /// MapKit search query for this category
-        var mapkitQuery: String? {
+        /// Foursquare category IDs for this filter
+        var foursquareCategoryIds: String? {
             switch self {
-            case .all: return nil
+            case .all: return nil // no filter = all food
+            case .restaurants: return "13065"        // Restaurant
+            case .coffee: return "13032,13035"        // Coffee Shop, Cafe
+            case .bars: return "13003"                // Bar
+            case .desserts: return "13040"            // Dessert Shop
+            case .bakery: return "13002"              // Bakery
+            case .fastFood: return "13145"            // Fast Food
+            case .fineDining: return "13065"           // Restaurant (filtered by query)
+            }
+        }
+
+        /// Foursquare search query for this category
+        var foursquareQuery: String? {
+            switch self {
+            case .all: return "food"
             case .restaurants: return "restaurant"
-            case .coffee: return "cafe coffee"
-            case .bars: return "bar lounge pub"
-            case .desserts: return "dessert ice cream sweets"
+            case .coffee: return "coffee cafe"
+            case .bars: return "bar pub"
+            case .desserts: return "dessert ice cream"
             case .bakery: return "bakery"
             case .fastFood: return "fast food"
             case .fineDining: return "fine dining"
@@ -248,7 +262,7 @@ struct SearchView: View {
                                         Spacer()
                                     }
                                     .padding(.vertical, 12)
-                                } else if mapkitNearbyItems.isEmpty {
+                                } else if foursquareNearbyItems.isEmpty {
                                     HStack {
                                         Spacer()
                                         Text("No \(selectedPlaceCategory.rawValue.lowercased()) nearby")
@@ -258,45 +272,65 @@ struct SearchView: View {
                                     }
                                     .padding(.vertical, 12)
                                 } else {
-                                    // Show MapKit results as a list for better category accuracy
+                                    // Foursquare results with rich category data
                                     VStack(spacing: 0) {
-                                        ForEach(mapkitNearbyItems.prefix(12), id: \.self) { item in
+                                        ForEach(foursquareNearbyItems.prefix(15)) { place in
                                             Button {
-                                                // Navigate to map item — for now just show info
+                                                // TODO: navigate to place detail
                                             } label: {
                                                 HStack(spacing: 12) {
-                                                    Image(systemName: "mappin.circle.fill")
-                                                        .font(.title3)
-                                                        .foregroundColor(Color.brandPrimary)
+                                                    if let iconURL = place.categoryIcon {
+                                                        AsyncImage(url: iconURL) { phase in
+                                                            if case .success(let img) = phase {
+                                                                img.resizable().scaledToFit()
+                                                            } else {
+                                                                Image(systemName: "fork.knife.circle.fill")
+                                                                    .font(.title3)
+                                                                    .foregroundColor(Color.brandPrimary)
+                                                            }
+                                                        }
+                                                        .frame(width: 28, height: 28)
+                                                    } else {
+                                                        Image(systemName: "fork.knife.circle.fill")
+                                                            .font(.title3)
+                                                            .foregroundColor(Color.brandPrimary)
+                                                    }
                                                     VStack(alignment: .leading, spacing: 2) {
-                                                        Text(item.name ?? "Unknown")
+                                                        Text(place.name)
                                                             .font(InvlogTheme.body(14, weight: .semibold))
                                                             .foregroundColor(Color.brandText)
                                                             .lineLimit(1)
-                                                        if let addr = item.placemark.thoroughfare {
-                                                            Text(addr)
+                                                        if !place.address.isEmpty {
+                                                            Text(place.address)
                                                                 .font(InvlogTheme.caption(11))
                                                                 .foregroundColor(Color.brandTextSecondary)
                                                                 .lineLimit(1)
                                                         }
                                                     }
                                                     Spacer()
-                                                    if let cat = item.pointOfInterestCategory?.rawValue {
-                                                        Text(formatPOICategory(cat))
+                                                    VStack(alignment: .trailing, spacing: 2) {
+                                                        if let cat = place.primaryCategory {
+                                                            Text(cat)
+                                                                .font(InvlogTheme.caption(10))
+                                                                .foregroundColor(Color.brandPrimary)
+                                                                .padding(.horizontal, 8)
+                                                                .padding(.vertical, 3)
+                                                                .background(Color.brandOrangeLight)
+                                                                .clipShape(Capsule())
+                                                        }
+                                                        Text(place.formattedDistance)
                                                             .font(InvlogTheme.caption(10))
-                                                            .foregroundColor(Color.brandPrimary)
-                                                            .padding(.horizontal, 8)
-                                                            .padding(.vertical, 3)
-                                                            .background(Color.brandOrangeLight)
-                                                            .clipShape(Capsule())
+                                                            .foregroundColor(Color.brandTextTertiary)
                                                     }
                                                 }
                                                 .padding(.vertical, 8)
                                                 .padding(.horizontal)
                                             }
                                             .buttonStyle(.plain)
-                                            Rectangle().fill(Color.brandBorder).frame(height: 0.5)
-                                                .padding(.horizontal)
+                                            if place.id != foursquareNearbyItems.prefix(15).last?.id {
+                                                Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                                                    .padding(.horizontal)
+                                            }
                                         }
                                     }
                                     .background(Color.brandCard)
@@ -462,11 +496,11 @@ struct SearchView: View {
             await loadExploreTrips()
         }
         .onChange(of: selectedPlaceCategory) { newCategory in
-            guard newCategory != .all, let query = newCategory.mapkitQuery else {
-                mapkitNearbyItems = []
+            guard newCategory != .all else {
+                foursquareNearbyItems = []
                 return
             }
-            Task { await searchMapKitCategory(query: query) }
+            Task { await searchFoursquareCategory(category: newCategory) }
         }
         .onChange(of: locationManager.location) { newLocation in
             guard let coord = newLocation else { return }
@@ -474,26 +508,22 @@ struct SearchView: View {
         }
     }
 
-    private func searchMapKitCategory(query: String) async {
+    private func searchFoursquareCategory(category: PlaceCategoryFilter) async {
         guard let coord = locationManager.location else { return }
         isLoadingNearby = true
-        mapkitNearbyItems = []
-
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-        request.resultTypes = .pointOfInterest
-        request.region = MKCoordinateRegion(
-            center: coord,
-            latitudinalMeters: 5000,
-            longitudinalMeters: 5000
-        )
+        foursquareNearbyItems = []
 
         do {
-            let search = MKLocalSearch(request: request)
-            let response = try await search.start()
-            mapkitNearbyItems = response.mapItems
+            let results = try await FoursquareService.shared.search(
+                query: category.foursquareQuery ?? "food",
+                latitude: coord.latitude,
+                longitude: coord.longitude,
+                radius: 5000,
+                limit: 30
+            )
+            foursquareNearbyItems = results
         } catch {
-            mapkitNearbyItems = []
+            foursquareNearbyItems = []
         }
         isLoadingNearby = false
     }

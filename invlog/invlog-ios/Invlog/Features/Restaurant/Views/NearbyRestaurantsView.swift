@@ -7,7 +7,7 @@ struct NearbyRestaurantsView: View {
     @StateObject private var locationManager = LocationManager()
     @State private var viewMode: ViewMode = .list
     @State private var selectedCategory: NearbyCategoryFilter = .all
-    @State private var mapkitResults: [MKMapItem] = []
+    @State private var foursquareResults: [FoursquarePlace] = []
     @State private var isLoadingCategory = false
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
@@ -30,12 +30,12 @@ struct NearbyRestaurantsView: View {
 
         var id: String { rawValue }
 
-        var mapkitQuery: String? {
+        var foursquareQuery: String? {
             switch self {
             case .all: return nil
             case .restaurants: return "restaurant"
-            case .coffee: return "cafe coffee"
-            case .bars: return "bar lounge pub"
+            case .coffee: return "coffee cafe"
+            case .bars: return "bar pub"
             case .desserts: return "dessert ice cream"
             case .bakery: return "bakery"
             case .fastFood: return "fast food"
@@ -126,12 +126,12 @@ struct NearbyRestaurantsView: View {
             requestLocationIfNeeded()
         }
         .onChange(of: selectedCategory) { newCategory in
-            guard newCategory != .all, let query = newCategory.mapkitQuery else {
-                mapkitResults = []
+            guard newCategory != .all, let query = newCategory.foursquareQuery else {
+                foursquareResults = []
                 return
             }
             guard let coord = locationManager.location else { return }
-            Task { await searchCategory(query: query, coord: coord) }
+            Task { await searchFoursquareCategory(query: query, coord: coord) }
         }
         .onChange(of: locationManager.location) { newLocation in
             guard let coord = newLocation else { return }
@@ -165,7 +165,7 @@ struct NearbyRestaurantsView: View {
             } else if isLoadingCategory {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if mapkitResults.isEmpty {
+            } else if foursquareResults.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
                     Image(systemName: "mappin.slash")
@@ -178,24 +178,44 @@ struct NearbyRestaurantsView: View {
                 }
             } else {
                 List {
-                    ForEach(mapkitResults, id: \.self) { item in
+                    ForEach(foursquareResults) { place in
                         HStack(spacing: 12) {
-                            Image(systemName: "mappin.circle.fill")
-                                .font(.title3)
-                                .foregroundColor(Color.brandPrimary)
+                            if let iconURL = place.categoryIcon {
+                                AsyncImage(url: iconURL) { phase in
+                                    if case .success(let img) = phase {
+                                        img.resizable().scaledToFit()
+                                    } else {
+                                        Image(systemName: "fork.knife.circle.fill")
+                                            .font(.title3)
+                                            .foregroundColor(Color.brandPrimary)
+                                    }
+                                }
+                                .frame(width: 28, height: 28)
+                            } else {
+                                Image(systemName: "fork.knife.circle.fill")
+                                    .font(.title3)
+                                    .foregroundColor(Color.brandPrimary)
+                            }
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name ?? "Unknown")
+                                Text(place.name)
                                     .font(InvlogTheme.body(14, weight: .bold))
                                     .foregroundColor(Color.brandText)
-                                if let addr = item.placemark.thoroughfare {
-                                    Text(addr)
+                                if !place.address.isEmpty {
+                                    Text(place.address)
                                         .font(InvlogTheme.caption(12))
                                         .foregroundColor(Color.brandTextSecondary)
+                                        .lineLimit(1)
                                 }
-                                if let cat = item.pointOfInterestCategory?.rawValue {
-                                    Text(formatPOI(cat))
+                                HStack(spacing: 4) {
+                                    if let cat = place.primaryCategory {
+                                        Text(cat)
+                                            .font(InvlogTheme.caption(10))
+                                            .foregroundColor(Color.brandPrimary)
+                                    }
+                                    Text("·").foregroundColor(Color.brandTextTertiary)
+                                    Text(place.formattedDistance)
                                         .font(InvlogTheme.caption(10))
-                                        .foregroundColor(Color.brandPrimary)
+                                        .foregroundColor(Color.brandTextTertiary)
                                 }
                             }
                             Spacer()
@@ -275,22 +295,19 @@ struct NearbyRestaurantsView: View {
         }
     }
 
-    private func searchCategory(query: String, coord: CLLocationCoordinate2D) async {
+    private func searchFoursquareCategory(query: String, coord: CLLocationCoordinate2D) async {
         isLoadingCategory = true
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-        request.resultTypes = .pointOfInterest
-        request.region = MKCoordinateRegion(
-            center: coord,
-            latitudinalMeters: 5000,
-            longitudinalMeters: 5000
-        )
         do {
-            let search = MKLocalSearch(request: request)
-            let response = try await search.start()
-            mapkitResults = response.mapItems
+            let results = try await FoursquareService.shared.search(
+                query: query,
+                latitude: coord.latitude,
+                longitude: coord.longitude,
+                radius: 5000,
+                limit: 30
+            )
+            foursquareResults = results
         } catch {
-            mapkitResults = []
+            foursquareResults = []
         }
         isLoadingCategory = false
     }
