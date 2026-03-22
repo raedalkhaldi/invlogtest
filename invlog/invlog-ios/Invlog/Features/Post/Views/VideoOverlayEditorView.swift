@@ -710,51 +710,55 @@ struct VideoOverlayEditorView: View {
                     let y = item.position.y * scaleY - stickerHeight / 2
                     stickerImg.draw(in: CGRect(x: x, y: y, width: stickerWidth, height: stickerHeight))
 
-                case .text(let text), .location(let text), .mention(let text):
+                case .text, .location, .mention:
                     let displayText = item.kind.displayText
-                    let fontSize = item.fontSize.pointSize * item.scale * scaleX
-                    let font = UIFont.boldSystemFont(ofSize: fontSize)
-                    let attributes: [NSAttributedString.Key: Any] = [
-                        .font: font,
-                        .foregroundColor: item.color.uiColor,
-                        .shadow: {
-                            let shadow = NSShadow()
-                            shadow.shadowColor = UIColor.black.withAlphaComponent(0.6)
-                            shadow.shadowOffset = CGSize(width: 1 * scaleX, height: 1 * scaleY)
-                            shadow.shadowBlurRadius = 2 * scaleX
-                            return shadow
-                        }()
-                    ]
+                    let fontSize = Self.scaledFontSize(for: item, scaleX: scaleX)
+                    let attributes = Self.textAttributes(fontSize: fontSize, color: item.color.uiColor, scaleX: scaleX, scaleY: scaleY)
                     let maxWidth = imageSize.width * 0.9
-                    let textSize = (displayText as NSString).boundingRect(
-                        with: CGSize(width: maxWidth, height: .greatestFiniteMagnitude),
-                        options: [.usesLineFragmentOrigin, .usesFontLeading],
-                        attributes: attributes,
-                        context: nil
-                    ).size
+                    let textSize = Self.textBoundingSize(displayText, maxWidth: maxWidth, attributes: attributes)
 
                     let bgWidth = textSize.width + 20 * scaleX
                     let bgHeight = textSize.height + 12 * scaleY
                     let x = item.position.x * scaleX - bgWidth / 2
                     let y = item.position.y * scaleY - bgHeight / 2
 
-                    // Draw background
                     let bgRect = CGRect(x: x, y: y, width: bgWidth, height: bgHeight)
-                    let bgPath = UIBezierPath(roundedRect: bgRect, cornerRadius: 6 * scaleX)
+                    UIBezierPath(roundedRect: bgRect, cornerRadius: 6 * scaleX).fill(with: .normal, alpha: 1)
                     UIColor.black.withAlphaComponent(0.3).setFill()
-                    bgPath.fill()
+                    UIBezierPath(roundedRect: bgRect, cornerRadius: 6 * scaleX).fill()
 
-                    // Draw text
-                    let textRect = CGRect(
-                        x: x + 10 * scaleX,
-                        y: y + 6 * scaleY,
-                        width: textSize.width,
-                        height: textSize.height
-                    )
+                    let textRect = CGRect(x: x + 10 * scaleX, y: y + 6 * scaleY, width: textSize.width, height: textSize.height)
                     (displayText as NSString).draw(in: textRect, withAttributes: attributes)
                 }
             }
         }
+    }
+
+    // MARK: - Shared Text Overlay Helpers
+
+    /// Compute scaled font size for a text overlay item
+    private static func scaledFontSize(for item: VideoOverlayItem, scaleX: CGFloat) -> CGFloat {
+        item.fontSize.pointSize * item.scale * scaleX
+    }
+
+    /// Build NSAttributedString attributes for text overlay rendering (photo export)
+    private static func textAttributes(fontSize: CGFloat, color: UIColor, scaleX: CGFloat, scaleY: CGFloat) -> [NSAttributedString.Key: Any] {
+        let font = UIFont.boldSystemFont(ofSize: fontSize)
+        let shadow = NSShadow()
+        shadow.shadowColor = UIColor.black.withAlphaComponent(0.6)
+        shadow.shadowOffset = CGSize(width: 1 * scaleX, height: 1 * scaleY)
+        shadow.shadowBlurRadius = 2 * scaleX
+        return [.font: font, .foregroundColor: color, .shadow: shadow]
+    }
+
+    /// Measure text bounding box for a given string at given attributes
+    private static func textBoundingSize(_ text: String, maxWidth: CGFloat, attributes: [NSAttributedString.Key: Any]) -> CGSize {
+        (text as NSString).boundingRect(
+            with: CGSize(width: maxWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes,
+            context: nil
+        ).size
     }
 
     // MARK: - Video Export (burn overlays into video)
@@ -835,11 +839,15 @@ struct VideoOverlayEditorView: View {
                 overlayLayer.addSublayer(stickerLayer)
 
             default:
-                let scaledFontSize = item.fontSize.pointSize * item.scale * scaleX
+                let fontSize = Self.scaledFontSize(for: item, scaleX: scaleX)
+                let displayText = item.kind.displayText
+                let maxWidth = videoSize.width * 0.9
+                let textSize = Self.textBoundingSize(displayText, maxWidth: maxWidth, attributes: [.font: UIFont.boldSystemFont(ofSize: fontSize)])
+
                 let textLayer = CATextLayer()
-                textLayer.string = item.kind.displayText
-                textLayer.font = UIFont.boldSystemFont(ofSize: scaledFontSize) as CFTypeRef
-                textLayer.fontSize = scaledFontSize
+                textLayer.string = displayText
+                textLayer.font = UIFont.boldSystemFont(ofSize: fontSize) as CFTypeRef
+                textLayer.fontSize = fontSize
                 textLayer.foregroundColor = item.color.uiColor.cgColor
                 textLayer.shadowColor = UIColor.black.cgColor
                 textLayer.shadowOpacity = 0.6
@@ -848,14 +856,6 @@ struct VideoOverlayEditorView: View {
                 textLayer.alignmentMode = .center
                 textLayer.contentsScale = screenScale
                 textLayer.isWrapped = true
-
-                let maxWidth = videoSize.width * 0.9
-                let textSize = (item.kind.displayText as NSString).boundingRect(
-                    with: CGSize(width: maxWidth, height: .greatestFiniteMagnitude),
-                    options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: [.font: UIFont.boldSystemFont(ofSize: scaledFontSize)],
-                    context: nil
-                ).size
 
                 let layerWidth = min(textSize.width + 20 * scaleX, maxWidth)
                 let layerHeight = textSize.height + 12 * scaleY

@@ -718,57 +718,46 @@ struct CreateStoryView: View {
         isLoadingMedia = false
     }
 
-    // MARK: - Photo Filter Thumbnails
+    // MARK: - Filter Thumbnails (unified for photo and video)
 
     private func generateImageFilterThumbnails() {
-        guard let image = selectedImage else { return }
+        guard let image = selectedImage, let ci = CIImage(image: image) else { return }
+        let scale = min(150.0 / image.size.width, 150.0 / image.size.height, 1.0)
+        let scaledCI = ci.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        generateFilterThumbnails(from: scaledCI)
+    }
+
+    private func generateFilterThumbnails() {
+        guard let url = selectedVideoURL else { return }
+        Task {
+            let ci = await Task.detached(priority: .userInitiated) { () -> CIImage? in
+                let asset = AVURLAsset(url: url)
+                let generator = AVAssetImageGenerator(asset: asset)
+                generator.appliesPreferredTrackTransform = true
+                generator.maximumSize = CGSize(width: 150, height: 150)
+                let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+                guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else { return nil }
+                return CIImage(cgImage: cgImage)
+            }.value
+            if let ci { generateFilterThumbnails(from: ci) }
+        }
+    }
+
+    /// Shared: applies all filters to a source CIImage and populates filterThumbnails
+    private func generateFilterThumbnails(from sourceCI: CIImage) {
         filterThumbnails = [:]
         Task {
             let result = await Task.detached(priority: .userInitiated) { () -> [VideoFilter: UIImage] in
-                let scale = min(150.0 / image.size.width, 150.0 / image.size.height, 1.0)
-                guard let ci = CIImage(image: image) else { return [:] }
-                let scaledCI = ci.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
                 let context = CIContext()
                 var thumbs: [VideoFilter: UIImage] = [:]
                 for filter in VideoFilter.allCases {
-                    let filtered = VideoFilterView.applyCIFilter(to: scaledCI, filter: filter)
+                    let filtered = VideoFilterView.applyCIFilter(to: sourceCI, filter: filter)
                     if let cg = context.createCGImage(filtered, from: filtered.extent) {
                         thumbs[filter] = UIImage(cgImage: cg)
                     }
                 }
                 return thumbs
             }.value
-            filterThumbnails = result
-        }
-    }
-
-    // Uses shared VideoThumbnailGenerator
-
-    private func generateFilterThumbnails() {
-        guard let url = selectedVideoURL else { return }
-        Task {
-            let result = await Task.detached(priority: .userInitiated) { () -> [VideoFilter: UIImage] in
-                let asset = AVURLAsset(url: url)
-                let generator = AVAssetImageGenerator(asset: asset)
-                generator.appliesPreferredTrackTransform = true
-                generator.maximumSize = CGSize(width: 150, height: 150)
-
-                let time = CMTime(seconds: 0.5, preferredTimescale: 600)
-                guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else { return [:] }
-
-                let sourceCI = CIImage(cgImage: cgImage)
-                let context = CIContext()
-                var thumbs: [VideoFilter: UIImage] = [:]
-
-                for filter in VideoFilter.allCases {
-                    let filteredCI = VideoFilterView.applyCIFilter(to: sourceCI, filter: filter)
-                    if let filteredCG = context.createCGImage(filteredCI, from: filteredCI.extent) {
-                        thumbs[filter] = UIImage(cgImage: filteredCG)
-                    }
-                }
-                return thumbs
-            }.value
-
             filterThumbnails = result
         }
     }
