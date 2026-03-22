@@ -247,16 +247,23 @@ struct PostCardView: View {
                             Text(comment.author?.username ?? "user")
                                 .font(InvlogTheme.caption(13, weight: .bold))
                                 .foregroundColor(Color.brandText)
-                            MentionText(
-                                content: comment.content,
-                                font: InvlogTheme.caption(13),
-                                color: Color.brandText,
-                                mentionColor: Color.brandPrimary,
-                                lineLimit: 2,
-                                onMentionTap: { username in
-                                    navigateToMention = username
-                                }
-                            )
+                            // Detect sticker comments — show emoji instead of raw URL
+                            if comment.content.hasPrefix("[sticker:") {
+                                Text("sent a sticker 🎨")
+                                    .font(InvlogTheme.caption(13))
+                                    .foregroundColor(Color.brandTextSecondary)
+                            } else {
+                                MentionText(
+                                    content: comment.content,
+                                    font: InvlogTheme.caption(13),
+                                    color: Color.brandText,
+                                    mentionColor: Color.brandPrimary,
+                                    lineLimit: 2,
+                                    onMentionTap: { username in
+                                        navigateToMention = username
+                                    }
+                                )
+                            }
                         }
                     }
 
