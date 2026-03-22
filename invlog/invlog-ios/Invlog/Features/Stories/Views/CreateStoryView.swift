@@ -765,40 +765,72 @@ struct CreateStoryView: View {
 
 // MARK: - Story Video Preview (lightweight looping player)
 
-private struct StoryVideoPreview: View {
+private struct StoryVideoPreview: UIViewRepresentable {
     let url: URL
-    @State private var player: AVPlayer?
-    @State private var loopObserver: NSObjectProtocol?
 
-    var body: some View {
-        ZStack {
-            Color.black
-            if let player {
-                SimpleVideoPlayerView(player: player)
-            }
+    func makeUIView(context: Context) -> StoryVideoPlayerUIView {
+        StoryVideoPlayerUIView(url: url)
+    }
+
+    func updateUIView(_ uiView: StoryVideoPlayerUIView, context: Context) {
+        if uiView.currentURL != url {
+            uiView.loadVideo(url: url)
         }
-        .onAppear {
-            let avPlayer = AVPlayer(url: url)
-            avPlayer.isMuted = true
-            avPlayer.actionAtItemEnd = .none
-            loopObserver = NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemDidPlayToEndTime,
-                object: avPlayer.currentItem,
-                queue: .main
-            ) { [weak avPlayer] _ in
-                avPlayer?.seek(to: .zero)
-                avPlayer?.play()
-            }
-            player = avPlayer
-            avPlayer.play()
+    }
+}
+
+private class StoryVideoPlayerUIView: UIView {
+    private let playerLayer = AVPlayerLayer()
+    private var player: AVPlayer?
+    private var loopObserver: NSObjectProtocol?
+    var currentURL: URL?
+
+    init(url: URL) {
+        super.init(frame: .zero)
+        backgroundColor = .black
+        playerLayer.videoGravity = .resizeAspect
+        playerLayer.backgroundColor = UIColor.black.cgColor
+        layer.addSublayer(playerLayer)
+        loadVideo(url: url)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    func loadVideo(url: URL) {
+        // Clean up previous
+        player?.pause()
+        if let obs = loopObserver {
+            NotificationCenter.default.removeObserver(obs)
         }
-        .onDisappear {
-            player?.pause()
-            if let observer = loopObserver {
-                NotificationCenter.default.removeObserver(observer)
-                loopObserver = nil
-            }
-            player = nil
+
+        currentURL = url
+        let avPlayer = AVPlayer(url: url)
+        avPlayer.isMuted = true
+        avPlayer.actionAtItemEnd = .none
+
+        loopObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: avPlayer.currentItem,
+            queue: .main
+        ) { [weak avPlayer] _ in
+            avPlayer?.seek(to: .zero)
+            avPlayer?.play()
+        }
+
+        player = avPlayer
+        playerLayer.player = avPlayer
+        avPlayer.play()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        playerLayer.frame = bounds
+    }
+
+    deinit {
+        player?.pause()
+        if let obs = loopObserver {
+            NotificationCenter.default.removeObserver(obs)
         }
     }
 }
