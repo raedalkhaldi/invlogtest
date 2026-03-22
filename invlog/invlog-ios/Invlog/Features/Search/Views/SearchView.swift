@@ -523,6 +523,11 @@ struct SearchView: View {
         }
         .task {
             await loadExploreTrips()
+            // Wait briefly for location then load Foursquare
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+            if foursquareNearbyItems.isEmpty, locationManager.location != nil {
+                await searchFoursquareCategory(category: selectedPlaceCategory)
+            }
         }
         .onChange(of: selectedPlaceCategory) { newCategory in
             Task { await searchFoursquareCategory(category: newCategory) }
