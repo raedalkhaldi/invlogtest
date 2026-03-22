@@ -13,6 +13,7 @@ struct SearchView: View {
     @State private var searchTask: Task<Void, Never>?
     @StateObject private var locationManager = LocationManager()
     @State private var nearbyRestaurants: [Restaurant] = []
+    @State private var navigateToRestaurant: Restaurant? = nil
     @State private var isLoadingNearby = false
     @State private var exploreTrips: [Trip] = []
     @State private var isLoadingTrips = false
@@ -241,19 +242,47 @@ struct SearchView: View {
                                     .padding(.horizontal)
                                 }
 
-                                // Filtered results — DB restaurants
+                                // Filtered results
                                 if selectedPlaceCategory == .all {
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 12) {
-                                            ForEach(nearbyRestaurants.prefix(12)) { restaurant in
-                                                NavigationLink(value: restaurant) {
-                                                    NearbyRestaurantCard(restaurant: restaurant)
+                                    // DB restaurants (checked-in places)
+                                    if !nearbyRestaurants.isEmpty {
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(spacing: 12) {
+                                                ForEach(nearbyRestaurants.prefix(12)) { restaurant in
+                                                    NavigationLink(value: restaurant) {
+                                                        NearbyRestaurantCard(restaurant: restaurant)
+                                                    }
+                                                    .frame(minWidth: 44, minHeight: 44)
                                                 }
-                                                .frame(minWidth: 44, minHeight: 44)
-                                                .accessibilityLabel("\(restaurant.name)")
                                             }
+                                            .padding(.horizontal)
                                         }
-                                        .padding(.horizontal)
+                                    }
+
+                                    // Foursquare nearby places (all food)
+                                    if !foursquareNearbyItems.isEmpty {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Nearby Places")
+                                                .font(InvlogTheme.body(15, weight: .bold))
+                                                .foregroundColor(Color.brandText)
+                                                .padding(.horizontal)
+
+                                            VStack(spacing: 0) {
+                                                ForEach(foursquareNearbyItems.prefix(10)) { place in
+                                                    foursquarePlaceRow(place)
+                                                    if place.id != foursquareNearbyItems.prefix(10).last?.id {
+                                                        Rectangle().fill(Color.brandBorder).frame(height: 0.5)
+                                                            .padding(.horizontal)
+                                                    }
+                                                }
+                                            }
+                                            .background(Color.brandCard)
+                                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Card.cornerRadius))
+                                            .padding(.horizontal)
+                                        }
+                                    } else if isLoadingNearby {
+                                        HStack { Spacer(); ProgressView(); Spacer() }
+                                            .padding(.vertical, 12)
                                     }
                                 } else if isLoadingNearby {
                                     HStack {
@@ -496,15 +525,17 @@ struct SearchView: View {
             await loadExploreTrips()
         }
         .onChange(of: selectedPlaceCategory) { newCategory in
-            guard newCategory != .all else {
-                foursquareNearbyItems = []
-                return
-            }
             Task { await searchFoursquareCategory(category: newCategory) }
         }
         .onChange(of: locationManager.location) { newLocation in
             guard let coord = newLocation else { return }
-            Task { await loadNearbyRestaurants(lat: coord.latitude, lng: coord.longitude) }
+            Task {
+                await loadNearbyRestaurants(lat: coord.latitude, lng: coord.longitude)
+                // Also load Foursquare nearby for "All" tab on first location
+                if foursquareNearbyItems.isEmpty {
+                    await searchFoursquareCategory(category: selectedPlaceCategory)
+                }
+            }
         }
     }
 
@@ -526,6 +557,80 @@ struct SearchView: View {
             foursquareNearbyItems = []
         }
         isLoadingNearby = false
+    }
+
+    // MARK: - Foursquare Place Row (clickable → creates restaurant and navigates)
+    @ViewBuilder
+    private func foursquarePlaceRow(_ place: FoursquarePlace) -> some View {
+        Button {
+            Task {
+                // Create restaurant in our DB from Foursquare data and navigate
+                let cuisine = place.categories.map { $0.name }
+                do {
+                    let (restaurant, _) = try await APIClient.shared.requestWrapped(
+                        .createRestaurant(data: [
+                            "name": place.name,
+                            "latitude": place.latitude,
+                            "longitude": place.longitude,
+                            "addressLine1": place.address,
+                        ]),
+                        responseType: Restaurant.self
+                    )
+                    navigateToRestaurant = restaurant
+                } catch {
+                    // If already exists or error, try navigating by name
+                }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                if let iconURL = place.categoryIcon {
+                    AsyncImage(url: iconURL) { phase in
+                        if case .success(let img) = phase {
+                            img.resizable().scaledToFit()
+                        } else {
+                            Image(systemName: "fork.knife.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(Color.brandPrimary)
+                        }
+                    }
+                    .frame(width: 28, height: 28)
+                } else {
+                    Image(systemName: "fork.knife.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(Color.brandPrimary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(place.name)
+                        .font(InvlogTheme.body(14, weight: .semibold))
+                        .foregroundColor(Color.brandText)
+                        .lineLimit(1)
+                    if !place.address.isEmpty {
+                        Text(place.address)
+                            .font(InvlogTheme.caption(11))
+                            .foregroundColor(Color.brandTextSecondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let cat = place.primaryCategory {
+                        Text(cat)
+                            .font(InvlogTheme.caption(10))
+                            .foregroundColor(Color.brandPrimary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.brandOrangeLight)
+                            .clipShape(Capsule())
+                    }
+                    Text(place.formattedDistance)
+                        .font(InvlogTheme.caption(10))
+                        .foregroundColor(Color.brandTextTertiary)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal)
+        }
+        .buttonStyle(.plain)
     }
 
     private func formatPOICategory(_ raw: String) -> String {

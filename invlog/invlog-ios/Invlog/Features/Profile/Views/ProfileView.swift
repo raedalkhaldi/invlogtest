@@ -22,7 +22,9 @@ struct ProfileView: View {
     @State private var error: String?
     @State private var messageConversation: Conversation?
     @State private var showBlockConfirm = false
-    @State private var showGrid = true
+    @State private var selectedProfileTab: ProfileTab = .checkIns
+
+    enum ProfileTab { case checkIns, media }
 
     private var isCurrentUser: Bool { userId == nil }
 
@@ -97,46 +99,49 @@ struct ProfileView: View {
                             messageConversation = conversation
                         }
                     )
-                    // Posts header with Grid/List toggle
-                    HStack {
-                        Text("Posts")
-                            .font(InvlogTheme.body(16, weight: .bold))
-                            .foregroundColor(Color.brandText)
-                        Spacer()
-                        HStack(spacing: 0) {
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) { showGrid = true }
-                            } label: {
-                                Image(systemName: "square.grid.3x3.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(showGrid ? Color.brandPrimary : Color.brandTextTertiary)
-                                    .frame(width: 36, height: 32)
-                            }
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) { showGrid = false }
-                            } label: {
-                                Image(systemName: "list.bullet")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(!showGrid ? Color.brandPrimary : Color.brandTextTertiary)
-                                    .frame(width: 36, height: 32)
-                            }
+                    // Check-ins / Media tabs
+                    HStack(spacing: 0) {
+                        profileTabButton("Check-ins", icon: "mappin.and.ellipse", isSelected: selectedProfileTab == .checkIns) {
+                            withAnimation(.easeInOut(duration: 0.2)) { selectedProfileTab = .checkIns }
                         }
-                        .background(Color.brandBorder.opacity(0.4))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        profileTabButton("Media", icon: "photo.on.rectangle", isSelected: selectedProfileTab == .media) {
+                            withAnimation(.easeInOut(duration: 0.2)) { selectedProfileTab = .media }
+                        }
                     }
                     .padding(.horizontal, InvlogTheme.Spacing.md)
                     .padding(.top, InvlogTheme.Spacing.md)
 
-                    if showGrid {
-                        // Photo grid (3 columns)
+                    if selectedProfileTab == .checkIns {
+                        // Check-ins list (all posts as cards)
+                        LazyVStack(spacing: InvlogTheme.Spacing.sm) {
+                            ForEach(posts) { post in
+                                PostCardView(post: post)
+                            }
+                        }
+                        .padding(.horizontal, InvlogTheme.Spacing.md)
+                        .padding(.top, InvlogTheme.Spacing.xs)
+                    } else {
+                        // Media grid (3 columns)
+                        let mediaPosts = posts.filter { $0.media?.isEmpty == false }
                         let gridColumns = [
                             GridItem(.flexible(), spacing: 2),
                             GridItem(.flexible(), spacing: 2),
                             GridItem(.flexible(), spacing: 2)
                         ]
-                        LazyVGrid(columns: gridColumns, spacing: 2) {
-                            ForEach(posts) { post in
-                                NavigationLink(value: post.id) {
+                        if mediaPosts.isEmpty {
+                            VStack(spacing: 8) {
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .font(.system(size: 36))
+                                    .foregroundColor(Color.brandTextTertiary)
+                                Text("No media yet")
+                                    .font(InvlogTheme.body(14))
+                                    .foregroundColor(Color.brandTextSecondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                        } else {
+                            LazyVGrid(columns: gridColumns, spacing: 2) {
+                                ForEach(mediaPosts) { post in
                                     if let firstMedia = post.media?.first {
                                         let thumbUrl = firstMedia.thumbnailUrl ?? firstMedia.mediumUrl ?? firstMedia.url
                                         AsyncImage(url: URL(string: thumbUrl)) { phase in
@@ -149,30 +154,12 @@ struct ProfileView: View {
                                         }
                                         .frame(minHeight: 120)
                                         .clipped()
-                                    } else {
-                                        Color.brandBackground
-                                            .frame(minHeight: 120)
-                                            .overlay(
-                                                Text(post.content?.prefix(50) ?? "")
-                                                    .font(InvlogTheme.caption(11))
-                                                    .foregroundColor(Color.brandTextSecondary)
-                                                    .padding(8)
-                                            )
                                     }
                                 }
-                                .buttonStyle(.plain)
                             }
+                            .padding(.horizontal, InvlogTheme.Spacing.md)
+                            .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
                         }
-                        .padding(.horizontal, InvlogTheme.Spacing.md)
-                        .clipShape(RoundedRectangle(cornerRadius: InvlogTheme.Radius.md))
-                    } else {
-                        // List view
-                        LazyVStack(spacing: InvlogTheme.Spacing.sm) {
-                            ForEach(posts) { post in
-                                PostCardView(post: post)
-                            }
-                        }
-                        .padding(.horizontal, InvlogTheme.Spacing.md)
                     }
                 }
             } else if isLoading {
@@ -277,6 +264,27 @@ struct ProfileView: View {
             self.error = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private func profileTabButton(_ label: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: 13))
+                    Text(label)
+                        .font(InvlogTheme.body(13, weight: .semibold))
+                }
+                .foregroundColor(isSelected ? Color.brandPrimary : Color.brandTextSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+
+                Rectangle()
+                    .fill(isSelected ? Color.brandPrimary : Color.clear)
+                    .frame(height: 2)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     @Environment(\.dismiss) private var dismiss
