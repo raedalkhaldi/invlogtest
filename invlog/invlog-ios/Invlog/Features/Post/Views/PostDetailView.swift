@@ -200,6 +200,15 @@ struct PostDetailView: View {
 struct CommentRowView: View {
     let comment: Comment
     var onMentionTap: ((String) -> Void)? = nil
+    @State private var isLiked: Bool
+    @State private var likeCount: Int
+
+    init(comment: Comment, onMentionTap: ((String) -> Void)? = nil) {
+        self.comment = comment
+        self.onMentionTap = onMentionTap
+        _isLiked = State(initialValue: comment.isLikedByMe ?? false)
+        _likeCount = State(initialValue: comment.likeCount)
+    }
 
     /// Check if comment is a sticker (format: [sticker:URL])
     private var stickerURL: URL? {
@@ -235,7 +244,6 @@ struct CommentRowView: View {
                 }
 
                 if let stickerURL {
-                    // Render sticker as animated GIF
                     AnimatedGIFView(url: stickerURL)
                         .frame(width: 120, height: 120)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -248,6 +256,42 @@ struct CommentRowView: View {
                         onMentionTap: onMentionTap
                     )
                 }
+
+                // Like button
+                Button {
+                    toggleCommentLike()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isLiked ? "heart.fill" : "heart")
+                            .font(.system(size: 12))
+                            .foregroundColor(isLiked ? .red : Color.brandTextTertiary)
+                        if likeCount > 0 {
+                            Text("\(likeCount)")
+                                .font(InvlogTheme.caption(11))
+                                .foregroundColor(Color.brandTextTertiary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func toggleCommentLike() {
+        let wasLiked = isLiked
+        isLiked.toggle()
+        likeCount += isLiked ? 1 : -1
+
+        Task {
+            do {
+                if isLiked {
+                    try await APIClient.shared.requestVoid(.likeComment(id: comment.id))
+                } else {
+                    try await APIClient.shared.requestVoid(.unlikeComment(id: comment.id))
+                }
+            } catch {
+                isLiked = wasLiked
+                likeCount += wasLiked ? 1 : -1
             }
         }
     }

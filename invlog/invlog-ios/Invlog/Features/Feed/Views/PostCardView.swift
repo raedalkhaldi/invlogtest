@@ -1054,7 +1054,7 @@ struct CommentsSheetView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(comments) { comment in
+                            ForEach(comments.sorted { $0.likeCount > $1.likeCount }) { comment in
                                 CommentRowView(
                                     comment: comment,
                                     onMentionTap: { username in
