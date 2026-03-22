@@ -185,6 +185,7 @@ struct PlacePickerView: View {
     @State private var searchText = ""
     @State private var searchResults: [MKMapItem] = []
     @State private var dbRestaurants: [Restaurant] = []
+    @State private var foursquareResults: [FoursquarePlace] = []
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
     @State private var isCreatingPlace = false
@@ -194,21 +195,32 @@ struct PlacePickerView: View {
     @State private var pendingPlaceLat: Double = 0
     @State private var pendingPlaceLng: Double = 0
 
-    /// Merged results: DB restaurants first, then Apple Maps results (excluding duplicates)
+    /// Merged results: DB restaurants first, then Foursquare, then Apple Maps (deduped)
     private var mergedResults: [PlaceResult] {
         var results: [PlaceResult] = []
+        var usedNames = Set<String>()
 
-        // Add DB restaurants first
+        // 1. DB restaurants first (verified, in our system)
         for restaurant in dbRestaurants {
             results.append(.dbRestaurant(restaurant))
+            usedNames.insert(restaurant.name.lowercased())
         }
 
-        // Add Apple Maps results, excluding those that likely match a DB restaurant
-        let dbNames = Set(dbRestaurants.map { $0.name.lowercased() })
+        // 2. Foursquare results (richer data: categories, chains)
+        for place in foursquareResults {
+            let name = place.name.lowercased()
+            if !usedNames.contains(name) {
+                results.append(.foursquare(place))
+                usedNames.insert(name)
+            }
+        }
+
+        // 3. Apple Maps results (fallback for places not in Foursquare)
         for item in searchResults {
             let name = (item.name ?? "").lowercased()
-            if !dbNames.contains(name) {
+            if !usedNames.contains(name) {
                 results.append(.mapItem(item))
+                usedNames.insert(name)
             }
         }
 
@@ -217,11 +229,13 @@ struct PlacePickerView: View {
 
     private enum PlaceResult: Identifiable {
         case dbRestaurant(Restaurant)
+        case foursquare(FoursquarePlace)
         case mapItem(MKMapItem)
 
         var id: String {
             switch self {
             case .dbRestaurant(let r): return "db-\(r.id)"
+            case .foursquare(let p): return "fsq-\(p.id)"
             case .mapItem(let item): return "map-\(item.name ?? "")-\(item.placemark.coordinate.latitude)"
             }
         }
@@ -368,6 +382,68 @@ struct PlacePickerView: View {
                                                 Text(cuisines.joined(separator: " · "))
                                                     .font(InvlogTheme.caption(10))
                                                     .foregroundColor(Color.brandPrimary)
+                                            }
+                                        }
+
+                                        Spacer()
+                                    }
+                                }
+                                .frame(minHeight: 44)
+
+                            case .foursquare(let place):
+                                Button {
+                                    selectFoursquarePlace(place)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        // Category icon from Foursquare
+                                        if let iconURL = place.categoryIcon {
+                                            AsyncImage(url: iconURL) { phase in
+                                                if case .success(let img) = phase {
+                                                    img.resizable().scaledToFit()
+                                                } else {
+                                                    Image(systemName: "fork.knife.circle.fill")
+                                                        .font(.title2)
+                                                        .foregroundColor(Color.brandSecondary)
+                                                }
+                                            }
+                                            .frame(width: 32, height: 32)
+                                        } else {
+                                            Image(systemName: "fork.knife.circle.fill")
+                                                .font(.title2)
+                                                .foregroundColor(Color.brandSecondary)
+                                        }
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            HStack(spacing: 4) {
+                                                Text(place.name)
+                                                    .font(InvlogTheme.body(14, weight: .bold))
+                                                    .foregroundColor(Color.brandText)
+
+                                                if place.chainName != nil {
+                                                    Image(systemName: "link.circle.fill")
+                                                        .font(.caption2)
+                                                        .foregroundColor(Color.brandAccent)
+                                                }
+                                            }
+
+                                            if !place.address.isEmpty {
+                                                Text(place.address)
+                                                    .font(InvlogTheme.caption(12))
+                                                    .foregroundColor(Color.brandTextSecondary)
+                                                    .lineLimit(2)
+                                            }
+
+                                            HStack(spacing: 6) {
+                                                if let cat = place.primaryCategory {
+                                                    Text(cat)
+                                                        .font(InvlogTheme.caption(10, weight: .semibold))
+                                                        .foregroundColor(Color.brandPrimary)
+                                                }
+                                                Text("·")
+                                                    .foregroundColor(Color.brandTextTertiary)
+                                                Text(place.formattedDistance)
+                                                    .font(InvlogTheme.caption(10))
+                                                    .foregroundColor(Color.brandTextTertiary)
                                             }
                                         }
 
@@ -609,8 +685,27 @@ struct PlacePickerView: View {
     private func performSearch(query: String) async {
         isSearching = true
 
-        // Search both Apple Maps and our DB in parallel
+        // Search Foursquare, Apple Maps, and our DB in parallel
         await withTaskGroup(of: Void.self) { group in
+            // Foursquare (richest data: categories, chains, distance)
+            group.addTask { @MainActor in
+                if let coord = locationManager.location {
+                    do {
+                        let results = try await FoursquareService.shared.search(
+                            query: query,
+                            latitude: coord.latitude,
+                            longitude: coord.longitude,
+                            radius: 5000,
+                            limit: 20
+                        )
+                        foursquareResults = results
+                    } catch {
+                        foursquareResults = []
+                    }
+                }
+            }
+
+            // Apple Maps (fallback, free, no limits)
             group.addTask { @MainActor in
                 let request = MKLocalSearch.Request()
                 request.naturalLanguageQuery = query
@@ -633,15 +728,14 @@ struct PlacePickerView: View {
                 }
             }
 
+            // Our DB
             group.addTask { @MainActor in
-                // Search our DB too
                 if let coord = locationManager.location {
                     do {
                         let (data, _) = try await APIClient.shared.requestWrapped(
                             .nearbyRestaurants(lat: coord.latitude, lng: coord.longitude, radiusKm: 5, limit: 30),
                             responseType: [Restaurant].self
                         )
-                        // Filter DB results by query
                         let q = query.lowercased()
                         dbRestaurants = data.filter { restaurant in
                             restaurant.name.lowercased().contains(q) ||
@@ -669,6 +763,19 @@ struct PlacePickerView: View {
             restaurantId: restaurant.id
         )
         dismiss()
+    }
+
+    private func selectFoursquarePlace(_ place: FoursquarePlace) {
+        let cuisine = place.categories.map { $0.name }
+        Task {
+            await createAndSelectPlace(
+                name: place.name,
+                address: place.address,
+                lat: place.latitude,
+                lng: place.longitude,
+                cuisineType: cuisine.isEmpty ? nil : cuisine
+            )
+        }
     }
 
     private func selectMapItem(_ item: MKMapItem) {
