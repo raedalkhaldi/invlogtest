@@ -2,8 +2,6 @@ import SwiftUI
 import PhotosUI
 import AVFoundation
 import CoreImage
-import Nuke
-@preconcurrency import NukeUI
 
 @MainActor
 struct CreateStoryView: View {

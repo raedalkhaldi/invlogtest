@@ -50,7 +50,6 @@ struct CreatePostView: View {
     @State private var showPhotoOverlay = false
     @State private var filteredImages: [UIImage] = []
     @State private var showDescriptionStickerPicker = false
-    @State private var currentOverlayImageIndex = 0
     @State private var visibility = "public"
     @State private var matchingTrips: [Trip] = []
     @State private var selectedTripId: String?
@@ -175,7 +174,13 @@ struct CreatePostView: View {
                 }
             }
         }
-        .sheet(isPresented: $showVideoFilter) {
+        .sheet(isPresented: $showVideoFilter, onDismiss: {
+            // Clean up if user cancelled without completing
+            if !mediaItems.contains(where: { if case .video = $0 { return true } else { return false } }) {
+                recordedVideoURL = nil
+                recordedVideoThumbnail = nil
+            }
+        }) {
             if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
                 NavigationStack {
                     VideoFilterView(videoURL: videoURL, thumbnail: thumb) { filteredURL, filteredThumb in
@@ -258,7 +263,6 @@ struct CreatePostView: View {
                     croppedImages = []
                     showPhotoFilter = false
                     if !filteredImages.isEmpty {
-                        currentOverlayImageIndex = 0
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                             showPhotoOverlay = true
                         }
