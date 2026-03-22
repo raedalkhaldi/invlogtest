@@ -8,6 +8,61 @@ struct SelectedPlace: Equatable {
     let longitude: Double
     /// If this place matches a restaurant in our DB
     let restaurantId: String?
+    /// Rich data from MapKit
+    let phoneNumber: String?
+    let websiteURL: URL?
+    let category: String?
+
+    init(name: String, address: String, latitude: Double, longitude: Double, restaurantId: String? = nil, phoneNumber: String? = nil, websiteURL: URL? = nil, category: String? = nil) {
+        self.name = name
+        self.address = address
+        self.latitude = latitude
+        self.longitude = longitude
+        self.restaurantId = restaurantId
+        self.phoneNumber = phoneNumber
+        self.websiteURL = websiteURL
+        self.category = category
+    }
+
+    /// Create from MKMapItem with rich data extraction
+    init(from mapItem: MKMapItem) {
+        self.name = mapItem.name ?? "Unknown Place"
+        self.latitude = mapItem.placemark.coordinate.latitude
+        self.longitude = mapItem.placemark.coordinate.longitude
+        self.restaurantId = nil
+        self.phoneNumber = mapItem.phoneNumber
+        self.websiteURL = mapItem.url
+
+        // Build address from components
+        let placemark = mapItem.placemark
+        var parts: [String] = []
+        if let street = placemark.thoroughfare { parts.append(street) }
+        if let city = placemark.locality { parts.append(city) }
+        if let state = placemark.administrativeArea { parts.append(state) }
+        self.address = parts.isEmpty
+            ? (placemark.title ?? "")
+            : parts.joined(separator: ", ")
+
+        // Extract category from MKMapItem
+        if let cat = mapItem.pointOfInterestCategory {
+            self.category = Self.categoryName(for: cat)
+        } else {
+            self.category = nil
+        }
+    }
+
+    static func categoryName(for category: MKPointOfInterestCategory) -> String {
+        switch category {
+        case .restaurant: return "Restaurant"
+        case .cafe: return "Cafe"
+        case .bakery: return "Bakery"
+        case .brewery: return "Brewery"
+        case .nightlife: return "Nightlife"
+        case .foodMarket: return "Food Market"
+        case .winery: return "Winery"
+        default: return "Place"
+        }
+    }
 }
 
 // MARK: - Place Category
@@ -617,19 +672,28 @@ struct PlacePickerView: View {
     }
 
     private func selectMapItem(_ item: MKMapItem) {
+        // Extract category from MapKit POI
+        var cuisine: [String]? = nil
+        if let cat = item.pointOfInterestCategory {
+            let catName = SelectedPlace.categoryName(for: cat)
+            if catName != "Place" { cuisine = [catName] }
+        }
+
         Task {
             await createAndSelectPlace(
                 name: item.name ?? "Unknown Place",
                 address: formatAddress(item.placemark) ?? "",
                 lat: item.placemark.coordinate.latitude,
                 lng: item.placemark.coordinate.longitude,
-                cuisineType: nil
+                cuisineType: cuisine,
+                phoneNumber: item.phoneNumber,
+                websiteURL: item.url
             )
         }
     }
 
     @MainActor
-    private func createAndSelectPlace(name: String, address: String, lat: Double, lng: Double, cuisineType: [String]?) async {
+    private func createAndSelectPlace(name: String, address: String, lat: Double, lng: Double, cuisineType: [String]?, phoneNumber: String? = nil, websiteURL: URL? = nil) async {
         isCreatingPlace = true
         do {
             var data: [String: Any] = [
@@ -641,6 +705,8 @@ struct PlacePickerView: View {
             if let cuisineType, !cuisineType.isEmpty {
                 data["cuisineType"] = cuisineType
             }
+            if let phoneNumber { data["phone"] = phoneNumber }
+            if let websiteURL { data["website"] = websiteURL.absoluteString }
 
             let (restaurant, _) = try await APIClient.shared.requestWrapped(
                 .createRestaurant(data: data),
@@ -651,7 +717,10 @@ struct PlacePickerView: View {
                 address: address,
                 latitude: lat,
                 longitude: lng,
-                restaurantId: restaurant.id
+                restaurantId: restaurant.id,
+                phoneNumber: phoneNumber,
+                websiteURL: websiteURL,
+                category: cuisineType?.first
             )
         } catch {
             // Fallback: select without DB entry
@@ -660,7 +729,10 @@ struct PlacePickerView: View {
                 address: address,
                 latitude: lat,
                 longitude: lng,
-                restaurantId: nil
+                restaurantId: nil,
+                phoneNumber: phoneNumber,
+                websiteURL: websiteURL,
+                category: cuisineType?.first
             )
         }
         isCreatingPlace = false
