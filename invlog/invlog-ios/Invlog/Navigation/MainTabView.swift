@@ -15,8 +15,6 @@ struct MainTabView: View {
 
     // Smooth swipe state
     @State private var dragOffset: CGFloat = 0
-    @State private var isDragging = false
-    @GestureState private var gestureOffset: CGFloat = 0
 
     enum Tab: Int, CaseIterable {
         case feed
@@ -41,22 +39,38 @@ struct MainTabView: View {
                 }
                 .gesture(
                     isAtTabRoot ?
-                    DragGesture(minimumDistance: 25, coordinateSpace: .local)
-                        .updating($gestureOffset) { value, state, _ in
-                            // Only allow horizontal swipes
+                    DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                        .onChanged { value in
                             guard abs(value.translation.width) > abs(value.translation.height) * 1.2 else { return }
-                            state = value.translation.width
+                            // Rubber-band at edges
+                            let raw = value.translation.width
+                            if (currentTabIndex == 0 && raw > 0) || (currentTabIndex == navigableTabs.count - 1 && raw < 0) {
+                                dragOffset = raw * 0.3 // resistance at edges
+                            } else {
+                                dragOffset = raw
+                            }
                         }
                         .onEnded { value in
-                            guard abs(value.translation.width) > abs(value.translation.height) * 1.2 else { return }
-
-                            let threshold: CGFloat = screenWidth * 0.25
+                            let threshold: CGFloat = screenWidth * 0.2
                             let velocity = value.predictedEndTranslation.width - value.translation.width
 
-                            if value.translation.width + velocity < -threshold {
-                                switchToAdjacentTab(forward: true)
-                            } else if value.translation.width + velocity > threshold {
-                                switchToAdjacentTab(forward: false)
+                            if value.translation.width + velocity < -threshold, currentTabIndex < navigableTabs.count - 1 {
+                                // Swipe left → next tab
+                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+                                    dragOffset = 0
+                                    selectedTab = navigableTabs[currentTabIndex + 1]
+                                }
+                            } else if value.translation.width + velocity > threshold, currentTabIndex > 0 {
+                                // Swipe right → previous tab
+                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+                                    dragOffset = 0
+                                    selectedTab = navigableTabs[currentTabIndex - 1]
+                                }
+                            } else {
+                                // Snap back
+                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+                                    dragOffset = 0
+                                }
                             }
                         }
                     : nil
@@ -129,11 +143,11 @@ struct MainTabView: View {
         let baseOffset = indexDiff * screenWidth
 
         // Only show adjacent tabs (current ± 1) for performance
-        if abs(indexDiff) > 1 && gestureOffset == 0 {
-            return baseOffset // Off-screen, won't be visible
+        if abs(indexDiff) > 1 && dragOffset == 0 {
+            return baseOffset
         }
 
-        return baseOffset + gestureOffset
+        return baseOffset + dragOffset
     }
 
     private var isAtTabRoot: Bool {
@@ -151,7 +165,7 @@ struct MainTabView: View {
             ? min(currentTabIndex + 1, navigableTabs.count - 1)
             : max(currentTabIndex - 1, 0)
         guard nextIndex != currentTabIndex else { return }
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+        withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
             selectedTab = navigableTabs[nextIndex]
         }
     }
