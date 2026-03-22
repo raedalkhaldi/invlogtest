@@ -209,8 +209,7 @@ struct StoryViewerView: View {
                 url: videoUrl,
                 thumbnailUrl: entry.story.thumbnailUrl.flatMap { URL(string: $0) },
                 blurhash: entry.story.blurhash,
-                durationSecs: entry.story.durationSecs,
-                fillMode: true  // Fullscreen Reels-style
+                durationSecs: entry.story.durationSecs
             )
             .id(entry.story.id)
             .frame(width: size.width, height: size.height)
