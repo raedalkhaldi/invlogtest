@@ -174,13 +174,7 @@ struct CreatePostView: View {
                 }
             }
         }
-        .sheet(isPresented: $showVideoFilter, onDismiss: {
-            // Clean up if user cancelled without completing
-            if !mediaItems.contains(where: { if case .video = $0 { return true } else { return false } }) {
-                recordedVideoURL = nil
-                recordedVideoThumbnail = nil
-            }
-        }) {
+        .sheet(isPresented: $showVideoFilter) {
             if let videoURL = recordedVideoURL, let thumb = recordedVideoThumbnail {
                 NavigationStack {
                     VideoFilterView(videoURL: videoURL, thumbnail: thumb) { filteredURL, filteredThumb in
