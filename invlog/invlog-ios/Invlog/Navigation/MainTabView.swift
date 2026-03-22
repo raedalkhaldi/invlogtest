@@ -13,8 +13,8 @@ struct MainTabView: View {
     @State private var notificationsPath = NavigationPath()
     @State private var profilePath = NavigationPath()
 
-    // Smooth swipe state
-    @State private var dragOffset: CGFloat = 0
+    // Smooth swipe — @GestureState resets automatically, no re-render on release
+    @GestureState private var dragOffset: CGFloat = 0
 
     enum Tab: Int, CaseIterable {
         case feed
@@ -32,22 +32,26 @@ struct MainTabView: View {
                 // Content — smooth sliding tabs
                 ZStack {
                     ForEach(navigableTabs, id: \.rawValue) { tab in
-                        tabContent(for: tab)
-                            .frame(width: screenWidth)
-                            .offset(x: offsetForTab(tab, screenWidth: screenWidth))
+                        let tabIdx = navigableTabs.firstIndex(of: tab) ?? 0
+                        let distance = abs(tabIdx - currentTabIndex)
+                        // Only render current tab ± 1 for performance
+                        if distance <= 1 {
+                            tabContent(for: tab)
+                                .frame(width: screenWidth)
+                                .offset(x: offsetForTab(tab, screenWidth: screenWidth))
+                        }
                     }
                 }
                 .gesture(
                     isAtTabRoot ?
                     DragGesture(minimumDistance: 20, coordinateSpace: .local)
-                        .onChanged { value in
+                        .updating($dragOffset) { value, state, _ in
                             guard abs(value.translation.width) > abs(value.translation.height) * 1.2 else { return }
-                            // Rubber-band at edges
                             let raw = value.translation.width
                             if (currentTabIndex == 0 && raw > 0) || (currentTabIndex == navigableTabs.count - 1 && raw < 0) {
-                                dragOffset = raw * 0.3 // resistance at edges
+                                state = raw * 0.3 // rubber-band at edges
                             } else {
-                                dragOffset = raw
+                                state = raw
                             }
                         }
                         .onEnded { value in
@@ -55,23 +59,15 @@ struct MainTabView: View {
                             let velocity = value.predictedEndTranslation.width - value.translation.width
 
                             if value.translation.width + velocity < -threshold, currentTabIndex < navigableTabs.count - 1 {
-                                // Swipe left → next tab
-                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
-                                    dragOffset = 0
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
                                     selectedTab = navigableTabs[currentTabIndex + 1]
                                 }
                             } else if value.translation.width + velocity > threshold, currentTabIndex > 0 {
-                                // Swipe right → previous tab
-                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
-                                    dragOffset = 0
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
                                     selectedTab = navigableTabs[currentTabIndex - 1]
                                 }
-                            } else {
-                                // Snap back
-                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
-                                    dragOffset = 0
-                                }
                             }
+                            // No snap-back needed — @GestureState auto-resets to 0
                         }
                     : nil
                 )

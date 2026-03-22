@@ -7,27 +7,34 @@ struct PostCardView: View {
     var onCommentAdded: (() -> Void)?
     var onDeleted: (() -> Void)?
     @EnvironmentObject private var appState: AppState
+
+    // MARK: - Consolidated State (performance: fewer re-render triggers)
     @State private var isLiked: Bool
     @State private var likeCount: Int
     @State private var commentCount: Int
     @State private var isBookmarked: Bool
-    @State private var showShareSheet = false
-    @State private var showComments = false
-    @State private var showDeleteConfirm = false
-    @State private var showEditSheet = false
-    @State private var showBlockConfirm = false
     @State private var isDeleted = false
-    @State private var navigateToProfile = false
     @State private var isLikeInFlight = false
     @State private var showHeartBurst = false
-    @State private var showLikedBy = false
-    @State private var showPostStats = false
-    @State private var navigateToMention: String? = nil
     @State private var showReactionPicker = false
     @State private var selectedReaction: String? = nil
-    @State private var showQuickActions = false
-    @State private var showPlacePeek = false
+
+    // Navigation
+    @State private var navigateToProfile = false
+    @State private var navigateToMention: String? = nil
     @State private var navigateToRestaurant = false
+
+    // Single sheet + alert enum (replaces 9 separate sheet/alert booleans)
+    enum ActiveSheet: String, Identifiable {
+        case share, comments, edit, quickActions, placePeek, likedBy, postStats
+        var id: String { rawValue }
+    }
+    enum ActiveAlert: String, Identifiable {
+        case deletePost, blockUser
+        var id: String { rawValue }
+    }
+    @State private var activeSheet: ActiveSheet? = nil
+    @State private var activeAlert: ActiveAlert? = nil
 
     private var isOwnPost: Bool {
         post.authorId == appState.currentUser?.id
@@ -117,7 +124,7 @@ struct PostCardView: View {
 
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        showQuickActions = true
+                        activeSheet = .quickActions
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 14, weight: .semibold))
@@ -170,7 +177,7 @@ struct PostCardView: View {
                                         Text("\(likeCount)")
                                             .font(InvlogTheme.caption(11, weight: .bold))
                                             .foregroundColor(.white)
-                                            .onTapGesture { showLikedBy = true }
+                                            .onTapGesture { activeSheet = .likedBy }
                                     }
                                 }
                             }
@@ -179,7 +186,7 @@ struct PostCardView: View {
 
                             // Comment
                             Button {
-                                showComments = true
+                                activeSheet = .comments
                             } label: {
                                 VStack(spacing: 2) {
                                     Image(systemName: "bubble.right")
@@ -197,7 +204,7 @@ struct PostCardView: View {
 
                             // Share
                             Button {
-                                showShareSheet = true
+                                activeSheet = .share
                             } label: {
                                 Image(systemName: "paperplane")
                                     .font(.system(size: 22))
@@ -255,7 +262,7 @@ struct PostCardView: View {
 
                     if commentCount > 2 {
                         Button {
-                            showComments = true
+                            activeSheet = .comments
                         } label: {
                             Text("View all \(commentCount) comments")
                                 .font(InvlogTheme.caption(13))
@@ -269,7 +276,7 @@ struct PostCardView: View {
                 .padding(.bottom, InvlogTheme.Spacing.xs)
             } else if commentCount > 0 {
                 Button {
-                    showComments = true
+                    activeSheet = .comments
                 } label: {
                     Text("View \(commentCount == 1 ? "1 comment" : "all \(commentCount) comments")")
                         .font(InvlogTheme.caption(13))
@@ -334,74 +341,67 @@ struct PostCardView: View {
             }
         )
         .invlogCard()
-        .onChange(of: showComments) { _ in
-            if showReactionPicker { showReactionPicker = false }
-        }
-        .onChange(of: showShareSheet) { _ in
-            if showReactionPicker { showReactionPicker = false }
-        }
-        .onChange(of: showQuickActions) { _ in
+        .onChange(of: activeSheet?.id) { _ in
             if showReactionPicker { showReactionPicker = false }
         }
         .opacity(isDeleted ? 0 : 1)
         .frame(height: isDeleted ? 0 : nil)
         .clipped()
-        .sheet(isPresented: $showShareSheet) {
-            CustomShareSheet(post: post)
-        }
-        .sheet(isPresented: $showComments) {
-            CommentsSheetView(post: post, commentCount: $commentCount, onCommentAdded: onCommentAdded)
-        }
-        .sheet(isPresented: $showEditSheet) {
-            EditPostSheet(post: post)
-        }
-        .sheet(isPresented: $showQuickActions) {
-            PostQuickActionsSheet(
-                post: post,
-                isOwnPost: isOwnPost,
-                onEdit: { showEditSheet = true },
-                onDelete: { showDeleteConfirm = true },
-                onShare: { showShareSheet = true },
-                onCopyLink: { UIPasteboard.general.string = "https://invlog.app/post/\(post.id)" },
-                onBookmark: { toggleBookmark() },
-                onReport: { /* TODO: report API */ }
-            )
-        }
-        .sheet(isPresented: $showPlacePeek) {
-            if let restaurant = post.restaurant {
-                PlacePeekSheet(restaurant: restaurant) {
-                    navigateToRestaurant = true
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .share:
+                CustomShareSheet(post: post)
+            case .comments:
+                CommentsSheetView(post: post, commentCount: $commentCount, onCommentAdded: onCommentAdded)
+            case .edit:
+                EditPostSheet(post: post)
+            case .quickActions:
+                PostQuickActionsSheet(
+                    post: post,
+                    isOwnPost: isOwnPost,
+                    onEdit: { activeSheet = .edit },
+                    onDelete: { activeAlert = .deletePost },
+                    onShare: { activeSheet = .share },
+                    onCopyLink: { UIPasteboard.general.string = "https://invlog.app/post/\(post.id)" },
+                    onBookmark: { toggleBookmark() },
+                    onReport: { /* TODO */ }
+                )
+            case .placePeek:
+                if let restaurant = post.restaurant {
+                    PlacePeekSheet(restaurant: restaurant) {
+                        navigateToRestaurant = true
+                    }
                 }
+            case .likedBy:
+                LikedBySheet(postId: post.id)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            case .postStats:
+                PostStatsSheet(post: post, likeCount: likeCount, commentCount: commentCount)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
             }
         }
-        .sheet(isPresented: $showLikedBy) {
-            LikedBySheet(postId: post.id)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showPostStats) {
-            PostStatsSheet(post: post, likeCount: likeCount, commentCount: commentCount)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .alert("Delete Post", isPresented: $showDeleteConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                Task { await deletePost() }
+        .alert(
+            activeAlert == .deletePost ? "Delete Post" : "Block User?",
+            isPresented: Binding(get: { activeAlert != nil }, set: { if !$0 { activeAlert = nil } })
+        ) {
+            Button("Cancel", role: .cancel) { activeAlert = nil }
+            Button(activeAlert == .deletePost ? "Delete" : "Block", role: .destructive) {
+                if activeAlert == .deletePost {
+                    Task { await deletePost() }
+                } else {
+                    Task {
+                        try? await APIClient.shared.requestVoid(.blockUser(id: post.authorId))
+                        isDeleted = true
+                    }
+                }
+                activeAlert = nil
             }
         } message: {
-            Text("Are you sure you want to delete this post? This action cannot be undone.")
-        }
-        .alert("Block User?", isPresented: $showBlockConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Block", role: .destructive) {
-                Task {
-                    try? await APIClient.shared.requestVoid(.blockUser(id: post.authorId))
-                    isDeleted = true
-                }
-            }
-        } message: {
-            Text("They won't be able to see your posts, and you won't see theirs.")
+            Text(activeAlert == .deletePost
+                ? "Are you sure you want to delete this post? This action cannot be undone."
+                : "They won't be able to see your posts, and you won't see theirs.")
         }
     }
 
@@ -483,7 +483,7 @@ struct PostCardView: View {
 
                 if likeCount > 0 {
                     Button {
-                        showLikedBy = true
+                        activeSheet = .likedBy
                     } label: {
                         Text("\(likeCount)")
                             .font(InvlogTheme.caption(13, weight: .semibold))
@@ -510,7 +510,7 @@ struct PostCardView: View {
             }
 
             Button {
-                showComments = true
+                activeSheet = .comments
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "bubble.right")
@@ -525,7 +525,7 @@ struct PostCardView: View {
             .accessibilityLabel(commentCount > 0 ? "\(commentCount) comments" : "Add a comment")
 
             Button {
-                showShareSheet = true
+                activeSheet = .share
             } label: {
                 Image(systemName: "paperplane")
                     .foregroundColor(Color.brandTextSecondary)
@@ -572,7 +572,7 @@ struct PostCardView: View {
                 .lineLimit(1)
 
                 Button {
-                    showPlacePeek = true
+                    activeSheet = .placePeek
                 } label: {
                     Text(placeName)
                         .font(InvlogTheme.body(14, weight: .bold))
