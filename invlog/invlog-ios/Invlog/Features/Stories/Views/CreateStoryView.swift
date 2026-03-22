@@ -158,19 +158,30 @@ struct CreateStoryView: View {
     private var mediaPreviewScreen: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Video preview with black background (proper aspect ratio)
+                // Media preview — tall for video (Reels-style), fitted for photos
                 GeometryReader { geo in
                     ZStack {
                         Color.black
 
                         if isVideo, let videoURL = selectedVideoURL {
+                            // Fullscreen video preview (Reels-style)
                             StoryVideoPreview(url: videoURL)
                                 .frame(width: geo.size.width, height: geo.size.height)
                         } else if let image = selectedImage {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: geo.size.width, height: geo.size.height)
+                            // Photo with blurred background (no stretching)
+                            ZStack {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: geo.size.width, height: geo.size.height)
+                                    .clipped()
+                                    .blur(radius: 20)
+                                    .overlay(Color.black.opacity(0.3))
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: geo.size.width, height: geo.size.height)
+                            }
                         }
 
                         // Sticker overlays on preview
@@ -180,7 +191,7 @@ struct CreateStoryView: View {
                     }
                     .onAppear { stickerPreviewSize = geo.size }
                 }
-                .frame(height: UIScreen.main.bounds.height * 0.45)
+                .frame(height: isVideo ? UIScreen.main.bounds.height * 0.65 : UIScreen.main.bounds.height * 0.5)
                 .clipped()
 
                 // Filter strip (photos and videos)

@@ -8,6 +8,7 @@ struct AutoPlayVideoView: View {
     let thumbnailUrl: URL?
     let blurhash: String?
     var durationSecs: Double?
+    var fillMode: Bool = false  // true = resizeAspectFill (Reels-style)
 
     @State private var player: AVPlayer?
     @State private var isPlayerReady = false
@@ -38,7 +39,7 @@ struct AutoPlayVideoView: View {
                     } else {
                         player.pause()
                     }
-                })
+                }, fillMode: fillMode)
                 .opacity(isPlayerReady ? 1 : 0)
             }
 
@@ -259,9 +260,10 @@ struct AutoPlayVideoView: View {
 private struct VideoPlayerView: UIViewRepresentable {
     let player: AVPlayer
     let onVisibilityChanged: (Bool) -> Void
+    var fillMode: Bool = false
 
     func makeUIView(context: Context) -> PlayerUIView {
-        let view = PlayerUIView(player: player)
+        let view = PlayerUIView(player: player, fillMode: fillMode)
         view.onVisibilityChanged = onVisibilityChanged
         return view
     }
@@ -278,11 +280,11 @@ private class PlayerUIView: UIView {
     private var displayLink: CADisplayLink?
     private var wasVisible = false
 
-    init(player: AVPlayer) {
+    init(player: AVPlayer, fillMode: Bool = false) {
         playerLayer = AVPlayerLayer(player: player)
         super.init(frame: .zero)
         backgroundColor = .black
-        playerLayer.videoGravity = .resizeAspect
+        playerLayer.videoGravity = fillMode ? .resizeAspectFill : .resizeAspect
         playerLayer.backgroundColor = UIColor.black.cgColor
         layer.addSublayer(playerLayer)
     }
